@@ -1,0 +1,439 @@
+<!doctype html>
+<html lang="pt-BR">
+  <head>
+    <meta charset="UTF-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+    <title>Assistente Financeiro da Casa</title>
+    <meta name="theme-color" content="#00a651" />
+    <meta name="apple-mobile-web-app-capable" content="yes" />
+    <meta name="apple-mobile-web-app-title" content="Financeiro" />
+    <meta name="apple-mobile-web-app-status-bar-style" content="default" />
+    <link rel="manifest" href="./manifest.json" />
+    <link rel="apple-touch-icon" href="./icons/apple-touch-icon.png" />
+    <link rel="stylesheet" href="./styles.css" />
+  </head>
+  <body>
+    <section class="auth-screen" id="authScreen" aria-label="Entrar no app">
+      <form class="auth-card" id="authForm">
+        <div class="brand-mark">AF</div>
+        <div>
+          <p class="eyebrow">Assistente Financeiro</p>
+          <h1>Entre no seu perfil</h1>
+          <p>Use seu nome e um PIN simples para identificar quem esta usando o controle familiar.</p>
+        </div>
+        <label class="field">
+          <span>Nome</span>
+          <input id="authName" autocomplete="name" required />
+        </label>
+        <label class="field">
+          <span>Senha ou PIN</span>
+          <input id="authPin" autocomplete="current-password" type="password" required />
+        </label>
+        <button type="submit">Entrar ou criar perfil</button>
+        <small id="authFeedback"></small>
+      </form>
+    </section>
+
+    <div class="app-shell">
+      <aside class="sidebar">
+        <div class="brand">
+          <div class="brand-mark">AF</div>
+          <div>
+            <strong>Assistente Financeiro</strong>
+            <span>Controle mensal da casa</span>
+          </div>
+        </div>
+
+        <label class="field">
+          <span>Mês</span>
+          <select id="monthSelect"></select>
+        </label>
+
+        <label class="field">
+          <span>Visão financeira</span>
+          <select id="personSelect"></select>
+        </label>
+
+        <div class="month-actions">
+          <button id="createNextMonthBtn" type="button">Criar próximo mês</button>
+          <button class="secondary" id="editMonthBtn" type="button">Editar mês</button>
+        </div>
+
+        <button class="secondary full" id="managePeopleBtn" type="button">Editar pessoas</button>
+
+        <nav class="nav-tabs" aria-label="Seções">
+          <button class="nav-tab active" data-view="dashboard" type="button"><span>⌂</span>Painel</button>
+          <button class="nav-tab" data-view="transactions" type="button"><span>↕</span>Gastos</button>
+          <button class="nav-tab" data-view="priorities" type="button"><span>★</span>Prioridades</button>
+          <button class="nav-tab" data-view="assistant" type="button"><span>✦</span>IA</button>
+          <button class="nav-tab" data-view="settings" type="button"><span>⚙</span>Config</button>
+        </nav>
+
+        <div class="sync-box">
+          <strong>Minha casa e pai da namorada</strong>
+          <p>Use a visao financeira para alternar entre os gastos da sua casa e os gastos que ela administra para o pai.</p>
+          <div class="sync-actions">
+            <button id="exportBtn" type="button">Exportar</button>
+            <label class="import-label">
+              Importar
+              <input id="importInput" type="file" accept="application/json" />
+            </label>
+          </div>
+          <button class="secondary full" id="unlockEncryptedBtn" type="button">Desbloquear dados</button>
+        </div>
+      </aside>
+
+      <main class="main">
+        <header class="topbar">
+          <div>
+            <p class="eyebrow">Hoje: <span id="todayLabel"></span></p>
+            <h1 id="greetingTitle">Olá, controle sua casa</h1>
+            <div class="context-pills">
+              <span id="activeMonthPill"></span>
+              <span id="activePersonPill"></span>
+            </div>
+          </div>
+          <div class="topbar-avatar" aria-hidden="true">AF</div>
+          <div class="topbar-actions">
+            <button id="resetDemoBtn" class="ghost" type="button">Restaurar dados da planilha</button>
+            <button id="addExpenseBtn" type="button">Adicionar gasto</button>
+            <button id="logoutBtn" class="ghost" type="button">Sair</button>
+          </div>
+        </header>
+
+        <section class="view active" id="dashboardView">
+          <section class="panel month-panel">
+            <div class="panel-head">
+              <h2>Histórico de meses</h2>
+              <span>toque para abrir</span>
+            </div>
+            <div id="monthTimeline" class="month-timeline"></div>
+          </section>
+
+          <div class="metrics-grid">
+            <article class="metric">
+              <span>Orçamento mensal</span>
+              <strong id="budgetMonth">R$ 0,00</strong>
+              <small id="totalMonthHint"></small>
+            </article>
+            <article class="metric">
+              <span>Total gasto</span>
+              <strong id="totalMonth">R$ 0,00</strong>
+              <small id="topCategoryHint">Maior categoria: --</small>
+            </article>
+            <article class="metric">
+              <span>Saldo restante</span>
+              <strong id="freeCash">R$ 0,00</strong>
+              <small id="dailyCash">R$ 0,00 por dia</small>
+            </article>
+            <article class="metric">
+              <span>Economia</span>
+              <strong id="savingTotal">R$ 0,00</strong>
+              <small id="paidPercent">0% resolvido</small>
+            </article>
+            <article class="metric">
+              <span>Falta pagar</span>
+              <strong id="pendingTotal">R$ 0,00</strong>
+              <small>Contas marcadas como A pagar</small>
+            </article>
+          </div>
+
+          <div class="dashboard-grid">
+            <section class="panel chart-panel">
+              <div class="panel-head">
+                <h2>Distribuição do mês</h2>
+                <span>por categoria</span>
+              </div>
+              <div class="donut-wrap">
+                <div id="categoryDonut" class="donut-chart" aria-label="Gráfico de gastos por categoria">
+                  <div class="donut-center">
+                    <span>Total</span>
+                    <strong id="donutTotal">R$ 0,00</strong>
+                  </div>
+                </div>
+                <div id="categoryLegend" class="chart-legend"></div>
+              </div>
+            </section>
+
+            <section class="panel">
+              <div class="panel-head">
+                <h2>Por categoria</h2>
+                <span id="categoryCount"></span>
+              </div>
+              <div id="categoryBars" class="bars"></div>
+            </section>
+
+            <section class="panel">
+              <div class="panel-head">
+                <h2>Divisão familiar</h2>
+                <span>por responsável</span>
+              </div>
+              <div id="personSplit" class="person-split"></div>
+            </section>
+
+            <section class="panel">
+              <div class="panel-head">
+                <h2>Comparação mensal</h2>
+                <span>histórico</span>
+              </div>
+              <div id="monthlyComparison" class="monthly-chart"></div>
+            </section>
+
+            <section class="panel">
+              <div class="panel-head">
+                <h2>Evolução dos gastos</h2>
+                <span>total por mês</span>
+              </div>
+              <div id="expenseTrend" class="trend-chart"></div>
+            </section>
+          </div>
+        </section>
+
+        <section class="view" id="transactionsView">
+          <div class="table-toolbar">
+            <input id="searchInput" type="search" placeholder="Buscar gasto, categoria ou observação" />
+            <select id="categoryFilter">
+              <option value="todos">Todas categorias</option>
+            </select>
+            <select id="statusFilter">
+              <option value="todos">Todos</option>
+              <option value="A pagar">A pagar</option>
+              <option value="Pago">Pago</option>
+            </select>
+            <select id="ownerFilter">
+              <option value="todos">Todos</option>
+            </select>
+          </div>
+          <div class="table-wrap">
+            <table>
+              <thead>
+                <tr>
+                  <th>Item</th>
+                  <th>Categoria</th>
+                  <th>Data</th>
+                  <th>Valor</th>
+                  <th>Status</th>
+                  <th>Pessoa</th>
+                  <th>Pagamento</th>
+                  <th>Observação</th>
+                  <th></th>
+                </tr>
+              </thead>
+              <tbody id="expenseTable"></tbody>
+            </table>
+          </div>
+        </section>
+
+        <section class="view" id="prioritiesView">
+          <div class="priority-layout">
+            <section class="panel">
+              <div class="panel-head">
+                <h2>Prioridades do mês</h2>
+                <button id="addPriorityBtn" class="secondary" type="button">Adicionar prioridade</button>
+              </div>
+              <div id="priorityList" class="priority-list"></div>
+            </section>
+            <section class="panel">
+              <div class="panel-head">
+                <h2>Plano sugerido</h2>
+                <span id="priorityBudget"></span>
+              </div>
+              <div id="priorityAdvice" class="advice-list"></div>
+            </section>
+          </div>
+        </section>
+
+        <section class="view" id="assistantView">
+          <div class="assistant-layout">
+            <section class="panel ai-panel">
+              <div class="panel-head">
+                <h2>Assistente IA</h2>
+                <span>análise local</span>
+              </div>
+              <div id="aiInsights" class="insights"></div>
+            </section>
+            <section class="panel chat-panel">
+              <div class="panel-head">
+                <h2>Pergunte ao orçamento</h2>
+                <span>ex.: posso pagar a prioridade 1?</span>
+              </div>
+              <div id="chatLog" class="chat-log"></div>
+              <form id="chatForm" class="chat-form">
+                <input id="chatInput" type="text" placeholder="Digite sua pergunta" autocomplete="off" />
+                <button type="submit">Enviar</button>
+              </form>
+            </section>
+          </div>
+        </section>
+
+        <section class="view" id="settingsView">
+          <div class="settings-layout">
+            <section class="panel">
+              <div class="panel-head">
+                <h2>Configurações</h2>
+                <span>dados e acesso</span>
+              </div>
+              <div class="settings-grid">
+                <div class="insight-card">
+                  <strong>Pessoas da casa</strong>
+                  <span>Controle os gastos compartilhados do casal sem isolar os dados.</span>
+                  <button class="secondary" type="button" onclick="openPeopleDialog()">Editar pessoas</button>
+                </div>
+                <div class="insight-card">
+                  <strong>Mês atual</strong>
+                  <span>Ajuste renda, repasse para casa e nome do mês selecionado.</span>
+                  <button class="secondary" type="button" onclick="openMonthDialog()">Editar mês</button>
+                </div>
+                <div class="insight-card">
+                  <strong>Backup</strong>
+                  <span>Use Exportar, Importar ou Desbloquear dados para carregar o histórico da planilha.</span>
+                  <button class="secondary" type="button" onclick="unlockPublishedData()">Desbloquear dados</button>
+                </div>
+                <div class="insight-card">
+                  <strong>Sessão</strong>
+                  <span>Saia do perfil atual para entrar em outro usuário neste aparelho.</span>
+                  <button class="secondary" type="button" onclick="logout()">Sair do perfil</button>
+                </div>
+              </div>
+            </section>
+          </div>
+        </section>
+      </main>
+    </div>
+
+    <dialog id="expenseDialog">
+      <form method="dialog" id="expenseForm" class="dialog-form">
+        <div class="dialog-header">
+          <h2 id="expenseDialogTitle">Adicionar gasto</h2>
+          <button class="dialog-close" type="button" data-close-dialog="expenseDialog" aria-label="Fechar">×</button>
+        </div>
+        <input type="hidden" id="expenseId" />
+        <label class="field">
+          <span>Descrição</span>
+          <input id="expenseName" required />
+        </label>
+        <label class="field">
+          <span>Data</span>
+          <input id="expenseDate" type="date" required />
+        </label>
+        <label class="field">
+          <span>Categoria</span>
+          <select id="expenseCategory"></select>
+        </label>
+        <label class="field">
+          <span>Valor</span>
+          <input id="expenseAmount" type="number" min="0" step="0.01" required />
+        </label>
+        <label class="field">
+          <span>Status</span>
+          <select id="expenseStatus">
+            <option>Pago</option>
+            <option>A pagar</option>
+          </select>
+        </label>
+        <label class="field">
+          <span>Responsável</span>
+          <select id="expenseOwner"></select>
+        </label>
+        <label class="field">
+          <span>Forma de pagamento</span>
+          <select id="expensePayment"></select>
+        </label>
+        <label class="field">
+          <span>Observação</span>
+          <textarea id="expenseNote" rows="3"></textarea>
+        </label>
+        <div class="dialog-actions">
+          <button class="ghost" value="cancel" type="button" id="cancelExpenseBtn">Cancelar</button>
+          <button value="default" type="submit">Salvar</button>
+        </div>
+      </form>
+    </dialog>
+
+    <dialog id="peopleDialog">
+      <form method="dialog" id="peopleForm" class="dialog-form">
+        <div class="dialog-header">
+        <h2>Editar pessoas</h2>
+          <button class="dialog-close" type="button" data-close-dialog="peopleDialog" aria-label="Fechar">×</button>
+        </div>
+        <label class="field">
+          <span>Pessoa 1</span>
+          <input id="personOneName" required />
+        </label>
+        <label class="field">
+          <span>Pessoa 2</span>
+          <input id="personTwoName" required />
+        </label>
+        <div class="dialog-actions">
+          <button class="ghost" value="cancel" type="button" id="cancelPeopleBtn">Cancelar</button>
+          <button value="default" type="submit">Salvar</button>
+        </div>
+      </form>
+    </dialog>
+
+    <dialog id="monthDialog">
+      <form method="dialog" id="monthForm" class="dialog-form">
+        <div class="dialog-header">
+          <h2>Editar mês</h2>
+          <button class="dialog-close" type="button" data-close-dialog="monthDialog" aria-label="Fechar">×</button>
+        </div>
+        <label class="field">
+          <span>Nome do mês</span>
+          <input id="monthLabelInput" required />
+        </label>
+        <label class="field">
+          <span>Renda do mês</span>
+          <input id="monthIncomeInput" type="number" min="0" step="0.01" required />
+        </label>
+        <label class="field">
+          <span>Valor repassado para casa</span>
+          <input id="monthContributionInput" type="number" min="0" step="0.01" />
+        </label>
+        <div class="dialog-actions">
+          <button class="ghost" value="cancel" type="button" id="cancelMonthBtn">Cancelar</button>
+          <button value="default" type="submit">Salvar</button>
+        </div>
+      </form>
+    </dialog>
+
+    <dialog id="priorityDialog">
+      <form method="dialog" id="priorityForm" class="dialog-form">
+        <div class="dialog-header">
+          <h2 id="priorityDialogTitle">Adicionar prioridade</h2>
+          <button class="dialog-close" type="button" data-close-dialog="priorityDialog" aria-label="Fechar">×</button>
+        </div>
+        <input type="hidden" id="priorityId" />
+        <label class="field">
+          <span>Item</span>
+          <input id="priorityName" required />
+        </label>
+        <label class="field">
+          <span>Valor</span>
+          <input id="priorityAmount" type="number" min="0" step="0.01" required />
+        </label>
+        <label class="field">
+          <span>Prioridade</span>
+          <select id="priorityRank">
+            <option value="1">1 - Alta</option>
+            <option value="2">2 - Média</option>
+            <option value="3">3 - Baixa</option>
+          </select>
+        </label>
+        <label class="field">
+          <span>Status</span>
+          <select id="priorityStatus">
+            <option>A pagar</option>
+            <option>Pago</option>
+            <option>Adiar</option>
+          </select>
+        </label>
+        <div class="dialog-actions">
+          <button class="ghost" value="cancel" type="button" id="cancelPriorityBtn">Cancelar</button>
+          <button value="default" type="submit">Salvar</button>
+        </div>
+      </form>
+    </dialog>
+
+    <script src="./app.js"></script>
+  </body>
+</html>
