@@ -1,8 +1,8 @@
 import { useMemo, useState } from "react";
 import { Copy, Pencil, Trash2, Search } from "lucide-react";
 
-import { categories } from "@/lib/finance/constants";
-import { categoryIcons, categoryLabel, expenseMatchesView, formatDate, money } from "@/lib/finance/calc";
+import { categories, categoryIcons } from "@/lib/finance/constants";
+import { categoryLabel, expenseMatchesView, formatDate, money } from "@/lib/finance/calc";
 import { useFinance } from "@/lib/finance/FinanceContext";
 
 import { SelectInput, TextInput } from "./forms";
