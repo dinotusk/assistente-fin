@@ -7,7 +7,7 @@ import {
   DrawerTitle,
 } from "@/components/ui/drawer";
 import { categories, paymentMethods } from "@/lib/finance/constants";
-import { categoryLabel, currentUserName, spouseName } from "@/lib/finance/calc";
+import { categoryLabel, currentUserName, resolveViewOwner, spouseName } from "@/lib/finance/calc";
 import { useFinance } from "@/lib/finance/FinanceContext";
 import { uid } from "@/lib/finance/seed";
 import type { Expense, Priority } from "@/lib/finance/types";
@@ -27,11 +27,11 @@ function SheetShell({
 }) {
   return (
     <Drawer open={open} onOpenChange={onOpenChange}>
-      <DrawerContent className="mx-auto max-w-[440px] border-border bg-card">
+      <DrawerContent className="mx-auto flex max-h-[88svh] max-w-[440px] flex-col border-border bg-card">
         <DrawerHeader className="px-5 pb-1 pt-2 text-left">
           <DrawerTitle className="font-display text-lg font-bold text-foreground">{title}</DrawerTitle>
         </DrawerHeader>
-        <div className="max-h-[76dvh] overflow-y-auto px-5 pb-8 pt-2">{children}</div>
+        <div className="min-h-0 flex-1 overflow-y-auto overscroll-contain px-5 pb-[max(1rem,env(safe-area-inset-bottom))] pt-2">{children}</div>
       </DrawerContent>
     </Drawer>
   );
@@ -39,7 +39,7 @@ function SheetShell({
 
 function Actions({ onCancel, submitLabel = "Salvar" }: { onCancel: () => void; submitLabel?: string }) {
   return (
-    <div className="mt-5 flex gap-3">
+    <div className="sticky bottom-0 -mx-5 mt-5 flex gap-3 border-t border-border/70 bg-card/95 px-5 py-3 backdrop-blur">
       <button
         type="button"
         onClick={onCancel}
@@ -69,12 +69,12 @@ export function ExpenseDialog({
 }) {
   const { month, state, saveExpense } = useFinance();
   const editing = editingId ? month.expenses.find((e) => e.id === editingId) : null;
-  const [form, setForm] = useState<Expense>(blankExpense(state.activeMonth));
+  const [form, setForm] = useState<Expense>(blankExpense(state.activeMonth, state.activePerson));
 
   useEffect(() => {
     if (!open) return;
-    setForm(editing ? { ...editing } : blankExpense(state.activeMonth));
-  }, [open, editingId, state.activeMonth]);
+    setForm(editing ? { ...editing } : blankExpense(state.activeMonth, state.activePerson));
+  }, [open, editingId, state.activeMonth, state.activePerson]);
 
   function submit(event: React.FormEvent) {
     event.preventDefault();
@@ -98,9 +98,10 @@ export function ExpenseDialog({
           <Field label="Valor">
             <TextInput
               type="number"
+              inputMode="decimal"
               min="0"
               step="0.01"
-              value={form.amount}
+              value={form.amount || ""}
               onChange={(e) => setForm({ ...form, amount: Number(e.target.value || 0) })}
               required
             />
@@ -148,7 +149,7 @@ export function ExpenseDialog({
   );
 }
 
-function blankExpense(monthKey: string): Expense {
+function blankExpense(monthKey: string, activePerson = "me"): Expense {
   return {
     id: uid(),
     name: "",
@@ -156,7 +157,7 @@ function blankExpense(monthKey: string): Expense {
     category: "Casa",
     amount: 0,
     status: "A pagar",
-    owner: currentUserName(),
+    owner: resolveViewOwner(activePerson) || currentUserName(),
     paymentMethod: "Pix",
     note: "",
   };
@@ -198,9 +199,10 @@ export function PriorityDialog({
         <Field label="Valor">
           <TextInput
             type="number"
+            inputMode="decimal"
             min="0"
             step="0.01"
-            value={form.amount}
+            value={form.amount || ""}
             onChange={(e) => setForm({ ...form, amount: Number(e.target.value || 0) })}
             required
           />
@@ -233,42 +235,76 @@ function blankPriority(): Priority {
 
 /* ---------------- Month ---------------- */
 export function MonthDialog({ open, onOpenChange }: { open: boolean; onOpenChange: (v: boolean) => void }) {
-  const { month, saveMonthSettings } = useFinance();
+  const { month, state, saveMonthSettings } = useFinance();
   const [label, setLabel] = useState("");
   const [income, setIncome] = useState(0);
   const [contribution, setContribution] = useState(0);
+  const [profileBudgets, setProfileBudgets] = useState<Record<string, number>>({});
 
   useEffect(() => {
     if (!open) return;
     setLabel(month.label);
     setIncome(month.income);
     setContribution(month.houseContribution || 0);
-  }, [open]);
+    setProfileBudgets(month.profileBudgets || {});
+  }, [open, month]);
 
   function submit(event: React.FormEvent) {
     event.preventDefault();
-    saveMonthSettings(label, income, contribution);
+    saveMonthSettings(label, income, contribution, profileBudgets);
     onOpenChange(false);
   }
 
+  function setProfileBudget(profile: string, value: number) {
+    setProfileBudgets((current) => ({ ...current, [profile]: value }));
+  }
+
   return (
-    <SheetShell open={open} onOpenChange={onOpenChange} title="Editar mês">
+    <SheetShell open={open} onOpenChange={onOpenChange} title="Editar mes">
       <form onSubmit={submit} className="flex flex-col gap-4">
-        <Field label="Nome do mês">
+        <Field label="Nome do mes">
           <TextInput value={label} onChange={(e) => setLabel(e.target.value)} required />
         </Field>
-        <Field label="Renda do mês (Minha casa)">
-          <TextInput type="number" min="0" step="0.01" value={income} onChange={(e) => setIncome(Number(e.target.value || 0))} required />
+        <Field label={`Orcamento (${state.people[0] || "Perfil 1"})`}>
+          <TextInput
+            type="number"
+            inputMode="decimal"
+            min="0"
+            step="0.01"
+            value={income || ""}
+            onChange={(e) => setIncome(Number(e.target.value || 0))}
+            required
+          />
         </Field>
-        <Field label="Valor repassado para casa (Pai da namorada)">
-          <TextInput type="number" min="0" step="0.01" value={contribution} onChange={(e) => setContribution(Number(e.target.value || 0))} />
-        </Field>
+        {state.people[1] ? (
+          <Field label={`Orcamento (${state.people[1]})`}>
+            <TextInput
+              type="number"
+              inputMode="decimal"
+              min="0"
+              step="0.01"
+              value={contribution || ""}
+              onChange={(e) => setContribution(Number(e.target.value || 0))}
+            />
+          </Field>
+        ) : null}
+        {state.people.slice(2).map((person) => (
+          <Field key={person} label={`Orcamento (${person})`}>
+            <TextInput
+              type="number"
+              inputMode="decimal"
+              min="0"
+              step="0.01"
+              value={profileBudgets[person] || ""}
+              onChange={(e) => setProfileBudget(person, Number(e.target.value || 0))}
+            />
+          </Field>
+        ))}
         <Actions onCancel={() => onOpenChange(false)} />
       </form>
     </SheetShell>
   );
 }
-
 /* ---------------- People ---------------- */
 export function PeopleDialog({ open, onOpenChange }: { open: boolean; onOpenChange: (v: boolean) => void }) {
   const { state, savePeople } = useFinance();

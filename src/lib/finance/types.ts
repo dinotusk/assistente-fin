@@ -31,6 +31,7 @@ export interface MonthData {
   label: string;
   income: number;
   houseContribution: number;
+  profileBudgets?: Record<string, number>;
   planned?: boolean;
   expenses: Expense[];
   priorities: Priority[];

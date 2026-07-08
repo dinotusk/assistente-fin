@@ -101,6 +101,7 @@ export function expensesForView(monthData: MonthData, view: string): Expense[] {
 export function budgetForView(monthData: MonthData, view: string): number {
   if (view === VIEW_ALL) return Number(monthData.income || 0) + Number(monthData.houseContribution || 0);
   if (view === VIEW_SPOUSE) return Number(monthData.houseContribution || 0);
+  if (view !== VIEW_ME) return Number(monthData.profileBudgets?.[view] || 0);
   return Number(monthData.income || 0);
 }
 

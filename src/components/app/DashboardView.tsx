@@ -25,6 +25,7 @@ export function DashboardView() {
   const numbers = calc(month, view);
   const byCategory = getCategoryTotals(month, view);
   const budget = budgetForView(month, view);
+  const balance = getDashboardBalance(numbers.free);
 
   const chartEntries = chartMonthEntries(state, 6).map(([key, data]) => ({
     key,
@@ -48,7 +49,7 @@ export function DashboardView() {
           {[
             { label: "Gasto", value: numbers.total },
             { label: "Falta pagar", value: numbers.pending },
-            { label: "Saldo", value: numbers.free },
+            { label: balance.shortLabel, value: balance.amount },
           ].map((item) => (
             <div key={item.label} className="rounded-2xl bg-white/12 px-3 py-2.5">
               <span className="block text-[11px] font-medium opacity-85">{item.label}</span>
@@ -62,7 +63,7 @@ export function DashboardView() {
       <div className="grid grid-cols-2 gap-3">
         <MetricCard label="Total gasto" value={money(numbers.total)} hint={numbers.topCategory ? `Maior: ${categoryLabel(numbers.topCategory.category)}` : "Sem categoria"} />
         <MetricCard label="Economia" value={money(numbers.saving)} hint={`${Math.round(numbers.paidRate * 100)}% resolvido`} />
-        <MetricCard label="Saldo restante" value={money(numbers.free)} hint={`${money(numbers.free / numbers.daysLeft)} por dia`} />
+        <MetricCard label={balance.label} value={money(balance.amount)} hint={balance.hint(numbers.daysLeft)} />
         <MetricCard label="Falta pagar" value={money(numbers.pending)} hint="Contas A pagar" />
       </div>
 
@@ -148,4 +149,23 @@ function MetricCard({ label, value, hint }: { label: string; value: string; hint
       <small className="mt-0.5 block truncate text-[11px] text-muted-foreground">{hint}</small>
     </div>
   );
+}
+
+function getDashboardBalance(free: number) {
+  if (free < 0) {
+    const amount = Math.abs(free);
+    return {
+      label: "Ajuste necessario",
+      shortLabel: "Ajustar",
+      amount,
+      hint: () => "Revise contas e gastos pendentes",
+    };
+  }
+
+  return {
+    label: "Saldo restante",
+    shortLabel: "Saldo",
+    amount: free,
+    hint: (daysLeft: number) => `${money(free / daysLeft)} por dia`,
+  };
 }

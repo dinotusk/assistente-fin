@@ -40,7 +40,7 @@ interface FinanceContextValue {
   setActiveMonth: (key: string) => void;
   setActivePerson: (view: string) => void;
   createNextMonth: () => string;
-  saveMonthSettings: (label: string, income: number, houseContribution: number) => void;
+  saveMonthSettings: (label: string, income: number, houseContribution: number, profileBudgets?: Record<string, number>) => void;
   savePeople: (people: string[]) => void;
   saveExpense: (expense: Expense, id?: string) => void;
   deleteExpense: (id: string) => void;
@@ -143,8 +143,8 @@ export function FinanceProvider({ children }: { children: ReactNode }) {
   }, [state, persist]);
 
   const saveMonthSettings = useCallback(
-    (label: string, income: number, houseContribution: number) => {
-      const updated: MonthData = { ...month, label: label.trim(), income, houseContribution };
+    (label: string, income: number, houseContribution: number, profileBudgets: Record<string, number> = {}) => {
+      const updated: MonthData = { ...month, label: label.trim(), income, houseContribution, profileBudgets };
       persist({ ...state, months: { ...state.months, [state.activeMonth]: updated } });
     },
     [state, month, persist],
@@ -157,10 +157,40 @@ export function FinanceProvider({ children }: { children: ReactNode }) {
         .filter(Boolean)
         .filter((person, index, list) => list.findIndex((item) => item.toLocaleLowerCase("pt-BR") === person.toLocaleLowerCase("pt-BR")) === index);
       const newPeople = clean.length ? clean : [currentUserName()];
+      const oldPeople = state.people;
+      const renamedExtras = oldPeople
+        .map((oldName, index) => ({ oldName, newName: newPeople[index], index }))
+        .filter(({ index, oldName, newName }) => index >= 2 && oldName && newName && oldName !== newName);
+      const months = Object.fromEntries(
+        Object.entries(state.months).map(([monthKey, data]) => {
+          const profileBudgets = { ...(data.profileBudgets || {}) };
+          renamedExtras.forEach(({ oldName, newName }) => {
+            if (profileBudgets[oldName] !== undefined) {
+              profileBudgets[newName] = profileBudgets[oldName];
+              delete profileBudgets[oldName];
+            }
+          });
+          return [
+            monthKey,
+            {
+              ...data,
+              profileBudgets,
+              expenses: data.expenses.map((expense) => {
+                const renamed = renamedExtras.find((item) => expense.owner === item.oldName);
+                return renamed ? { ...expense, owner: renamed.newName } : expense;
+              }),
+              priorities: data.priorities.map((priority) => {
+                const renamed = renamedExtras.find((item) => priority.responsavel === item.oldName);
+                return renamed ? { ...priority, responsavel: renamed.newName } : priority;
+              }),
+            },
+          ];
+        }),
+      );
       const activePerson = [VIEW_ALL, VIEW_ME, VIEW_SPOUSE, ...newPeople].includes(state.activePerson)
         ? state.activePerson
         : VIEW_ME;
-      persist({ ...state, people: newPeople, activePerson });
+      persist({ ...state, people: newPeople, months, activePerson });
     },
     [state, persist],
   );

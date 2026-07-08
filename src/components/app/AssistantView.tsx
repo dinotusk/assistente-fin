@@ -227,7 +227,8 @@ export function AssistantView({ onAddExpense }: AssistantViewProps) {
   ];
 
   const dueLabel = dueToday ? dueToday.name : biggestPending?.name || "Nada urgente";
-  const health = numbers.free < 0 ? "Atenção" : numbers.pending > numbers.free ? "Cautela" : "Saudável";
+  const balanceState = getBalanceState(numbers.free, numbers.pending);
+  const health = balanceState.status;
 
   return (
     <div className="flex flex-col gap-4">
@@ -247,23 +248,36 @@ export function AssistantView({ onAddExpense }: AssistantViewProps) {
               {view === VIEW_ALL ? "Visão consolidada da casa" : `Visão: ${viewLabelForPeople(view, state.people)}`}
             </p>
           </div>
-          <div className="flex h-12 w-12 shrink-0 items-center justify-center rounded-2xl bg-white/16 ring-1 ring-white/15">
+          <button
+            type="button"
+            onClick={() => chatRef.current?.scrollIntoView({ behavior: "smooth", block: "start" })}
+            className="flex h-12 w-12 shrink-0 items-center justify-center rounded-2xl bg-white/16 ring-1 ring-white/15 transition active:scale-95"
+            aria-label="Abrir conversa"
+          >
             <MessageCircle className="h-6 w-6" />
-          </div>
+          </button>
         </div>
 
-        <div className="relative mt-6 rounded-[1.65rem] bg-white/13 p-4 ring-1 ring-white/14 backdrop-blur">
+        <button
+          type="button"
+          onClick={() => askQuestion(numbers.free < 0 ? "Como posso reorganizar meu mes?" : "Quanto posso gastar com seguranca?")}
+          className="relative mt-6 w-full rounded-[1.65rem] bg-white/13 p-4 text-left ring-1 ring-white/14 backdrop-blur transition active:scale-[0.99]"
+        >
           <span className="flex items-center gap-1.5 text-[11px] font-semibold uppercase tracking-[0.14em] text-white/72">
             <PiggyBank className="h-3.5 w-3.5" />
-            Saldo disponível
+            {balanceState.label}
           </span>
-          <strong className="tnum mt-1 block font-display text-[2rem] font-bold leading-none">{money(numbers.free)}</strong>
+          <strong className="tnum mt-1 block font-display text-[2rem] font-bold leading-none">{balanceState.value}</strong>
+          <p className="mt-2 text-xs leading-relaxed text-white/72">{balanceState.description}</p>
+          <span className="mt-3 inline-flex rounded-full bg-white/12 px-3 py-1 text-[11px] font-bold text-white/78">
+            Toque para analisar
+          </span>
           <div className="mt-4 grid grid-cols-3 gap-2">
             <HeroStat icon={<CalendarClock className="h-4 w-4" />} label="Hoje vence" value={dueLabel} />
             <HeroStat icon={<WalletCards className="h-4 w-4" />} label="Semana" value={money(weeklyAllowance)} />
             <HeroStat icon={<ShieldCheck className="h-4 w-4" />} label="Status" value={health} />
           </div>
-        </div>
+        </button>
       </section>
 
       <Panel className="p-3.5">
@@ -507,9 +521,38 @@ function timeGreeting(): string {
   return "Boa noite";
 }
 
+function getBalanceState(free: number, pending: number) {
+  if (free < 0) {
+    return {
+      label: "Ajuste necessario",
+      value: money(Math.abs(free)),
+      status: "Reorganizar",
+      description: pending > 0
+        ? "O mes precisa de revisao. Veja o que pode ser adiado antes de assumir novos gastos."
+        : "Os gastos passaram do orcamento. Use o painel para decidir o que reduzir.",
+    };
+  }
+
+  if (pending > free) {
+    return {
+      label: "Saldo sob pressao",
+      value: money(free),
+      status: "Cautela",
+      description: "Ainda existe saldo, mas as contas pendentes exigem cuidado nas proximas compras.",
+    };
+  }
+
+  return {
+    label: "Saldo disponivel",
+    value: money(free),
+    status: "Saudavel",
+    description: "O mes esta dentro do planejado. Mantenha o ritmo antes de novas compras.",
+  };
+}
+
 function parseExpenseCommand(text: string, monthKey: string, owner: string): Expense | null {
   const normalized = normalizeText(text);
-  const looksLikeExpense = /\b(registra|registrar|gastei|paguei|comprei|lan[cc]a|adiciona|adicionar)\b/.test(normalized);
+  const looksLikeExpense = /\b(registra|registre|registrar|gastei|paguei|comprei|lanca|lancar|anota|anote|coloca|coloque|cadastro|cadastre|adiciona|adicionar|salva|salvar)\b/.test(normalized);
   if (!looksLikeExpense) return null;
 
   const valueMatch = text.match(/(?:r\$\s*)?(\d{1,3}(?:\.\d{3})*(?:,\d{1,2})?|\d+(?:[.,]\d{1,2})?)/i);
@@ -518,7 +561,7 @@ function parseExpenseCommand(text: string, monthKey: string, owner: string): Exp
 
   const rawName = text
     .replace(valueMatch?.[0] || "", "")
-    .replace(/\b(registra|registrar|gastei|paguei|comprei|lanca|lança|adiciona|adicionar|gasto|despesa|de|com|no|na|em|por|r\$)\b/gi, " ")
+    .replace(/\b(registra|registre|registrar|gastei|paguei|comprei|lanca|lança|lancar|lançar|anota|anote|coloca|coloque|cadastro|cadastre|adiciona|adicionar|salva|salvar|compra|gasto|despesa|de|com|no|na|em|por|r\$)\b/gi, " ")
     .replace(/\s+/g, " ")
     .trim();
   const name = rawName || "Gasto informado pelo chat";
