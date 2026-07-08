@@ -124,8 +124,11 @@ export function ExpenseDialog({
           </Field>
           <Field label="Responsável">
             <SelectInput value={form.owner} onChange={(e) => setForm({ ...form, owner: e.target.value })}>
-              <option value={currentUserName()}>{state.people[0] || currentUserName()}</option>
-              <option value={spouseName()}>{state.people[1] || spouseName()}</option>
+              {state.people.map((person, index) => (
+                <option key={`${person}-${index}`} value={index === 0 ? currentUserName() : index === 1 ? spouseName() : person}>
+                  {person}
+                </option>
+              ))}
             </SelectInput>
           </Field>
         </div>
@@ -269,33 +272,59 @@ export function MonthDialog({ open, onOpenChange }: { open: boolean; onOpenChang
 /* ---------------- People ---------------- */
 export function PeopleDialog({ open, onOpenChange }: { open: boolean; onOpenChange: (v: boolean) => void }) {
   const { state, savePeople } = useFinance();
-  const [one, setOne] = useState("");
-  const [two, setTwo] = useState("");
+  const [people, setPeople] = useState<string[]>([]);
 
   useEffect(() => {
     if (!open) return;
-    setOne(state.people[0] || "Minha casa");
-    setTwo(state.people[1] || "Pai da namorada");
-  }, [open]);
+    setPeople(state.people.length ? state.people : ["Perfil principal"]);
+  }, [open, state.people]);
 
   function submit(event: React.FormEvent) {
     event.preventDefault();
-    savePeople(one, two);
+    savePeople(people);
     onOpenChange(false);
   }
 
+  function updatePerson(index: number, value: string) {
+    setPeople((items) => items.map((item, itemIndex) => (itemIndex === index ? value : item)));
+  }
+
+  function addPerson() {
+    setPeople((items) => [...items, `Perfil ${items.length + 1}`]);
+  }
+
+  function removePerson(index: number) {
+    setPeople((items) => (items.length <= 1 ? items : items.filter((_, itemIndex) => itemIndex !== index)));
+  }
+
   return (
-    <SheetShell open={open} onOpenChange={onOpenChange} title="Editar pessoas">
+    <SheetShell open={open} onOpenChange={onOpenChange} title="Perfis financeiros">
       <form onSubmit={submit} className="flex flex-col gap-4">
         <p className="text-sm text-muted-foreground">
-          Defina como quer chamar cada visão financeira no app. Isso muda os nomes exibidos sem apagar ou misturar seus dados.
+          Crie as visoes que deseja acompanhar no filtro superior. Os gastos existentes continuam preservados.
         </p>
-        <Field label="Visão 1">
-          <TextInput value={one} onChange={(e) => setOne(e.target.value)} required />
-        </Field>
-        <Field label="Visão 2">
-          <TextInput value={two} onChange={(e) => setTwo(e.target.value)} required />
-        </Field>
+        {people.map((person, index) => (
+          <div key={index} className="grid grid-cols-[1fr_auto] gap-2">
+            <Field label={`Perfil ${index + 1}`}>
+              <TextInput value={person} onChange={(e) => updatePerson(index, e.target.value)} required />
+            </Field>
+            <button
+              type="button"
+              onClick={() => removePerson(index)}
+              disabled={people.length <= 1}
+              className="mt-6 h-12 rounded-xl border border-input bg-secondary px-3 text-xs font-bold text-muted-foreground disabled:opacity-35"
+            >
+              Remover
+            </button>
+          </div>
+        ))}
+        <button
+          type="button"
+          onClick={addPerson}
+          className="h-12 rounded-xl border border-dashed border-primary/35 bg-primary-soft text-sm font-bold text-primary"
+        >
+          Adicionar perfil
+        </button>
         <Actions onCancel={() => onOpenChange(false)} />
       </form>
     </SheetShell>

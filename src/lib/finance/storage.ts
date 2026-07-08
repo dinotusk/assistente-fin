@@ -99,7 +99,7 @@ export function migrateState(nextState: FinanceState, loginName = ""): FinanceSt
     data.houseContribution = Number(data.houseContribution || 0);
   });
   const migratedView = responsavelToView(nextState.activePerson);
-  nextState.activePerson = [VIEW_ALL, VIEW_ME, VIEW_SPOUSE].includes(migratedView) ? migratedView : VIEW_ME;
+  nextState.activePerson = [VIEW_ALL, VIEW_ME, VIEW_SPOUSE, ...nextState.people].includes(migratedView) ? migratedView : VIEW_ME;
   nextState.activeMonth = nextState.months[nextState.activeMonth]
     ? nextState.activeMonth
     : Object.keys(nextState.months)[0];

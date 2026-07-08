@@ -41,7 +41,7 @@ interface FinanceContextValue {
   setActivePerson: (view: string) => void;
   createNextMonth: () => string;
   saveMonthSettings: (label: string, income: number, houseContribution: number) => void;
-  savePeople: (personOne: string, personTwo: string) => void;
+  savePeople: (people: string[]) => void;
   saveExpense: (expense: Expense, id?: string) => void;
   deleteExpense: (id: string) => void;
   duplicateExpense: (id: string) => void;
@@ -113,7 +113,7 @@ export function FinanceProvider({ children }: { children: ReactNode }) {
 
   const setActivePerson = useCallback(
     (view: string) => {
-      if (![VIEW_ALL, VIEW_ME, VIEW_SPOUSE].includes(view)) return;
+      if (![VIEW_ALL, VIEW_ME, VIEW_SPOUSE, ...state.people].includes(view)) return;
       persist({ ...state, activePerson: view });
     },
     [state, persist],
@@ -151,12 +151,16 @@ export function FinanceProvider({ children }: { children: ReactNode }) {
   );
 
   const savePeople = useCallback(
-    (personOne: string, personTwo: string) => {
-      const newPeople = [
-        personOne.trim() || currentUserName(),
-        personTwo.trim() || spouseName(),
-      ];
-      persist({ ...state, people: newPeople });
+    (people: string[]) => {
+      const clean = people
+        .map((person) => person.trim())
+        .filter(Boolean)
+        .filter((person, index, list) => list.findIndex((item) => item.toLocaleLowerCase("pt-BR") === person.toLocaleLowerCase("pt-BR")) === index);
+      const newPeople = clean.length ? clean : [currentUserName()];
+      const activePerson = [VIEW_ALL, VIEW_ME, VIEW_SPOUSE, ...newPeople].includes(state.activePerson)
+        ? state.activePerson
+        : VIEW_ME;
+      persist({ ...state, people: newPeople, activePerson });
     },
     [state, persist],
   );
@@ -266,8 +270,7 @@ export function FinanceProvider({ children }: { children: ReactNode }) {
         reader.onload = () => {
           try {
             const imported = JSON.parse(String(reader.result));
-            if (!imported.months || !Array.isArray(imported.people)) throw new Error("Formato inválido");
-            const next = migrateState(imported, activeUser?.name);
+            const next = importJsonPayload(imported, state, activeUser?.name);
             persist(next);
             resolve();
           } catch (error) {
@@ -325,11 +328,12 @@ async function importSpreadsheet(file: File, state: FinanceState): Promise<Finan
   const workbook = XLSX.read(buffer, { type: "array", cellDates: true });
   const months = { ...state.months };
   let imported = 0;
+  let importedPriorities = 0;
 
   workbook.SheetNames.forEach((sheetName) => {
     const sheet = workbook.Sheets[sheetName];
     const rows = XLSX.utils.sheet_to_json<unknown[]>(sheet, { header: 1, defval: "" });
-    const monthKey = monthKeyFromSheetName(sheetName) || state.activeMonth;
+    const monthKey = monthKeyFromSheetName(sheetName, state.activeMonth) || state.activeMonth;
     const current = months[monthKey] || {
       label: formatMonthLabel(monthKey),
       income: 0,
@@ -337,13 +341,19 @@ async function importSpreadsheet(file: File, state: FinanceState): Promise<Finan
       expenses: [],
       priorities: [],
     };
-    const expenses = extractExpensesFromRows(rows, monthKey);
-    if (!expenses.length) return;
-    imported += expenses.length;
-    months[monthKey] = { ...current, expenses: [...current.expenses, ...expenses] };
+    const parsed = extractFinanceFromRows(rows, monthKey);
+    if (!parsed.expenses.length && !parsed.priorities.length && !parsed.income) return;
+    imported += parsed.expenses.length;
+    importedPriorities += parsed.priorities.length;
+    months[monthKey] = {
+      ...current,
+      income: parsed.income || current.income,
+      expenses: dedupeExpenses([...current.expenses, ...parsed.expenses]),
+      priorities: dedupePriorities([...current.priorities, ...parsed.priorities]),
+    };
   });
 
-  if (!imported) throw new Error("Nenhum gasto encontrado na planilha");
+  if (!imported && !importedPriorities) throw new Error("Nenhum gasto encontrado na planilha");
   return migrateState({ ...state, months });
 }
 
@@ -389,6 +399,129 @@ function extractExpensesFromRows(rows: unknown[][], monthKey: string): Expense[]
   return dedupeExpenses(expenses);
 }
 
+function importJsonPayload(payload: unknown, state: FinanceState, loginName = ""): FinanceState {
+  if (isFinanceBackup(payload)) return migrateState(payload, loginName);
+
+  const months = { ...state.months };
+  let imported = 0;
+  collectJsonRows(payload).forEach((row) => {
+    const expense = expenseFromRecord(row, state.activeMonth);
+    if (!expense) return;
+    const monthKey = monthKeyFromRecord(row, expense.date, state.activeMonth);
+    const current = months[monthKey] || emptyMonth(monthKey);
+    imported += 1;
+    months[monthKey] = {
+      ...current,
+      expenses: dedupeExpenses([...current.expenses, expense]),
+    };
+  });
+
+  if (!imported) throw new Error("Formato invalido ou nenhum gasto encontrado");
+  return migrateState({ ...state, months }, loginName);
+}
+
+function isFinanceBackup(payload: unknown): payload is FinanceState {
+  const data = payload as Partial<FinanceState>;
+  return Boolean(data?.months && typeof data.months === "object" && Array.isArray(data.people));
+}
+
+function collectJsonRows(payload: unknown): Record<string, unknown>[] {
+  if (Array.isArray(payload)) return payload.filter(isRecord);
+  if (!isRecord(payload)) return [];
+  return [
+    payload.gastos,
+    payload.expenses,
+    payload.despesas,
+    payload.contas,
+    payload.transactions,
+    payload.items,
+    payload.data,
+  ].flatMap((group) => (Array.isArray(group) ? group.filter(isRecord) : []));
+}
+
+function isRecord(value: unknown): value is Record<string, unknown> {
+  return Boolean(value && typeof value === "object" && !Array.isArray(value));
+}
+
+function emptyMonth(monthKey: string): MonthData {
+  return {
+    label: formatMonthLabel(monthKey),
+    income: 0,
+    houseContribution: 0,
+    expenses: [],
+    priorities: [],
+  };
+}
+
+interface ParsedSheetData {
+  expenses: Expense[];
+  priorities: Priority[];
+  income: number;
+}
+
+function extractFinanceFromRows(rows: unknown[][], monthKey: string): ParsedSheetData {
+  const expenses: Expense[] = [];
+  const priorities: Priority[] = [];
+  let income = 0;
+
+  rows.forEach((row, index) => {
+    const headers = row.map((cell) => normalizeHeader(cell));
+    const itemIndex = findIndex(headers, ["item", "descricao", "descrição", "gasto", "nome"]);
+    const valueIndex = findIndex(headers, ["valor", "amount", "preco", "preço"]);
+    if (itemIndex < 0 || valueIndex < 0) return;
+
+    const categoryIndex = findIndex(headers, ["categoria"]);
+    const statusIndex = findIndex(headers, ["status", "situacao", "situação"]);
+    const priorityIndex = findIndex(headers, ["prioridade", "rank"]);
+    const ownerIndex = findIndex(headers, ["responsavel", "responsável", "pessoa", "owner"]);
+    const dateIndex = findIndex(headers, ["data", "vencimento"]);
+    const paymentIndex = findIndex(headers, ["forma", "pagamento", "forma de pagamento"]);
+    const noteIndex = findIndex(headers, ["observacao", "observação", "negociar", "nota"]);
+    const context = contextTextForRow(rows, index);
+    const isPriorityTable = context.includes("prioridade") || priorityIndex >= 0;
+    const sectionOwner = ownerFromContext(context);
+    const tableEnd = nextHeaderIndex(rows, index + 1);
+
+    rows.slice(index + 1, tableEnd).forEach((dataRow) => {
+      const name = String(dataRow[itemIndex] || "").trim();
+      const amount = parseSheetAmount(dataRow[valueIndex]);
+      if (!name || !amount || shouldIgnoreImportedName(name)) return;
+      if (normalizeHeader(name) === "salario") {
+        income = Math.max(income, amount);
+        return;
+      }
+
+      if (isPriorityTable) {
+        priorities.push({
+          id: uid(),
+          name,
+          amount,
+          rank: parsePriorityRank(dataRow[priorityIndex]),
+          status: normalizePriorityStatus(String(dataRow[statusIndex] || "")),
+          responsavel: normalizeOwner(String(dataRow[ownerIndex] || ""), sectionOwner),
+          createdAt: new Date().toISOString(),
+        });
+        return;
+      }
+
+      expenses.push({
+        id: uid(),
+        name,
+        category: normalizeCategory(String(dataRow[categoryIndex] || "")),
+        amount,
+        status: normalizeExpenseStatus(String(dataRow[statusIndex] || "")),
+        owner: normalizeOwner(String(dataRow[ownerIndex] || ""), sectionOwner),
+        date: normalizeSheetDate(dataRow[dateIndex], monthKey),
+        paymentMethod: normalizePayment(String(dataRow[paymentIndex] || "")),
+        note: String(dataRow[noteIndex] || "").trim(),
+        createdAt: new Date().toISOString(),
+      });
+    });
+  });
+
+  return { expenses: dedupeExpenses(expenses), priorities: dedupePriorities(priorities), income };
+}
+
 function normalizeHeader(value: unknown): string {
   return String(value || "")
     .trim()
@@ -414,10 +547,12 @@ function normalizeCategory(value: string): string {
   return categories.find((category) => normalizeHeader(category) === normalized) || "Outros";
 }
 
-function normalizeOwner(value: string): string {
+function normalizeOwner(value: string, fallback = "Minha casa"): string {
   const normalized = normalizeHeader(value);
-  if (normalized.includes("pai")) return "Pai da namorada";
-  return "Minha casa";
+  if (!normalized) return fallback;
+  if (normalized.includes("pai") || normalized.includes("namorada")) return "Pai da namorada";
+  if (normalized.includes("minha") || normalized.includes("meus") || normalized.includes("junior")) return "Minha casa";
+  return fallback;
 }
 
 function normalizePayment(value: string): string {
@@ -440,7 +575,7 @@ function normalizeSheetDate(value: unknown, monthKey: string): string {
   return `${monthKey}-05`;
 }
 
-function monthKeyFromSheetName(sheetName: string): string | null {
+function monthKeyFromSheetName(sheetName: string, fallbackMonth = ""): string | null {
   const normalized = normalizeHeader(sheetName).replace(/\s+/g, "");
   const direct = normalized.match(/(20\d{2})[-_/]?(\d{1,2})/);
   if (direct) return `${direct[1]}-${direct[2].padStart(2, "0")}`;
@@ -459,15 +594,109 @@ function monthKeyFromSheetName(sheetName: string): string | null {
     "dezembro",
   ];
   const index = months.findIndex((month) => normalized.includes(month));
-  const year = normalized.match(/20\d{2}/)?.[0];
+  const year = normalized.match(/20\d{2}/)?.[0] || fallbackMonth.slice(0, 4);
   if (index >= 0 && year) return `${year}-${String(index + 1).padStart(2, "0")}`;
   return null;
+}
+
+function expenseFromRecord(row: Record<string, unknown>, fallbackMonth: string): Expense | null {
+  const name = stringFromRecord(row, ["descricao", "descrição", "description", "item", "nome", "gasto"]);
+  const amount = parseSheetAmount(valueFromRecord(row, ["valor", "amount", "preco", "preço"]));
+  if (!name || !amount || shouldIgnoreImportedName(name)) return null;
+  const date = normalizeSheetDate(valueFromRecord(row, ["data", "date", "vencimento"]), fallbackMonth);
+  return {
+    id: String(valueFromRecord(row, ["id", "id_gasto"]) || uid()),
+    name,
+    category: normalizeCategory(stringFromRecord(row, ["categoria", "category", "tipo"])),
+    amount,
+    status: normalizeExpenseStatus(stringFromRecord(row, ["status", "situacao", "situação"])),
+    owner: normalizeOwner(stringFromRecord(row, ["responsavel", "responsável", "owner", "pessoa", "nome_usuario"])),
+    date,
+    paymentMethod: normalizePayment(stringFromRecord(row, ["forma_pagamento", "forma de pagamento", "pagamento", "paymentMethod"])),
+    note: stringFromRecord(row, ["observacao", "observação", "note", "nota", "negociar"]),
+    createdAt: String(valueFromRecord(row, ["criado_em", "createdAt"]) || new Date().toISOString()),
+  };
+}
+
+function valueFromRecord(row: Record<string, unknown>, names: string[]): unknown {
+  const normalizedNames = names.map(normalizeHeader);
+  return Object.entries(row).find(([key]) => normalizedNames.includes(normalizeHeader(key)))?.[1];
+}
+
+function stringFromRecord(row: Record<string, unknown>, names: string[]): string {
+  return String(valueFromRecord(row, names) || "").trim();
+}
+
+function monthKeyFromRecord(row: Record<string, unknown>, date: string, fallbackMonth: string): string {
+  const year = String(valueFromRecord(row, ["ano", "year"]) || "").replace(/\D/g, "");
+  const month = String(valueFromRecord(row, ["mes", "mês", "month"]) || "").trim();
+  const direct = monthKeyFromSheetName(`${month}${year}`, fallbackMonth);
+  return direct || date.slice(0, 7) || fallbackMonth;
+}
+
+function contextTextForRow(rows: unknown[][], headerIndex: number): string {
+  return rows
+    .slice(Math.max(0, headerIndex - 5), headerIndex)
+    .flat()
+    .map((cell) => normalizeHeader(cell))
+    .filter(Boolean)
+    .join(" ");
+}
+
+function ownerFromContext(context: string): string {
+  if (context.includes("meus itens")) return "Minha casa";
+  if (context.includes("pai") || context.includes("namorada")) return "Pai da namorada";
+  if (/\bcasa\b/.test(context)) return "Pai da namorada";
+  return "Minha casa";
+}
+
+function nextHeaderIndex(rows: unknown[][], start: number): number {
+  for (let index = start; index < rows.length; index += 1) {
+    const headers = rows[index].map((cell) => normalizeHeader(cell));
+    const hasItem = findIndex(headers, ["item", "descricao", "descrição", "gasto", "nome"]) >= 0;
+    const hasValue = findIndex(headers, ["valor", "amount", "preco", "preço"]) >= 0;
+    if (hasItem && hasValue) return index;
+  }
+  return rows.length;
+}
+
+function shouldIgnoreImportedName(name: string): boolean {
+  const normalized = normalizeHeader(name);
+  return !normalized || ["total", "valor", "item", "categoria"].includes(normalized);
+}
+
+function normalizeExpenseStatus(value: string): "Pago" | "A pagar" {
+  const normalized = normalizeHeader(value);
+  if (normalized.includes("pago")) return "Pago";
+  return "A pagar";
+}
+
+function normalizePriorityStatus(value: string): Priority["status"] {
+  const normalized = normalizeHeader(value);
+  if (normalized.includes("pago")) return "Pago";
+  if (normalized.includes("adiar")) return "Adiar";
+  return "A pagar";
+}
+
+function parsePriorityRank(value: unknown): number {
+  const rank = Number(String(value || "").replace(/\D/g, ""));
+  return rank >= 1 && rank <= 3 ? rank : 2;
 }
 
 function dedupeExpenses(expenses: Expense[]): Expense[] {
   const seen = new Set<string>();
   return expenses.filter((expense) => {
     const key = `${expense.name}|${expense.amount}|${expense.date}|${expense.owner}`;
+    if (seen.has(key)) return false;
+    seen.add(key);
+    return true;
+  });
+}
+
+function dedupePriorities(priorities: Priority[]): Priority[] {
+  const seen = new Set<string>();
+  return priorities.filter((priority) => {
+    const key = `${priority.name}|${priority.amount}|${priority.responsavel}`;
     if (seen.has(key)) return false;
     seen.add(key);
     return true;

@@ -20,15 +20,16 @@ export function SettingsView({
     if (!file) return;
     try {
       await importData(file);
-    } catch {
-      alert("Não consegui importar esse arquivo. Verifique se é um backup do app.");
+      alert("Importacao concluida. Confira o mes e a visao selecionada.");
+    } catch (error) {
+      alert(error instanceof Error ? error.message : "Nao consegui importar esse arquivo.");
     } finally {
       e.target.value = "";
     }
   }
 
   const rows = [
-    { icon: Users, title: "Pessoas da casa", desc: "Reorganize os gastos entre Minha casa e Pai da namorada.", action: onEditPeople },
+    { icon: Users, title: "Perfis financeiros", desc: "Adicione, remova ou renomeie as visoes do orçamento.", action: onEditPeople },
     { icon: CalendarCog, title: "Mês atual", desc: "Ajuste renda, repasse e nome do mês selecionado.", action: onEditMonth },
     { icon: Download, title: "Exportar backup", desc: "Baixe um arquivo JSON com todo o histórico.", action: exportData },
     { icon: Upload, title: "Importar dados", desc: "Carregue backup JSON ou planilha XLS/XLSX.", action: () => fileRef.current?.click() },

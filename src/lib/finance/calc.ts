@@ -46,6 +46,7 @@ export function resolveViewOwner(view: string): string | null {
   if (view === VIEW_ME) return currentUserName();
   if (view === VIEW_SPOUSE) return spouseName();
   if ((DEFAULT_FAMILY_PEOPLE as readonly string[]).includes(view)) return view;
+  if (view && view !== VIEW_ALL) return view;
   return null;
 }
 
@@ -60,6 +61,7 @@ export function viewLabelForPeople(view: string, people?: string[]): string {
   if (view === VIEW_ALL) return "Tudo junto";
   if (view === VIEW_ME) return people?.[0] || currentUserName();
   if (view === VIEW_SPOUSE) return people?.[1] || spouseName();
+  if (people?.includes(view)) return view;
   return view || people?.[0] || currentUserName();
 }
 
@@ -97,6 +99,7 @@ export function expensesForView(monthData: MonthData, view: string): Expense[] {
 }
 
 export function budgetForView(monthData: MonthData, view: string): number {
+  if (view === VIEW_ALL) return Number(monthData.income || 0) + Number(monthData.houseContribution || 0);
   if (view === VIEW_SPOUSE) return Number(monthData.houseContribution || 0);
   return Number(monthData.income || 0);
 }

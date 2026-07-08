@@ -108,10 +108,8 @@ export function DashboardView() {
       <Panel>
         <PanelHead title="Divisão familiar" hint="por responsável" />
         <div className="grid grid-cols-2 gap-3">
-          {[
-            { key: VIEW_ME, name: state.people[0] },
-            { key: VIEW_SPOUSE, name: state.people[1] },
-          ].map(({ key, name }) => {
+          {state.people.map((name, index) => {
+            const key = index === 0 ? VIEW_ME : index === 1 ? VIEW_SPOUSE : name;
             const mine = expensesForView(month, key);
             const pending = sum(mine.filter((e) => e.status === "A pagar"));
             const active = key === view;

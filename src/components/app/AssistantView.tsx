@@ -22,14 +22,16 @@ import {
   expensesForView,
   getLargestCategoryGrowth,
   money,
+  ownerLabelForPeople,
   resolveViewOwner,
   sum,
   viewLabelForPeople,
 } from "@/lib/finance/calc";
 import { answerLocally, askGemini, buildAiContext } from "@/lib/finance/ai";
-import { categories, VIEW_ALL } from "@/lib/finance/constants";
+import { categories, paymentMethods, VIEW_ALL } from "@/lib/finance/constants";
 import { useFinance } from "@/lib/finance/FinanceContext";
 import { uid } from "@/lib/finance/seed";
+import type { Expense } from "@/lib/finance/types";
 
 import { Field, SelectInput, TextInput } from "./forms";
 import { Panel, PanelHead } from "./ui";
@@ -60,7 +62,7 @@ const defaultEnvelopeRules: EnvelopeRule[] = [
 ];
 
 export function AssistantView({ onAddExpense }: AssistantViewProps) {
-  const { activeUser, state, month, savePriority } = useFinance();
+  const { activeUser, state, month, saveExpense, savePriority } = useFinance();
   const view = state.activePerson;
   const numbers = calc(month, view);
   const expenses = expensesForView(month, view);
@@ -165,6 +167,19 @@ export function AssistantView({ onAddExpense }: AssistantViewProps) {
   async function askQuestion(question: string) {
     if (!question || busy) return;
     chatRef.current?.scrollIntoView({ behavior: "smooth", block: "start" });
+    const parsedExpense = parseExpenseCommand(question, state.activeMonth, resolveViewOwner(view) || "Minha casa");
+    if (parsedExpense) {
+      saveExpense(parsedExpense);
+      setMessages((m) => [
+        ...m,
+        { role: "user", text: question },
+        {
+          role: "ai",
+          text: `Gasto registrado.\nDescricao: ${parsedExpense.name}\nValor: ${money(parsedExpense.amount)}\nCategoria: ${parsedExpense.category}\nResponsavel: ${ownerLabelForPeople(parsedExpense.owner, state.people)}\nStatus: ${parsedExpense.status}`,
+        },
+      ]);
+      return;
+    }
     setBusy(true);
     setMessages((m) => [...m, { role: "user", text: question }, { role: "ai", text: "Analisando seus dados..." }]);
     let answer: string;
@@ -490,6 +505,65 @@ function timeGreeting(): string {
   if (minutes >= morningStart && minutes <= 12 * 60 + 59) return "Bom dia";
   if (minutes >= afternoonStart && minutes < nightStart) return "Boa tarde";
   return "Boa noite";
+}
+
+function parseExpenseCommand(text: string, monthKey: string, owner: string): Expense | null {
+  const normalized = normalizeText(text);
+  const looksLikeExpense = /\b(registra|registrar|gastei|paguei|comprei|lan[cc]a|adiciona|adicionar)\b/.test(normalized);
+  if (!looksLikeExpense) return null;
+
+  const valueMatch = text.match(/(?:r\$\s*)?(\d{1,3}(?:\.\d{3})*(?:,\d{1,2})?|\d+(?:[.,]\d{1,2})?)/i);
+  const amount = valueMatch ? parseCurrencyInput(valueMatch[1]) : 0;
+  if (amount <= 0) return null;
+
+  const rawName = text
+    .replace(valueMatch?.[0] || "", "")
+    .replace(/\b(registra|registrar|gastei|paguei|comprei|lanca|lança|adiciona|adicionar|gasto|despesa|de|com|no|na|em|por|r\$)\b/gi, " ")
+    .replace(/\s+/g, " ")
+    .trim();
+  const name = rawName || "Gasto informado pelo chat";
+  const category = guessCategory(text);
+  const paymentMethod = guessPaymentMethod(text);
+
+  return {
+    id: uid(),
+    name,
+    category,
+    amount,
+    status: normalized.includes("paguei") || normalized.includes("pago") ? "Pago" : "A pagar",
+    owner,
+    date: new Date().toISOString().slice(0, 10) || `${monthKey}-05`,
+    paymentMethod,
+    note: "Registrado pelo assistente",
+    createdAt: new Date().toISOString(),
+  };
+}
+
+function guessCategory(text: string): string {
+  const normalized = normalizeText(text);
+  const rules: [string, string[]][] = [
+    ["Alimentação", ["mercado", "comida", "lanche", "restaurante", "ifood", "alimento"]],
+    ["Transporte", ["gasolina", "uber", "99", "onibus", "ônibus", "transporte"]],
+    ["Saúde", ["remedio", "remédio", "consulta", "medico", "médico", "saude", "saúde"]],
+    ["Casa", ["aluguel", "luz", "agua", "água", "internet", "casa"]],
+    ["Cartões", ["cartao", "cartão", "credito", "crédito"]],
+    ["Empréstimo", ["emprestimo", "empréstimo"]],
+    ["Lazer", ["lazer", "cinema", "show", "viagem"]],
+  ];
+  return rules.find(([, words]) => words.some((word) => normalized.includes(normalizeText(word))))?.[0] || "Outros";
+}
+
+function guessPaymentMethod(text: string): string {
+  const normalized = normalizeText(text);
+  return paymentMethods.find((method) => normalized.includes(normalizeText(method))) || "Pix";
+}
+
+function normalizeText(value: string): string {
+  return value
+    .trim()
+    .toLocaleLowerCase("pt-BR")
+    .normalize("NFD")
+    .replace(/[\u0300-\u036f]/g, "");
 }
 
 function HeroStat({ icon, label, value }: { icon: React.ReactNode; label: string; value: string }) {

@@ -1,7 +1,7 @@
 import { useState } from "react";
 import { Plus, CalendarPlus } from "lucide-react";
 
-import { formatMonthLabel, viewLabelForPeople } from "@/lib/finance/calc";
+import { formatMonthLabel } from "@/lib/finance/calc";
 import { VIEW_ALL, VIEW_ME, VIEW_SPOUSE } from "@/lib/finance/constants";
 import { useFinance } from "@/lib/finance/FinanceContext";
 import type { ViewKey } from "@/lib/finance/types";
@@ -74,11 +74,13 @@ export function AppHome() {
 
           <Segmented
             className="mt-2.5"
-            value={state.activePerson === VIEW_ALL ? VIEW_ALL : state.activePerson === VIEW_SPOUSE ? VIEW_SPOUSE : VIEW_ME}
+            value={state.activePerson}
             onChange={(v) => setActivePerson(v)}
             options={[
-              { value: VIEW_ME, label: viewLabelForPeople(VIEW_ME, state.people) },
-              { value: VIEW_SPOUSE, label: viewLabelForPeople(VIEW_SPOUSE, state.people) },
+              ...state.people.map((person, index) => ({
+                value: index === 0 ? VIEW_ME : index === 1 ? VIEW_SPOUSE : person,
+                label: person,
+              })),
               { value: VIEW_ALL, label: "Tudo junto" },
             ]}
           />
