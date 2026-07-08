@@ -4,10 +4,10 @@ import { cn } from "@/lib/utils";
 import type { ViewKey } from "@/lib/finance/types";
 
 const items: { key: ViewKey; label: string; Icon: typeof LayoutGrid }[] = [
+  { key: "assistant", label: "Início", Icon: Sparkles },
   { key: "dashboard", label: "Painel", Icon: LayoutGrid },
   { key: "transactions", label: "Gastos", Icon: ArrowLeftRight },
   { key: "priorities", label: "Metas", Icon: Star },
-  { key: "assistant", label: "IA", Icon: Sparkles },
   { key: "settings", label: "Config", Icon: Settings },
 ];
 

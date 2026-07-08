@@ -56,6 +56,19 @@ export function viewLabel(view: string): string {
   return view || currentUserName();
 }
 
+export function viewLabelForPeople(view: string, people?: string[]): string {
+  if (view === VIEW_ALL) return "Tudo junto";
+  if (view === VIEW_ME) return people?.[0] || currentUserName();
+  if (view === VIEW_SPOUSE) return people?.[1] || spouseName();
+  return view || people?.[0] || currentUserName();
+}
+
+export function ownerLabelForPeople(owner: string, people?: string[]): string {
+  if (owner === currentUserName()) return people?.[0] || currentUserName();
+  if (owner === spouseName()) return people?.[1] || spouseName();
+  return owner;
+}
+
 export function responsavelToView(responsavel?: string): string {
   if (!responsavel || responsavel === VIEW_ALL || responsavel === "Todos") return VIEW_ALL;
   if (responsavel === RESPONSAVEL_CASAL || responsavel === "Casal") return VIEW_ME;

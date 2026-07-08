@@ -124,8 +124,8 @@ export function ExpenseDialog({
           </Field>
           <Field label="Responsável">
             <SelectInput value={form.owner} onChange={(e) => setForm({ ...form, owner: e.target.value })}>
-              <option value={currentUserName()}>{currentUserName()}</option>
-              <option value={spouseName()}>{spouseName()}</option>
+              <option value={currentUserName()}>{state.people[0] || currentUserName()}</option>
+              <option value={spouseName()}>{state.people[1] || spouseName()}</option>
             </SelectInput>
           </Field>
         </div>
@@ -288,12 +288,12 @@ export function PeopleDialog({ open, onOpenChange }: { open: boolean; onOpenChan
     <SheetShell open={open} onOpenChange={onOpenChange} title="Editar pessoas">
       <form onSubmit={submit} className="flex flex-col gap-4">
         <p className="text-sm text-muted-foreground">
-          As duas visões financeiras são fixas: Minha casa e Pai da namorada. Aqui você reorganiza os gastos entre elas.
+          Defina como quer chamar cada visão financeira no app. Isso muda os nomes exibidos sem apagar ou misturar seus dados.
         </p>
-        <Field label="Pessoa 1 (Minha casa)">
+        <Field label="Visão 1">
           <TextInput value={one} onChange={(e) => setOne(e.target.value)} required />
         </Field>
-        <Field label="Pessoa 2 (Pai da namorada)">
+        <Field label="Visão 2">
           <TextInput value={two} onChange={(e) => setTwo(e.target.value)} required />
         </Field>
         <Actions onCancel={() => onOpenChange(false)} />

@@ -78,24 +78,24 @@ export const Route = createRootRouteWithContext<{ queryClient: QueryClient }>()(
       { charSet: "utf-8" },
       { name: "viewport", content: "width=device-width, initial-scale=1, viewport-fit=cover" },
       { title: "Assistente Financeiro da Casa" },
-      { name: "description", content: "Controle financeiro familiar mobile-first para Minha casa e Pai da namorada: gastos, prioridades e histórico mensal." },
+      { name: "description", content: "Assistente financeiro familiar com IA para gastos, prioridades, simulações e histórico mensal." },
       { name: "theme-color", content: "#12a06a" },
       { name: "apple-mobile-web-app-capable", content: "yes" },
       { name: "apple-mobile-web-app-title", content: "Financeiro" },
       { name: "apple-mobile-web-app-status-bar-style", content: "default" },
       { property: "og:title", content: "Assistente Financeiro da Casa" },
-      { property: "og:description", content: "Controle financeiro familiar mobile-first para Minha casa e Pai da namorada: gastos, prioridades e histórico mensal." },
+      { property: "og:description", content: "Assistente financeiro familiar com IA para gastos, prioridades, simulações e histórico mensal." },
       { property: "og:type", content: "website" },
       { name: "twitter:card", content: "summary_large_image" },
       { name: "twitter:title", content: "Assistente Financeiro da Casa" },
-      { name: "twitter:description", content: "Controle financeiro familiar mobile-first para Minha casa e Pai da namorada: gastos, prioridades e histórico mensal." },
-      { property: "og:image", content: "https://pub-bb2e103a32db4e198524a2e9ed8f35b4.r2.dev/a05887a3-bbb4-4d61-bbcb-6a279bc4398d/id-preview-f70e1678--77fb49de-0ee7-4468-a83a-01bdcb6f0dd2.lovable.app-1783396013025.png" },
-      { name: "twitter:image", content: "https://pub-bb2e103a32db4e198524a2e9ed8f35b4.r2.dev/a05887a3-bbb4-4d61-bbcb-6a279bc4398d/id-preview-f70e1678--77fb49de-0ee7-4468-a83a-01bdcb6f0dd2.lovable.app-1783396013025.png" },
+      { name: "twitter:description", content: "Assistente financeiro familiar com IA para gastos, prioridades, simulações e histórico mensal." },
+      { property: "og:image", content: "/icons/icon-512.png" },
+      { name: "twitter:image", content: "/icons/icon-512.png" },
     ],
     links: [
       { rel: "stylesheet", href: appCss },
       { rel: "manifest", href: "/manifest.json" },
-      { rel: "icon", href: "/favicon.ico", type: "image/x-icon" },
+      { rel: "icon", href: "/icons/icon-192.png", type: "image/png" },
       { rel: "apple-touch-icon", href: "/icons/apple-touch-icon.png" },
     ],
   }),
@@ -107,7 +107,7 @@ export const Route = createRootRouteWithContext<{ queryClient: QueryClient }>()(
 
 function RootShell({ children }: { children: ReactNode }) {
   return (
-    <html lang="en">
+    <html lang="pt-BR">
       <head>
         <HeadContent />
       </head>

@@ -9,7 +9,7 @@ import {
 } from "react";
 
 import { profileId } from "./calc";
-import { VIEW_ME, VIEW_SPOUSE } from "./constants";
+import { categories, paymentMethods, VIEW_ALL, VIEW_ME, VIEW_SPOUSE } from "./constants";
 import { createSeedState, uid } from "./seed";
 import {
   getProfiles,
@@ -28,12 +28,7 @@ import type {
   MonthData,
   Priority,
 } from "./types";
-import {
-  currentUserName,
-  formatMonthLabel,
-  getNextMonthKey,
-  spouseName,
-} from "./calc";
+import { currentUserName, formatMonthLabel, getNextMonthKey, spouseName } from "./calc";
 
 interface FinanceContextValue {
   ready: boolean;
@@ -118,7 +113,7 @@ export function FinanceProvider({ children }: { children: ReactNode }) {
 
   const setActivePerson = useCallback(
     (view: string) => {
-      if (![VIEW_ME, VIEW_SPOUSE].includes(view)) return;
+      if (![VIEW_ALL, VIEW_ME, VIEW_SPOUSE].includes(view)) return;
       persist({ ...state, activePerson: view });
     },
     [state, persist],
@@ -157,19 +152,11 @@ export function FinanceProvider({ children }: { children: ReactNode }) {
 
   const savePeople = useCallback(
     (personOne: string, personTwo: string) => {
-      const oldPeople = [...state.people];
-      const newPeople = [personOne.trim(), personTwo.trim()];
-      const months = { ...state.months };
-      Object.keys(months).forEach((key) => {
-        const data = months[key];
-        data.expenses = data.expenses.map((expense) => {
-          let owner = expense.owner;
-          if ([oldPeople[0], newPeople[0], "Meu perfil", "Pessoa 1"].includes(owner)) owner = currentUserName();
-          if ([oldPeople[1], newPeople[1], "Esposa", "Pessoa 2"].includes(owner)) owner = spouseName();
-          return { ...expense, owner };
-        });
-      });
-      persist({ ...state, months, people: [currentUserName(), spouseName()] });
+      const newPeople = [
+        personOne.trim() || currentUserName(),
+        personTwo.trim() || spouseName(),
+      ];
+      persist({ ...state, people: newPeople });
     },
     [state, persist],
   );
@@ -264,6 +251,17 @@ export function FinanceProvider({ children }: { children: ReactNode }) {
   const importData = useCallback(
     (file: File) =>
       new Promise<void>((resolve, reject) => {
+        const extension = file.name.split(".").pop()?.toLowerCase();
+        if (["xls", "xlsx"].includes(extension || "")) {
+          importSpreadsheet(file, state)
+            .then((next) => {
+              persist(next);
+              resolve();
+            })
+            .catch(reject);
+          return;
+        }
+
         const reader = new FileReader();
         reader.onload = () => {
           try {
@@ -279,7 +277,7 @@ export function FinanceProvider({ children }: { children: ReactNode }) {
         reader.onerror = () => reject(new Error("Falha ao ler o arquivo"));
         reader.readAsText(file);
       }),
-    [persist, activeUser],
+    [persist, activeUser, state],
   );
 
   const resetSeed = useCallback(() => {
@@ -320,3 +318,158 @@ export function useFinance(): FinanceContextValue {
 }
 
 export { profileId };
+
+async function importSpreadsheet(file: File, state: FinanceState): Promise<FinanceState> {
+  const XLSX = await import("xlsx");
+  const buffer = await file.arrayBuffer();
+  const workbook = XLSX.read(buffer, { type: "array", cellDates: true });
+  const months = { ...state.months };
+  let imported = 0;
+
+  workbook.SheetNames.forEach((sheetName) => {
+    const sheet = workbook.Sheets[sheetName];
+    const rows = XLSX.utils.sheet_to_json<unknown[]>(sheet, { header: 1, defval: "" });
+    const monthKey = monthKeyFromSheetName(sheetName) || state.activeMonth;
+    const current = months[monthKey] || {
+      label: formatMonthLabel(monthKey),
+      income: 0,
+      houseContribution: 0,
+      expenses: [],
+      priorities: [],
+    };
+    const expenses = extractExpensesFromRows(rows, monthKey);
+    if (!expenses.length) return;
+    imported += expenses.length;
+    months[monthKey] = { ...current, expenses: [...current.expenses, ...expenses] };
+  });
+
+  if (!imported) throw new Error("Nenhum gasto encontrado na planilha");
+  return migrateState({ ...state, months });
+}
+
+function extractExpensesFromRows(rows: unknown[][], monthKey: string): Expense[] {
+  const expenses: Expense[] = [];
+  rows.forEach((row, index) => {
+    const headers = row.map((cell) => normalizeHeader(cell));
+    const itemIndex = findIndex(headers, ["item", "descricao", "descrição", "gasto", "nome"]);
+    const valueIndex = findIndex(headers, ["valor", "amount", "preco", "preço"]);
+    if (itemIndex < 0 || valueIndex < 0) return;
+
+    const categoryIndex = findIndex(headers, ["categoria"]);
+    const statusIndex = findIndex(headers, ["status", "situacao", "situação"]);
+    const ownerIndex = findIndex(headers, ["responsavel", "responsável", "pessoa", "owner"]);
+    const dateIndex = findIndex(headers, ["data", "vencimento"]);
+    const paymentIndex = findIndex(headers, ["forma", "pagamento", "forma de pagamento"]);
+    const noteIndex = findIndex(headers, ["observacao", "observação", "negociar", "nota"]);
+
+    rows.slice(index + 1).forEach((dataRow) => {
+      const name = String(dataRow[itemIndex] || "").trim();
+      const amount = parseSheetAmount(dataRow[valueIndex]);
+      if (!name || !amount || /^total$/i.test(name)) return;
+
+      expenses.push({
+        id: uid(),
+        name,
+        category: normalizeCategory(String(dataRow[categoryIndex] || "")),
+        amount,
+        status: String(dataRow[statusIndex] || "").toLowerCase().includes("pag")
+          && !String(dataRow[statusIndex] || "").toLowerCase().includes("pago")
+          ? "A pagar"
+          : String(dataRow[statusIndex] || "").toLowerCase().includes("pago")
+            ? "Pago"
+            : "A pagar",
+        owner: normalizeOwner(String(dataRow[ownerIndex] || "")),
+        date: normalizeSheetDate(dataRow[dateIndex], monthKey),
+        paymentMethod: normalizePayment(String(dataRow[paymentIndex] || "")),
+        note: String(dataRow[noteIndex] || "").trim(),
+        createdAt: new Date().toISOString(),
+      });
+    });
+  });
+  return dedupeExpenses(expenses);
+}
+
+function normalizeHeader(value: unknown): string {
+  return String(value || "")
+    .trim()
+    .toLocaleLowerCase("pt-BR")
+    .normalize("NFD")
+    .replace(/[\u0300-\u036f]/g, "");
+}
+
+function findIndex(headers: string[], names: string[]): number {
+  return headers.findIndex((header) => names.some((name) => header === normalizeHeader(name) || header.includes(normalizeHeader(name))));
+}
+
+function parseSheetAmount(value: unknown): number {
+  if (typeof value === "number") return Math.abs(value);
+  const clean = String(value || "").replace(/[^\d,.-]/g, "");
+  if (!clean) return 0;
+  const normalized = clean.includes(",") ? clean.replace(/\./g, "").replace(",", ".") : clean;
+  return Math.abs(Number(normalized || 0));
+}
+
+function normalizeCategory(value: string): string {
+  const normalized = normalizeHeader(value);
+  return categories.find((category) => normalizeHeader(category) === normalized) || "Outros";
+}
+
+function normalizeOwner(value: string): string {
+  const normalized = normalizeHeader(value);
+  if (normalized.includes("pai")) return "Pai da namorada";
+  return "Minha casa";
+}
+
+function normalizePayment(value: string): string {
+  const normalized = normalizeHeader(value);
+  return paymentMethods.find((method) => normalizeHeader(method) === normalized) || "Pix";
+}
+
+function normalizeSheetDate(value: unknown, monthKey: string): string {
+  if (value instanceof Date && !Number.isNaN(value.getTime())) {
+    return value.toISOString().slice(0, 10);
+  }
+  const text = String(value || "").trim();
+  if (/^\d{4}-\d{2}-\d{2}$/.test(text)) return text;
+  const match = text.match(/^(\d{1,2})[/-](\d{1,2})(?:[/-](\d{2,4}))?$/);
+  if (match) {
+    const [, d, m, y] = match;
+    const year = y ? (y.length === 2 ? `20${y}` : y) : monthKey.slice(0, 4);
+    return `${year}-${m.padStart(2, "0")}-${d.padStart(2, "0")}`;
+  }
+  return `${monthKey}-05`;
+}
+
+function monthKeyFromSheetName(sheetName: string): string | null {
+  const normalized = normalizeHeader(sheetName).replace(/\s+/g, "");
+  const direct = normalized.match(/(20\d{2})[-_/]?(\d{1,2})/);
+  if (direct) return `${direct[1]}-${direct[2].padStart(2, "0")}`;
+  const months = [
+    "janeiro",
+    "fevereiro",
+    "marco",
+    "abril",
+    "maio",
+    "junho",
+    "julho",
+    "agosto",
+    "setembro",
+    "outubro",
+    "novembro",
+    "dezembro",
+  ];
+  const index = months.findIndex((month) => normalized.includes(month));
+  const year = normalized.match(/20\d{2}/)?.[0];
+  if (index >= 0 && year) return `${year}-${String(index + 1).padStart(2, "0")}`;
+  return null;
+}
+
+function dedupeExpenses(expenses: Expense[]): Expense[] {
+  const seen = new Set<string>();
+  return expenses.filter((expense) => {
+    const key = `${expense.name}|${expense.amount}|${expense.date}|${expense.owner}`;
+    if (seen.has(key)) return false;
+    seen.add(key);
+    return true;
+  });
+}

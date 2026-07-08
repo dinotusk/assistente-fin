@@ -1,0 +1,15 @@
+{
+  "buildCommand": "pnpm run build",
+  "outputDirectory": ".output/public",
+  "framework": "vite",
+  "rewrites": [
+    {
+      "source": "/api/gemini-chat",
+      "destination": "/api/gemini-chat"
+    },
+    {
+      "source": "/(.*)",
+      "destination": "/index.html"
+    }
+  ]
+}

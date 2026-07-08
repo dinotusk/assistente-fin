@@ -7,6 +7,7 @@ import {
   STORAGE_KEY,
   VIEW_ME,
   VIEW_SPOUSE,
+  VIEW_ALL,
   categories,
 } from "./constants";
 import { profileId, responsavelToView } from "./calc";
@@ -52,10 +53,6 @@ export function setActiveUser(user: ActiveUser | null): void {
   else localStorage.removeItem(ACTIVE_PROFILE_KEY);
 }
 
-function normalizeFamilyPeople(): string[] {
-  return [...DEFAULT_FAMILY_PEOPLE];
-}
-
 function normalizeExpense(expense: Partial<Expense>, monthKey: string): Expense {
   return {
     id: expense.id || uid(),
@@ -84,7 +81,11 @@ export function migrateState(nextState: FinanceState, loginName = ""): FinanceSt
     "Minha casa": "Minha casa",
     "Pai da namorada": "Pai da namorada",
   };
-  nextState.people = normalizeFamilyPeople();
+  const savedPeople = Array.isArray(nextState.people) ? nextState.people : [];
+  nextState.people = [
+    String(savedPeople[0] || DEFAULT_FAMILY_PEOPLE[0]).trim() || DEFAULT_FAMILY_PEOPLE[0],
+    String(savedPeople[1] || DEFAULT_FAMILY_PEOPLE[1]).trim() || DEFAULT_FAMILY_PEOPLE[1],
+  ];
   Object.entries(nextState.months || {}).forEach(([monthKey, data]) => {
     data.expenses = (data.expenses || []).map((expense) => normalizeExpense(expense, monthKey));
     data.expenses.forEach((expense) => {
@@ -98,7 +99,7 @@ export function migrateState(nextState: FinanceState, loginName = ""): FinanceSt
     data.houseContribution = Number(data.houseContribution || 0);
   });
   const migratedView = responsavelToView(nextState.activePerson);
-  nextState.activePerson = [VIEW_ME, VIEW_SPOUSE].includes(migratedView) ? migratedView : VIEW_ME;
+  nextState.activePerson = [VIEW_ALL, VIEW_ME, VIEW_SPOUSE].includes(migratedView) ? migratedView : VIEW_ME;
   nextState.activeMonth = nextState.months[nextState.activeMonth]
     ? nextState.activeMonth
     : Object.keys(nextState.months)[0];

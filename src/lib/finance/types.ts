@@ -54,4 +54,4 @@ export interface ActiveUser {
   name: string;
 }
 
-export type ViewKey = "dashboard" | "transactions" | "priorities" | "assistant" | "settings";
+export type ViewKey = "assistant" | "dashboard" | "transactions" | "priorities" | "settings";

@@ -31,7 +31,7 @@ export function SettingsView({
     { icon: Users, title: "Pessoas da casa", desc: "Reorganize os gastos entre Minha casa e Pai da namorada.", action: onEditPeople },
     { icon: CalendarCog, title: "Mês atual", desc: "Ajuste renda, repasse e nome do mês selecionado.", action: onEditMonth },
     { icon: Download, title: "Exportar backup", desc: "Baixe um arquivo JSON com todo o histórico.", action: exportData },
-    { icon: Upload, title: "Importar backup", desc: "Carregue um backup JSON exportado.", action: () => fileRef.current?.click() },
+    { icon: Upload, title: "Importar dados", desc: "Carregue backup JSON ou planilha XLS/XLSX.", action: () => fileRef.current?.click() },
     { icon: RotateCcw, title: "Restaurar exemplo", desc: "Volta para os dados de demonstração.", action: resetSeed },
     { icon: LogOut, title: "Sair do perfil", desc: "Encerre a sessão neste aparelho.", action: logout, danger: true },
   ];
@@ -39,7 +39,7 @@ export function SettingsView({
   return (
     <Panel>
       <PanelHead title="Configurações" hint="dados e acesso" />
-      <input ref={fileRef} type="file" accept="application/json" className="hidden" onChange={onImport} />
+      <input ref={fileRef} type="file" accept=".json,.xls,.xlsx,application/json" className="hidden" onChange={onImport} />
       <div className="flex flex-col gap-2.5">
         {rows.map(({ icon: Icon, title, desc, action, danger }) => (
           <button

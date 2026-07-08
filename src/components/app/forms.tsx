@@ -1,4 +1,6 @@
-import type { ReactNode } from "react";
+import { forwardRef, type ReactNode } from "react";
+
+import { cn } from "@/lib/utils";
 
 const inputClass =
   "h-12 w-full rounded-xl border border-input bg-secondary px-4 text-base text-foreground outline-none transition focus:border-primary focus:ring-2 focus:ring-primary/20";
@@ -12,9 +14,10 @@ export function Field({ label, children }: { label: string; children: ReactNode 
   );
 }
 
-export function TextInput(props: React.InputHTMLAttributes<HTMLInputElement>) {
-  return <input {...props} className={inputClass} />;
-}
+export const TextInput = forwardRef<HTMLInputElement, React.InputHTMLAttributes<HTMLInputElement>>(
+  ({ className, ...props }, ref) => <input {...props} ref={ref} className={cn(inputClass, className)} />,
+);
+TextInput.displayName = "TextInput";
 
 export function TextArea(props: React.TextareaHTMLAttributes<HTMLTextAreaElement>) {
   return <textarea {...props} className={`${inputClass} h-auto py-3`} />;

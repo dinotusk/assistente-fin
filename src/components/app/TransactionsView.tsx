@@ -2,7 +2,7 @@ import { useMemo, useState } from "react";
 import { Copy, Pencil, Trash2, Search } from "lucide-react";
 
 import { categories, categoryIcons } from "@/lib/finance/constants";
-import { categoryLabel, expenseMatchesView, formatDate, money } from "@/lib/finance/calc";
+import { categoryLabel, expenseMatchesView, formatDate, money, ownerLabelForPeople } from "@/lib/finance/calc";
 import { useFinance } from "@/lib/finance/FinanceContext";
 
 import { SelectInput, TextInput } from "./forms";
@@ -77,7 +77,7 @@ export function TransactionsView({ onEdit }: { onEdit: (id: string) => void }) {
                   <span>·</span>
                   <span>{formatDate(item.date)}</span>
                   <span>·</span>
-                  <span>{item.owner}</span>
+                  <span>{ownerLabelForPeople(item.owner, state.people)}</span>
                   <span>·</span>
                   <span>{item.paymentMethod}</span>
                 </div>

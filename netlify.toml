@@ -1,0 +1,14 @@
+[build]
+  command = "pnpm run build"
+  publish = ".output/public"
+  functions = "netlify/functions"
+
+[[redirects]]
+  from = "/api/gemini-chat"
+  to = "/.netlify/functions/gemini-chat"
+  status = 200
+
+[[redirects]]
+  from = "/*"
+  to = "/index.html"
+  status = 200

@@ -1,16 +1,15 @@
-import type { ReactNode } from "react";
+import { forwardRef, type ReactNode } from "react";
 
 import { cn } from "@/lib/utils";
 
-export function Panel({
-  children,
-  className,
-}: {
-  children: ReactNode;
-  className?: string;
-}) {
-  return <section className={cn("card-surface p-4", className)}>{children}</section>;
-}
+export const Panel = forwardRef<HTMLElement, { children: ReactNode; className?: string }>(
+  ({ children, className }, ref) => (
+    <section ref={ref} className={cn("card-surface p-4", className)}>
+      {children}
+    </section>
+  ),
+);
+Panel.displayName = "Panel";
 
 export function PanelHead({ title, hint, action }: { title: string; hint?: ReactNode; action?: ReactNode }) {
   return (

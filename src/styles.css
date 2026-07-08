@@ -172,11 +172,21 @@
 
 @utility card-surface {
   background: var(--color-card);
-  border: 1px solid oklch(0.94 0.01 160);
+  border: 1px solid oklch(0.94 0.014 160);
   border-radius: var(--radius-xl);
-  box-shadow: var(--shadow-card);
+  box-shadow:
+    0 1px 0 oklch(1 0 0 / 0.9) inset,
+    var(--shadow-card);
 }
 
 @utility hero-gradient {
   background: linear-gradient(150deg, oklch(0.62 0.14 160) 0%, oklch(0.5 0.13 165) 55%, oklch(0.44 0.11 175) 100%);
+}
+
+@media (min-width: 520px) {
+  body {
+    background:
+      radial-gradient(80% 60% at 50% -10%, oklch(0.88 0.055 158 / 0.36), transparent 65%),
+      var(--color-background);
+  }
 }

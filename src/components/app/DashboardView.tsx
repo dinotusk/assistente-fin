@@ -9,7 +9,7 @@ import {
   money,
   sum,
   timelineMonthEntries,
-  viewLabel,
+  viewLabelForPeople,
 } from "@/lib/finance/calc";
 import { VIEW_ME, VIEW_SPOUSE } from "@/lib/finance/constants";
 
@@ -41,7 +41,7 @@ export function DashboardView() {
           <span className="text-sm font-medium opacity-90">
             {view === VIEW_SPOUSE ? "Repasse do mês" : "Orçamento do mês"}
           </span>
-          <span className="rounded-full bg-white/15 px-3 py-1 text-xs font-semibold">{viewLabel(view)}</span>
+          <span className="rounded-full bg-white/15 px-3 py-1 text-xs font-semibold">{viewLabelForPeople(view, state.people)}</span>
         </div>
         <strong className="tnum mt-2 block font-display text-3xl font-bold">{money(budget)}</strong>
         <div className="mt-4 grid grid-cols-3 gap-2">
