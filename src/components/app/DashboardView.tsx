@@ -81,8 +81,8 @@ export function DashboardView() {
                 key={key}
                 type="button"
                 onClick={() => setActiveMonth(key)}
-                className={`flex min-w-[130px] flex-col gap-0.5 rounded-2xl border p-3 text-left transition ${
-                  active ? "border-primary bg-primary-soft" : "border-border bg-secondary"
+                className={`press focus-ring flex min-w-[130px] flex-col gap-0.5 rounded-2xl border p-3 text-left ${
+                  active ? "border-primary bg-primary-soft" : "border-border bg-secondary hover:border-primary/25"
                 }`}
               >
                 <span className="text-xs font-medium text-muted-foreground">{data.label}</span>
