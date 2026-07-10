@@ -23,14 +23,14 @@ export function BottomNav({ view, onChange }: { view: ViewKey; onChange: (v: Vie
               type="button"
               onClick={() => onChange(key)}
               className={cn(
-                "flex flex-1 flex-col items-center gap-1 rounded-2xl py-1.5 transition-colors",
-                active ? "text-primary" : "text-muted-foreground",
+                "focus-ring flex flex-1 flex-col items-center gap-1 rounded-2xl py-1.5 transition-colors duration-200",
+                active ? "text-primary" : "text-muted-foreground hover:text-foreground",
               )}
             >
               <span
                 className={cn(
-                  "flex h-9 w-9 items-center justify-center rounded-full transition-all",
-                  active && "bg-primary-soft",
+                  "flex h-9 w-9 items-center justify-center rounded-full transition-all duration-200",
+                  active ? "bg-primary-soft scale-105" : "scale-100",
                 )}
               >
                 <Icon className="h-[18px] w-[18px]" strokeWidth={active ? 2.5 : 2} />
