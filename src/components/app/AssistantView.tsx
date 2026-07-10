@@ -328,7 +328,7 @@ export function AssistantView({ onAddExpense }: AssistantViewProps) {
               key={question}
               type="button"
               onClick={() => askQuestion(question)}
-              className="shrink-0 rounded-full border border-border bg-card px-3 py-2 text-xs font-bold text-muted-foreground shadow-soft"
+              className="press focus-ring shrink-0 rounded-full border border-border bg-card px-3.5 py-2 text-xs font-bold text-muted-foreground shadow-soft hover:border-primary/30 hover:text-primary"
             >
               {question}
             </button>
@@ -339,15 +339,15 @@ export function AssistantView({ onAddExpense }: AssistantViewProps) {
             value={input}
             onChange={(e) => setInput(e.target.value)}
             placeholder="Ex.: posso pagar a prioridade 1?"
-            className="h-12 flex-1 rounded-2xl border border-input bg-secondary px-4 text-sm text-foreground outline-none focus:border-primary focus:ring-2 focus:ring-primary/20"
+            className="h-12 flex-1 rounded-2xl border border-input bg-secondary px-4 text-sm text-foreground outline-none transition-all duration-200 placeholder:text-muted-foreground/70 focus:border-primary focus:bg-card focus:ring-4 focus:ring-primary/12"
           />
           <button
             type="submit"
             disabled={busy}
-            className="flex h-12 w-12 shrink-0 items-center justify-center rounded-2xl bg-primary text-primary-foreground disabled:opacity-60"
+            className="press focus-ring flex h-12 w-12 shrink-0 items-center justify-center rounded-2xl bg-primary text-primary-foreground shadow-primary disabled:opacity-60"
             aria-label="Enviar"
           >
-            <Send className="h-4 w-4" />
+            <Send className="h-4 w-4" strokeWidth={2.25} />
           </button>
         </form>
       </Panel>
