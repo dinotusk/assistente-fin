@@ -261,7 +261,7 @@ export function AssistantView({ onAddExpense }: AssistantViewProps) {
         <button
           type="button"
           onClick={() => askQuestion(numbers.free < 0 ? "Como posso reorganizar meu mes?" : "Quanto posso gastar com seguranca?")}
-          className="relative mt-6 w-full rounded-[1.65rem] bg-white/13 p-4 text-left ring-1 ring-white/14 backdrop-blur transition active:scale-[0.99]"
+          className="press relative mt-6 w-full rounded-[1.65rem] bg-white/13 p-4 text-left ring-1 ring-white/14 backdrop-blur transition hover:bg-white/18"
         >
           <span className="flex items-center gap-1.5 text-[11px] font-semibold uppercase tracking-[0.14em] text-white/72">
             <PiggyBank className="h-3.5 w-3.5" />
