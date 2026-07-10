@@ -81,8 +81,8 @@ export function DashboardView() {
                 key={key}
                 type="button"
                 onClick={() => setActiveMonth(key)}
-                className={`flex min-w-[130px] flex-col gap-0.5 rounded-2xl border p-3 text-left transition ${
-                  active ? "border-primary bg-primary-soft" : "border-border bg-secondary"
+                className={`press focus-ring flex min-w-[130px] flex-col gap-0.5 rounded-2xl border p-3 text-left ${
+                  active ? "border-primary bg-primary-soft" : "border-border bg-secondary hover:border-primary/25"
                 }`}
               >
                 <span className="text-xs font-medium text-muted-foreground">{data.label}</span>
@@ -143,7 +143,7 @@ export function DashboardView() {
 
 function MetricCard({ label, value, hint }: { label: string; value: string; hint: string }) {
   return (
-    <div className="card-surface p-3.5">
+    <div className="card-surface hover-lift p-3.5">
       <span className="text-xs font-medium text-muted-foreground">{label}</span>
       <strong className="tnum mt-1 block font-display text-lg font-bold text-foreground">{value}</strong>
       <small className="mt-0.5 block truncate text-[11px] text-muted-foreground">{hint}</small>

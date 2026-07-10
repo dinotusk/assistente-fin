@@ -232,7 +232,7 @@ export function AssistantView({ onAddExpense }: AssistantViewProps) {
 
   return (
     <div className="flex flex-col gap-4">
-      <section className="relative overflow-hidden rounded-[2rem] bg-[radial-gradient(circle_at_18%_18%,rgba(255,255,255,0.24),transparent_26%),radial-gradient(circle_at_95%_10%,rgba(112,255,202,0.24),transparent_30%),linear-gradient(145deg,#14b878_0%,#078b5b_48%,#09584d_100%)] p-5 text-primary-foreground shadow-primary">
+      <section className="hero-gradient relative overflow-hidden rounded-[2rem] p-5 text-primary-foreground shadow-primary">
         <div className="absolute -right-10 -top-12 h-36 w-36 rounded-full bg-white/10" />
         <div className="absolute -bottom-16 left-8 h-44 w-44 rounded-full bg-emerald-200/10" />
         <div className="relative flex items-start justify-between gap-3">
@@ -261,7 +261,7 @@ export function AssistantView({ onAddExpense }: AssistantViewProps) {
         <button
           type="button"
           onClick={() => askQuestion(numbers.free < 0 ? "Como posso reorganizar meu mes?" : "Quanto posso gastar com seguranca?")}
-          className="relative mt-6 w-full rounded-[1.65rem] bg-white/13 p-4 text-left ring-1 ring-white/14 backdrop-blur transition active:scale-[0.99]"
+          className="press relative mt-6 w-full rounded-[1.65rem] bg-white/13 p-4 text-left ring-1 ring-white/14 backdrop-blur transition hover:bg-white/18"
         >
           <span className="flex items-center gap-1.5 text-[11px] font-semibold uppercase tracking-[0.14em] text-white/72">
             <PiggyBank className="h-3.5 w-3.5" />
@@ -328,7 +328,7 @@ export function AssistantView({ onAddExpense }: AssistantViewProps) {
               key={question}
               type="button"
               onClick={() => askQuestion(question)}
-              className="shrink-0 rounded-full border border-border bg-card px-3 py-2 text-xs font-bold text-muted-foreground shadow-soft"
+              className="press focus-ring shrink-0 rounded-full border border-border bg-card px-3.5 py-2 text-xs font-bold text-muted-foreground shadow-soft hover:border-primary/30 hover:text-primary"
             >
               {question}
             </button>
@@ -339,15 +339,15 @@ export function AssistantView({ onAddExpense }: AssistantViewProps) {
             value={input}
             onChange={(e) => setInput(e.target.value)}
             placeholder="Ex.: posso pagar a prioridade 1?"
-            className="h-12 flex-1 rounded-2xl border border-input bg-secondary px-4 text-sm text-foreground outline-none focus:border-primary focus:ring-2 focus:ring-primary/20"
+            className="h-12 flex-1 rounded-2xl border border-input bg-secondary px-4 text-sm text-foreground outline-none transition-all duration-200 placeholder:text-muted-foreground/70 focus:border-primary focus:bg-card focus:ring-4 focus:ring-primary/12"
           />
           <button
             type="submit"
             disabled={busy}
-            className="flex h-12 w-12 shrink-0 items-center justify-center rounded-2xl bg-primary text-primary-foreground disabled:opacity-60"
+            className="press focus-ring flex h-12 w-12 shrink-0 items-center justify-center rounded-2xl bg-primary text-primary-foreground shadow-primary disabled:opacity-60"
             aria-label="Enviar"
           >
-            <Send className="h-4 w-4" />
+            <Send className="h-4 w-4" strokeWidth={2.25} />
           </button>
         </form>
       </Panel>
@@ -393,7 +393,7 @@ export function AssistantView({ onAddExpense }: AssistantViewProps) {
             type="button"
             onClick={savePurchaseSimulation}
             disabled={!purchaseName.trim() || purchaseAmount <= 0}
-            className="hero-gradient h-12 rounded-2xl font-display text-sm font-bold text-primary-foreground shadow-primary transition active:scale-[0.98] disabled:cursor-not-allowed disabled:opacity-45"
+            className="hero-gradient press focus-ring h-12 rounded-2xl font-display text-sm font-bold text-primary-foreground shadow-primary disabled:cursor-not-allowed disabled:opacity-45"
           >
             Salvar simulação em Metas
           </button>
@@ -636,16 +636,16 @@ function QuickAction({
     <button
       type="button"
       onClick={onClick}
-      className="group flex min-h-16 items-center justify-between gap-3 rounded-[1.35rem] border border-border bg-gradient-to-br from-card to-secondary px-4 py-3 text-left shadow-soft transition active:scale-[0.99]"
+      className="group press focus-ring flex min-h-16 items-center justify-between gap-3 rounded-[1.35rem] border border-border bg-gradient-to-br from-card to-secondary px-4 py-3 text-left shadow-soft hover:border-primary/30 hover:shadow-card"
     >
       <span className="flex min-w-0 items-center gap-3">
-        <span className="flex h-10 w-10 shrink-0 items-center justify-center rounded-2xl bg-primary-soft text-primary ring-1 ring-primary/10">{icon}</span>
+        <span className="flex h-10 w-10 shrink-0 items-center justify-center rounded-2xl bg-primary-soft text-primary ring-1 ring-primary/10 transition-transform duration-200 group-hover:scale-105">{icon}</span>
         <span className="min-w-0">
           <strong className="block truncate text-sm font-bold text-foreground">{label}</strong>
           <small className="mt-0.5 block truncate text-[11px] font-medium text-muted-foreground">{description}</small>
         </span>
       </span>
-      <ArrowRight className="h-4 w-4 shrink-0 text-muted-foreground transition group-active:translate-x-0.5" />
+      <ArrowRight className="h-4 w-4 shrink-0 text-muted-foreground transition-transform duration-200 group-hover:translate-x-0.5 group-active:translate-x-0.5" />
     </button>
   );
 }

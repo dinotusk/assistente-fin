@@ -42,30 +42,30 @@ export function AuthScreen() {
           </p>
         </div>
 
-        <label className="flex flex-col gap-1.5">
-          <span className="text-sm font-medium text-foreground">Nome</span>
+        <label className="flex flex-col gap-2">
+          <span className="text-xs font-semibold uppercase tracking-[0.04em] text-muted-foreground">Nome</span>
           <input
             value={name}
             onChange={(e) => setName(e.target.value)}
             autoComplete="name"
-            className="h-12 rounded-xl border border-input bg-secondary px-4 text-base text-foreground outline-none transition focus:border-primary focus:ring-2 focus:ring-primary/20"
+            className="h-12 rounded-xl border border-input bg-secondary px-4 text-base text-foreground outline-none transition-all duration-200 placeholder:text-muted-foreground/70 focus:border-primary focus:bg-card focus:ring-4 focus:ring-primary/12"
           />
         </label>
-        <label className="flex flex-col gap-1.5">
-          <span className="text-sm font-medium text-foreground">Senha ou PIN</span>
+        <label className="flex flex-col gap-2">
+          <span className="text-xs font-semibold uppercase tracking-[0.04em] text-muted-foreground">Senha ou PIN</span>
           <input
             value={pin}
             onChange={(e) => setPin(e.target.value)}
             type="password"
             autoComplete="current-password"
-            className="h-12 rounded-xl border border-input bg-secondary px-4 text-base text-foreground outline-none transition focus:border-primary focus:ring-2 focus:ring-primary/20"
+            className="h-12 rounded-xl border border-input bg-secondary px-4 text-base text-foreground outline-none transition-all duration-200 placeholder:text-muted-foreground/70 focus:border-primary focus:bg-card focus:ring-4 focus:ring-primary/12"
           />
         </label>
 
         <button
           type="submit"
           disabled={loading}
-          className="hero-gradient h-12 rounded-xl font-display text-base font-semibold text-primary-foreground shadow-primary transition active:scale-[0.98] disabled:opacity-60"
+          className="hero-gradient press focus-ring h-12 rounded-xl font-display text-base font-semibold text-primary-foreground shadow-primary disabled:opacity-60"
         >
           {loading ? "Entrando..." : "Entrar ou criar perfil"}
         </button>

@@ -51,7 +51,7 @@ export function AppHome() {
     <div className="app-backdrop min-h-dvh">
       <div className="relative mx-auto flex min-h-dvh w-full max-w-[440px] flex-col bg-background/60">
         {/* Header */}
-        <header className="sticky top-0 z-20 border-b border-white/60 bg-background/75 px-4 pb-3 pt-[max(0.75rem,env(safe-area-inset-top))] shadow-[0_10px_30px_rgba(15,83,66,0.04)] backdrop-blur-xl">
+        <header className="sticky top-0 z-20 border-b border-border/70 bg-background/80 px-4 pb-3 pt-[max(0.75rem,env(safe-area-inset-top))] shadow-[0_8px_24px_-16px_oklch(0.2_0.05_160_/_0.18)] backdrop-blur-xl">
           <div className="flex items-center justify-between gap-3">
             <div className="min-w-0">
               <p className="text-[11px] font-bold uppercase tracking-[0.16em] text-primary/70">{titles[view]}</p>
@@ -63,7 +63,7 @@ export function AppHome() {
               <button
                 type="button"
                 onClick={() => setProfileMenuOpen((value) => !value)}
-                className="hero-gradient flex h-11 w-11 shrink-0 items-center justify-center rounded-[1.25rem] font-display text-sm font-bold text-primary-foreground shadow-primary transition active:scale-95"
+                className="hero-gradient press focus-ring flex h-11 w-11 shrink-0 items-center justify-center rounded-[1.25rem] font-display text-sm font-bold text-primary-foreground shadow-primary"
                 aria-label="Abrir opcoes do perfil"
               >
                 {initials}
@@ -96,7 +96,7 @@ export function AppHome() {
               <select
                 value={state.activeMonth}
                 onChange={(e) => setActiveMonth(e.target.value)}
-                className="h-11 w-full appearance-none rounded-[1.35rem] border border-white/70 bg-card/92 px-4 pr-10 text-sm font-bold text-foreground shadow-soft outline-none transition focus:border-primary focus:ring-2 focus:ring-primary/15"
+                className="focus-ring h-11 w-full appearance-none rounded-[1.35rem] border border-border bg-card px-4 pr-10 text-sm font-bold text-foreground shadow-soft outline-none transition focus:border-primary"
               >
                 {Object.entries(state.months)
                   .sort(([a], [b]) => a.localeCompare(b))
@@ -111,10 +111,10 @@ export function AppHome() {
             <button
               type="button"
               onClick={() => createNextMonth()}
-              className="flex h-11 items-center gap-1.5 rounded-[1.35rem] bg-primary-soft px-3 text-sm font-bold text-primary shadow-soft transition active:scale-[0.98]"
+              className="press focus-ring flex h-11 items-center gap-1.5 rounded-[1.35rem] bg-primary-soft px-4 text-sm font-bold text-primary shadow-soft hover:bg-primary/15"
               title={`Criar ${formatMonthLabel(state.activeMonth)}`}
             >
-              <CalendarPlus className="h-4 w-4" /> Mês
+              <CalendarPlus className="h-4 w-4" strokeWidth={2.25} /> Mês
             </button>
           </div>
 
@@ -135,17 +135,19 @@ export function AppHome() {
         </header>
 
         {/* Content */}
-        <main className="flex-1 px-4 pb-32 pt-2">
-          {view === "dashboard" && <DashboardView />}
-          {view === "transactions" && <TransactionsView onEdit={(id) => setExpenseDialog({ open: true, id })} />}
-          {view === "priorities" && (
-            <PrioritiesView
-              onEdit={(id) => setPriorityDialog({ open: true, id })}
-              onAdd={() => setPriorityDialog({ open: true, id: null })}
-            />
-          )}
-          {view === "assistant" && <AssistantView onAddExpense={() => setExpenseDialog({ open: true, id: null })} />}
-          {view === "settings" && <SettingsView onEditPeople={() => setPeopleOpen(true)} onEditMonth={() => setMonthOpen(true)} />}
+        <main className="flex-1 px-4 pb-32 pt-3">
+          <div key={view} className="animate-view">
+            {view === "dashboard" && <DashboardView />}
+            {view === "transactions" && <TransactionsView onEdit={(id) => setExpenseDialog({ open: true, id })} />}
+            {view === "priorities" && (
+              <PrioritiesView
+                onEdit={(id) => setPriorityDialog({ open: true, id })}
+                onAdd={() => setPriorityDialog({ open: true, id: null })}
+              />
+            )}
+            {view === "assistant" && <AssistantView onAddExpense={() => setExpenseDialog({ open: true, id: null })} />}
+            {view === "settings" && <SettingsView onEditPeople={() => setPeopleOpen(true)} onEditMonth={() => setMonthOpen(true)} />}
+          </div>
         </main>
 
         {/* FAB — add expense */}
@@ -153,7 +155,7 @@ export function AppHome() {
           <button
             type="button"
             onClick={() => setExpenseDialog({ open: true, id: null })}
-            className="fixed bottom-[max(6.5rem,calc(env(safe-area-inset-bottom)+6rem))] right-[max(1.25rem,calc(50%-220px+1.25rem))] z-30 flex h-14 w-14 items-center justify-center rounded-full border border-white/55 bg-primary/72 text-primary-foreground shadow-float backdrop-blur-xl transition active:scale-95"
+            className="press hover-lift focus-ring fixed bottom-[max(6.5rem,calc(env(safe-area-inset-bottom)+6rem))] right-[max(1.25rem,calc(50%-220px+1.25rem))] z-30 flex h-14 w-14 items-center justify-center rounded-full bg-primary text-primary-foreground shadow-primary"
             aria-label="Adicionar gasto"
           >
             <Plus className="h-6 w-6" strokeWidth={2.5} />

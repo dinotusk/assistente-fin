@@ -30,19 +30,19 @@ export function TransactionsView({ onEdit }: { onEdit: (id: string) => void }) {
 
   return (
     <div className="flex flex-col gap-3">
-      <div className="card-surface flex flex-col gap-3 p-3.5">
+      <div className="card-surface flex flex-col gap-2.5 p-3.5">
         <div className="relative">
           <Search className="pointer-events-none absolute left-3.5 top-1/2 h-4 w-4 -translate-y-1/2 text-muted-foreground" />
           <TextInput
             value={term}
             onChange={(e) => setTerm(e.target.value)}
-            placeholder="Buscar gasto, categoria ou observação"
-            className="!pl-10"
+            placeholder="Buscar gasto ou categoria"
+            className="!pl-10 text-sm"
             style={{ paddingLeft: "2.5rem" }}
           />
         </div>
-        <div className="grid grid-cols-2 gap-3">
-          <SelectInput value={category} onChange={(e) => setCategory(e.target.value)}>
+        <div className="grid grid-cols-2 gap-2.5">
+          <SelectInput value={category} onChange={(e) => setCategory(e.target.value)} className="text-sm">
             <option value="todos">Todas categorias</option>
             {categories.map((c) => (
               <option key={c} value={c}>
@@ -50,7 +50,7 @@ export function TransactionsView({ onEdit }: { onEdit: (id: string) => void }) {
               </option>
             ))}
           </SelectInput>
-          <SelectInput value={status} onChange={(e) => setStatus(e.target.value)}>
+          <SelectInput value={status} onChange={(e) => setStatus(e.target.value)} className="text-sm">
             <option value="todos">Todos status</option>
             <option value="A pagar">A pagar</option>
             <option value="Pago">Pago</option>
@@ -62,9 +62,9 @@ export function TransactionsView({ onEdit }: { onEdit: (id: string) => void }) {
         <p className="card-surface p-6 text-center text-sm text-muted-foreground">Nenhum gasto encontrado.</p>
       ) : (
         rows.map((item) => (
-          <div key={item.id} className="card-surface p-3.5">
+          <div key={item.id} className="card-surface hover-lift p-3.5">
             <div className="flex items-start gap-3">
-              <span className="flex h-10 w-10 shrink-0 items-center justify-center rounded-xl bg-secondary text-lg">
+              <span className="flex h-11 w-11 shrink-0 items-center justify-center rounded-2xl bg-secondary text-lg">
                 {categoryIcons[item.category] || categoryIcons.Outros}
               </span>
               <div className="min-w-0 flex-1">
@@ -83,7 +83,7 @@ export function TransactionsView({ onEdit }: { onEdit: (id: string) => void }) {
                 </div>
                 {item.note && <p className="mt-1 truncate text-[11px] text-muted-foreground">{item.note}</p>}
                 <div className="mt-2.5 flex items-center justify-between gap-2">
-                  <button type="button" onClick={() => toggleExpenseStatus(item.id)}>
+                  <button type="button" onClick={() => toggleExpenseStatus(item.id)} className="press focus-ring rounded-full">
                     <StatusPill status={item.status} />
                   </button>
                   <div className="flex items-center gap-1">
@@ -123,8 +123,10 @@ function IconBtn({
       type="button"
       onClick={onClick}
       aria-label={label}
-      className={`flex h-9 w-9 items-center justify-center rounded-xl bg-secondary transition active:scale-95 ${
-        danger ? "text-destructive" : "text-muted-foreground"
+      className={`press focus-ring flex h-9 w-9 items-center justify-center rounded-xl bg-secondary ${
+        danger
+          ? "text-destructive hover:bg-destructive/10"
+          : "text-muted-foreground hover:bg-muted hover:text-foreground"
       }`}
     >
       {children}
