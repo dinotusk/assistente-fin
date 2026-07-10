@@ -1,4 +1,4 @@
-import { Pencil, Trash2 } from "lucide-react";
+import { Pencil, Plus, Trash2 } from "lucide-react";
 
 import { calc, money, priorityMatchesView } from "@/lib/finance/calc";
 import { useFinance } from "@/lib/finance/FinanceContext";
