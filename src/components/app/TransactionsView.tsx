@@ -62,9 +62,9 @@ export function TransactionsView({ onEdit }: { onEdit: (id: string) => void }) {
         <p className="card-surface p-6 text-center text-sm text-muted-foreground">Nenhum gasto encontrado.</p>
       ) : (
         rows.map((item) => (
-          <div key={item.id} className="card-surface p-3.5">
+          <div key={item.id} className="card-surface hover-lift p-3.5">
             <div className="flex items-start gap-3">
-              <span className="flex h-10 w-10 shrink-0 items-center justify-center rounded-xl bg-secondary text-lg">
+              <span className="flex h-11 w-11 shrink-0 items-center justify-center rounded-2xl bg-secondary text-lg">
                 {categoryIcons[item.category] || categoryIcons.Outros}
               </span>
               <div className="min-w-0 flex-1">
