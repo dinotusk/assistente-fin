@@ -63,7 +63,7 @@ export function AppHome() {
               <button
                 type="button"
                 onClick={() => setProfileMenuOpen((value) => !value)}
-                className="hero-gradient flex h-11 w-11 shrink-0 items-center justify-center rounded-[1.25rem] font-display text-sm font-bold text-primary-foreground shadow-primary transition active:scale-95"
+                className="hero-gradient press focus-ring flex h-11 w-11 shrink-0 items-center justify-center rounded-[1.25rem] font-display text-sm font-bold text-primary-foreground shadow-primary"
                 aria-label="Abrir opcoes do perfil"
               >
                 {initials}
