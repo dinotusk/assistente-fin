@@ -1,5 +1,5 @@
 import { useRef } from "react";
-import { Users, CalendarCog, Download, Upload, RotateCcw, LogOut } from "lucide-react";
+import { Users, CalendarCog, Download, Upload, RotateCcw, LogOut, ChevronRight } from "lucide-react";
 
 import { useFinance } from "@/lib/finance/FinanceContext";
 
