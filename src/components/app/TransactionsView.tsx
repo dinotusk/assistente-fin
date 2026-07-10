@@ -123,8 +123,10 @@ function IconBtn({
       type="button"
       onClick={onClick}
       aria-label={label}
-      className={`flex h-9 w-9 items-center justify-center rounded-xl bg-secondary transition active:scale-95 ${
-        danger ? "text-destructive" : "text-muted-foreground"
+      className={`press focus-ring flex h-9 w-9 items-center justify-center rounded-xl bg-secondary ${
+        danger
+          ? "text-destructive hover:bg-destructive/10"
+          : "text-muted-foreground hover:bg-muted hover:text-foreground"
       }`}
     >
       {children}
