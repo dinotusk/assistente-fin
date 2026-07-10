@@ -30,19 +30,19 @@ export function TransactionsView({ onEdit }: { onEdit: (id: string) => void }) {
 
   return (
     <div className="flex flex-col gap-3">
-      <div className="card-surface flex flex-col gap-3 p-3.5">
+      <div className="card-surface flex flex-col gap-2.5 p-3.5">
         <div className="relative">
           <Search className="pointer-events-none absolute left-3.5 top-1/2 h-4 w-4 -translate-y-1/2 text-muted-foreground" />
           <TextInput
             value={term}
             onChange={(e) => setTerm(e.target.value)}
-            placeholder="Buscar gasto, categoria ou observação"
-            className="!pl-10"
+            placeholder="Buscar gasto ou categoria"
+            className="!pl-10 text-sm"
             style={{ paddingLeft: "2.5rem" }}
           />
         </div>
-        <div className="grid grid-cols-2 gap-3">
-          <SelectInput value={category} onChange={(e) => setCategory(e.target.value)}>
+        <div className="grid grid-cols-2 gap-2.5">
+          <SelectInput value={category} onChange={(e) => setCategory(e.target.value)} className="text-sm">
             <option value="todos">Todas categorias</option>
             {categories.map((c) => (
               <option key={c} value={c}>
@@ -50,7 +50,7 @@ export function TransactionsView({ onEdit }: { onEdit: (id: string) => void }) {
               </option>
             ))}
           </SelectInput>
-          <SelectInput value={status} onChange={(e) => setStatus(e.target.value)}>
+          <SelectInput value={status} onChange={(e) => setStatus(e.target.value)} className="text-sm">
             <option value="todos">Todos status</option>
             <option value="A pagar">A pagar</option>
             <option value="Pago">Pago</option>
