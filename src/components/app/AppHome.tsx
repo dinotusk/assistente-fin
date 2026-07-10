@@ -96,7 +96,7 @@ export function AppHome() {
               <select
                 value={state.activeMonth}
                 onChange={(e) => setActiveMonth(e.target.value)}
-                className="h-11 w-full appearance-none rounded-[1.35rem] border border-white/70 bg-card/92 px-4 pr-10 text-sm font-bold text-foreground shadow-soft outline-none transition focus:border-primary focus:ring-2 focus:ring-primary/15"
+                className="focus-ring h-11 w-full appearance-none rounded-[1.35rem] border border-border bg-card px-4 pr-10 text-sm font-bold text-foreground shadow-soft outline-none transition focus:border-primary"
               >
                 {Object.entries(state.months)
                   .sort(([a], [b]) => a.localeCompare(b))
@@ -111,10 +111,10 @@ export function AppHome() {
             <button
               type="button"
               onClick={() => createNextMonth()}
-              className="flex h-11 items-center gap-1.5 rounded-[1.35rem] bg-primary-soft px-3 text-sm font-bold text-primary shadow-soft transition active:scale-[0.98]"
+              className="press focus-ring flex h-11 items-center gap-1.5 rounded-[1.35rem] bg-primary-soft px-4 text-sm font-bold text-primary shadow-soft hover:bg-primary/15"
               title={`Criar ${formatMonthLabel(state.activeMonth)}`}
             >
-              <CalendarPlus className="h-4 w-4" /> Mês
+              <CalendarPlus className="h-4 w-4" strokeWidth={2.25} /> Mês
             </button>
           </div>
 
