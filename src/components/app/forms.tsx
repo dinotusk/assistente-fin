@@ -3,12 +3,12 @@ import { forwardRef, type ReactNode } from "react";
 import { cn } from "@/lib/utils";
 
 const inputClass =
-  "h-12 w-full rounded-xl border border-input bg-secondary px-4 text-base text-foreground outline-none transition focus:border-primary focus:ring-2 focus:ring-primary/20";
+  "h-12 w-full rounded-xl border border-input bg-secondary px-4 text-base text-foreground outline-none transition-all duration-200 placeholder:text-muted-foreground/70 focus:border-primary focus:bg-card focus:ring-4 focus:ring-primary/12";
 
 export function Field({ label, children }: { label: string; children: ReactNode }) {
   return (
-    <label className="flex flex-col gap-1.5">
-      <span className="text-sm font-medium text-foreground">{label}</span>
+    <label className="flex flex-col gap-2">
+      <span className="text-xs font-semibold uppercase tracking-[0.04em] text-muted-foreground">{label}</span>
       {children}
     </label>
   );
