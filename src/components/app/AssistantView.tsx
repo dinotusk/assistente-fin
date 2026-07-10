@@ -232,7 +232,7 @@ export function AssistantView({ onAddExpense }: AssistantViewProps) {
 
   return (
     <div className="flex flex-col gap-4">
-      <section className="relative overflow-hidden rounded-[2rem] bg-[radial-gradient(circle_at_18%_18%,rgba(255,255,255,0.24),transparent_26%),radial-gradient(circle_at_95%_10%,rgba(112,255,202,0.24),transparent_30%),linear-gradient(145deg,#14b878_0%,#078b5b_48%,#09584d_100%)] p-5 text-primary-foreground shadow-primary">
+      <section className="hero-gradient relative overflow-hidden rounded-[2rem] p-5 text-primary-foreground shadow-primary">
         <div className="absolute -right-10 -top-12 h-36 w-36 rounded-full bg-white/10" />
         <div className="absolute -bottom-16 left-8 h-44 w-44 rounded-full bg-emerald-200/10" />
         <div className="relative flex items-start justify-between gap-3">
