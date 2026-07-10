@@ -164,20 +164,19 @@
   }
 }
 
-/* Ambient premium backdrop behind the phone surface */
+/* Ambient premium backdrop — single restrained green whisper (cleaner) */
 @utility app-backdrop {
   background:
-    radial-gradient(120% 60% at 50% -10%, oklch(0.9 0.06 158 / 0.55), transparent 60%),
-    radial-gradient(80% 50% at 100% 0%, oklch(0.88 0.05 200 / 0.35), transparent 55%),
+    radial-gradient(130% 55% at 50% -12%, oklch(0.91 0.05 158 / 0.4), transparent 62%),
     var(--color-background);
 }
 
 @utility card-surface {
   background: var(--color-card);
-  border: 1px solid oklch(0.94 0.014 160);
+  border: 1px solid oklch(0.93 0.012 160);
   border-radius: var(--radius-xl);
   box-shadow:
-    0 1px 0 oklch(1 0 0 / 0.9) inset,
+    0 1px 0 oklch(1 0 0 / 0.7) inset,
     var(--shadow-card);
 }
 
@@ -185,10 +184,98 @@
   background: linear-gradient(150deg, oklch(0.62 0.14 160) 0%, oklch(0.5 0.13 165) 55%, oklch(0.44 0.11 175) 100%);
 }
 
+/* --- Reusable interaction utilities (visual only) --- */
+
+/* Tactile press feedback for buttons/tappable cards */
+@utility press {
+  transition: transform 0.18s var(--ease-out-soft), box-shadow 0.2s var(--ease-out-soft), background-color 0.2s var(--ease-out-soft), border-color 0.2s var(--ease-out-soft), color 0.2s var(--ease-out-soft);
+  &:active {
+    transform: scale(0.97);
+  }
+}
+
+/* Subtle lift on pointer devices only (keeps mobile clean) */
+@utility hover-lift {
+  transition: transform 0.22s var(--ease-out-soft), box-shadow 0.22s var(--ease-out-soft);
+  @media (hover: hover) {
+    &:hover {
+      transform: translateY(-2px);
+      box-shadow: var(--shadow-float);
+    }
+  }
+}
+
+/* Consistent, accessible focus ring */
+@utility focus-ring {
+  outline: none;
+  &:focus-visible {
+    box-shadow: 0 0 0 2px var(--color-background), 0 0 0 4px oklch(0.58 0.13 158 / 0.55);
+  }
+}
+
+/* Entrance animation for screen changes */
+@keyframes view-in {
+  from {
+    opacity: 0;
+    transform: translateY(10px);
+  }
+  to {
+    opacity: 1;
+    transform: none;
+  }
+}
+@utility animate-view {
+  animation: view-in 0.4s var(--ease-out-soft) both;
+}
+
+/* Skeleton shimmer for loading states */
+@keyframes skeleton-shimmer {
+  0% {
+    background-position: 200% 0;
+  }
+  100% {
+    background-position: -200% 0;
+  }
+}
+@utility skeleton {
+  background: linear-gradient(
+    100deg,
+    var(--color-muted) 30%,
+    oklch(0.97 0.01 160) 50%,
+    var(--color-muted) 70%
+  );
+  background-size: 200% 100%;
+  animation: skeleton-shimmer 1.4s ease-in-out infinite;
+  border-radius: var(--radius-md);
+}
+
+/* Typing indicator dots (assistant "thinking") */
+@keyframes typing-bounce {
+  0%, 60%, 100% {
+    transform: translateY(0);
+    opacity: 0.5;
+  }
+  30% {
+    transform: translateY(-3px);
+    opacity: 1;
+  }
+}
+
+@media (prefers-reduced-motion: reduce) {
+  *,
+  *::before,
+  *::after {
+    animation-duration: 0.001ms !important;
+    animation-iteration-count: 1 !important;
+    transition-duration: 0.001ms !important;
+  }
+}
+
 @media (min-width: 520px) {
   body {
     background:
-      radial-gradient(80% 60% at 50% -10%, oklch(0.88 0.055 158 / 0.36), transparent 65%),
+      radial-gradient(80% 60% at 50% -10%, oklch(0.89 0.045 158 / 0.32), transparent 65%),
       var(--color-background);
   }
 }
+
