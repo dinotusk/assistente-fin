@@ -47,15 +47,16 @@ export function SettingsView({
             key={title}
             type="button"
             onClick={action}
-            className="flex items-center gap-3 rounded-2xl border border-border bg-secondary p-3.5 text-left transition active:scale-[0.99]"
+            className="press focus-ring group flex items-center gap-3 rounded-2xl border border-border bg-secondary p-3.5 text-left hover:border-primary/25 hover:bg-card"
           >
-            <span className={`flex h-10 w-10 shrink-0 items-center justify-center rounded-xl bg-card ${danger ? "text-destructive" : "text-primary"}`}>
-              <Icon className="h-5 w-5" />
+            <span className={`flex h-11 w-11 shrink-0 items-center justify-center rounded-2xl bg-card ${danger ? "text-destructive" : "text-primary"}`}>
+              <Icon className="h-5 w-5" strokeWidth={2} />
             </span>
             <span className="min-w-0 flex-1">
               <strong className="block text-sm font-bold text-foreground">{title}</strong>
               <span className="block text-[12px] leading-snug text-muted-foreground">{desc}</span>
             </span>
+            <ChevronRight className={`h-4 w-4 shrink-0 transition-transform duration-200 group-hover:translate-x-0.5 ${danger ? "text-destructive/60" : "text-muted-foreground"}`} />
           </button>
         ))}
       </div>
