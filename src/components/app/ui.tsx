@@ -38,8 +38,10 @@ export function Segmented<T extends string>({ value, options, onChange, classNam
             type="button"
             onClick={() => onChange(opt.value)}
             className={cn(
-              "min-w-fit shrink-0 rounded-full px-4 py-2 text-sm font-semibold transition-all",
-              active ? "bg-card text-primary shadow-soft" : "text-muted-foreground",
+              "focus-ring min-w-fit shrink-0 rounded-full px-4 py-2 text-sm font-semibold transition-all duration-200",
+              active
+                ? "bg-card text-primary shadow-soft"
+                : "text-muted-foreground hover:text-foreground",
             )}
           >
             {opt.label}
