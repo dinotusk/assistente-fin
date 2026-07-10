@@ -636,16 +636,16 @@ function QuickAction({
     <button
       type="button"
       onClick={onClick}
-      className="group flex min-h-16 items-center justify-between gap-3 rounded-[1.35rem] border border-border bg-gradient-to-br from-card to-secondary px-4 py-3 text-left shadow-soft transition active:scale-[0.99]"
+      className="group press focus-ring flex min-h-16 items-center justify-between gap-3 rounded-[1.35rem] border border-border bg-gradient-to-br from-card to-secondary px-4 py-3 text-left shadow-soft hover:border-primary/30 hover:shadow-card"
     >
       <span className="flex min-w-0 items-center gap-3">
-        <span className="flex h-10 w-10 shrink-0 items-center justify-center rounded-2xl bg-primary-soft text-primary ring-1 ring-primary/10">{icon}</span>
+        <span className="flex h-10 w-10 shrink-0 items-center justify-center rounded-2xl bg-primary-soft text-primary ring-1 ring-primary/10 transition-transform duration-200 group-hover:scale-105">{icon}</span>
         <span className="min-w-0">
           <strong className="block truncate text-sm font-bold text-foreground">{label}</strong>
           <small className="mt-0.5 block truncate text-[11px] font-medium text-muted-foreground">{description}</small>
         </span>
       </span>
-      <ArrowRight className="h-4 w-4 shrink-0 text-muted-foreground transition group-active:translate-x-0.5" />
+      <ArrowRight className="h-4 w-4 shrink-0 text-muted-foreground transition-transform duration-200 group-hover:translate-x-0.5 group-active:translate-x-0.5" />
     </button>
   );
 }
