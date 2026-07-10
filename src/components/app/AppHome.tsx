@@ -51,7 +51,7 @@ export function AppHome() {
     <div className="app-backdrop min-h-dvh">
       <div className="relative mx-auto flex min-h-dvh w-full max-w-[440px] flex-col bg-background/60">
         {/* Header */}
-        <header className="sticky top-0 z-20 border-b border-white/60 bg-background/75 px-4 pb-3 pt-[max(0.75rem,env(safe-area-inset-top))] shadow-[0_10px_30px_rgba(15,83,66,0.04)] backdrop-blur-xl">
+        <header className="sticky top-0 z-20 border-b border-border/70 bg-background/80 px-4 pb-3 pt-[max(0.75rem,env(safe-area-inset-top))] shadow-[0_8px_24px_-16px_oklch(0.2_0.05_160_/_0.18)] backdrop-blur-xl">
           <div className="flex items-center justify-between gap-3">
             <div className="min-w-0">
               <p className="text-[11px] font-bold uppercase tracking-[0.16em] text-primary/70">{titles[view]}</p>
