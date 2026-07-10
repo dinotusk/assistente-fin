@@ -49,10 +49,12 @@
   --font-display: "Sora Variable", ui-sans-serif, system-ui, sans-serif;
   --font-sans: "Plus Jakarta Sans Variable", ui-sans-serif, system-ui, sans-serif;
 
-  --shadow-soft: 0 1px 2px oklch(0.2 0.05 160 / 0.04), 0 8px 24px -12px oklch(0.2 0.05 160 / 0.12);
-  --shadow-card: 0 1px 3px oklch(0.2 0.05 160 / 0.05), 0 12px 32px -16px oklch(0.2 0.05 160 / 0.16);
-  --shadow-float: 0 8px 40px -8px oklch(0.2 0.05 160 / 0.22);
-  --shadow-primary: 0 10px 30px -10px oklch(0.55 0.14 158 / 0.5);
+  /* Discreet, layered shadows — Linear/Notion restraint */
+  --shadow-soft: 0 1px 2px oklch(0.2 0.04 160 / 0.04), 0 3px 12px -6px oklch(0.2 0.04 160 / 0.07);
+  --shadow-card: 0 1px 2px oklch(0.2 0.04 160 / 0.035), 0 8px 24px -16px oklch(0.2 0.04 160 / 0.12);
+  --shadow-float: 0 10px 36px -12px oklch(0.2 0.05 160 / 0.16);
+  --shadow-primary: 0 10px 26px -12px oklch(0.55 0.14 158 / 0.4);
+  --ease-out-soft: cubic-bezier(0.22, 1, 0.36, 1);
 }
 
 :root {
