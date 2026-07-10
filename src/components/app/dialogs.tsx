@@ -27,9 +27,9 @@ function SheetShell({
 }) {
   return (
     <Drawer open={open} onOpenChange={onOpenChange}>
-      <DrawerContent className="mx-auto flex max-h-[88svh] max-w-[440px] flex-col border-border bg-card">
-        <DrawerHeader className="px-5 pb-1 pt-2 text-left">
-          <DrawerTitle className="font-display text-lg font-bold text-foreground">{title}</DrawerTitle>
+      <DrawerContent className="mx-auto flex max-h-[88svh] max-w-[440px] flex-col rounded-t-[1.75rem] border-border bg-card">
+        <DrawerHeader className="px-5 pb-1 pt-3 text-left">
+          <DrawerTitle className="font-display text-xl font-bold tracking-tight text-foreground">{title}</DrawerTitle>
         </DrawerHeader>
         <div className="min-h-0 flex-1 overflow-y-auto overscroll-contain px-5 pb-[max(1rem,env(safe-area-inset-bottom))] pt-2">{children}</div>
       </DrawerContent>
