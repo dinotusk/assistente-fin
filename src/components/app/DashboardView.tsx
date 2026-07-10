@@ -143,7 +143,7 @@ export function DashboardView() {
 
 function MetricCard({ label, value, hint }: { label: string; value: string; hint: string }) {
   return (
-    <div className="card-surface p-3.5">
+    <div className="card-surface hover-lift p-3.5">
       <span className="text-xs font-medium text-muted-foreground">{label}</span>
       <strong className="tnum mt-1 block font-display text-lg font-bold text-foreground">{value}</strong>
       <small className="mt-0.5 block truncate text-[11px] text-muted-foreground">{hint}</small>
