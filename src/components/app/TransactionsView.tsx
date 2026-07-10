@@ -83,7 +83,7 @@ export function TransactionsView({ onEdit }: { onEdit: (id: string) => void }) {
                 </div>
                 {item.note && <p className="mt-1 truncate text-[11px] text-muted-foreground">{item.note}</p>}
                 <div className="mt-2.5 flex items-center justify-between gap-2">
-                  <button type="button" onClick={() => toggleExpenseStatus(item.id)}>
+                  <button type="button" onClick={() => toggleExpenseStatus(item.id)} className="press focus-ring rounded-full">
                     <StatusPill status={item.status} />
                   </button>
                   <div className="flex items-center gap-1">
