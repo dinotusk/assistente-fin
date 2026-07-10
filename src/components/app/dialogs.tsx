@@ -43,13 +43,13 @@ function Actions({ onCancel, submitLabel = "Salvar" }: { onCancel: () => void; s
       <button
         type="button"
         onClick={onCancel}
-        className="h-12 flex-1 rounded-xl border border-input bg-secondary font-semibold text-foreground transition active:scale-[0.98]"
+        className="press focus-ring h-12 flex-1 rounded-xl border border-input bg-secondary font-semibold text-foreground hover:bg-muted"
       >
         Cancelar
       </button>
       <button
         type="submit"
-        className="hero-gradient h-12 flex-1 rounded-xl font-display font-semibold text-primary-foreground shadow-primary transition active:scale-[0.98]"
+        className="hero-gradient press focus-ring h-12 flex-1 rounded-xl font-display font-semibold text-primary-foreground shadow-primary"
       >
         {submitLabel}
       </button>
