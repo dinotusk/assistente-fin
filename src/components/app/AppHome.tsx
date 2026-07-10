@@ -155,7 +155,7 @@ export function AppHome() {
           <button
             type="button"
             onClick={() => setExpenseDialog({ open: true, id: null })}
-            className="fixed bottom-[max(6.5rem,calc(env(safe-area-inset-bottom)+6rem))] right-[max(1.25rem,calc(50%-220px+1.25rem))] z-30 flex h-14 w-14 items-center justify-center rounded-full border border-white/55 bg-primary/72 text-primary-foreground shadow-float backdrop-blur-xl transition active:scale-95"
+            className="press hover-lift focus-ring fixed bottom-[max(6.5rem,calc(env(safe-area-inset-bottom)+6rem))] right-[max(1.25rem,calc(50%-220px+1.25rem))] z-30 flex h-14 w-14 items-center justify-center rounded-full bg-primary text-primary-foreground shadow-primary"
             aria-label="Adicionar gasto"
           >
             <Plus className="h-6 w-6" strokeWidth={2.5} />
