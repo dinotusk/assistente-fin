@@ -135,17 +135,19 @@ export function AppHome() {
         </header>
 
         {/* Content */}
-        <main className="flex-1 px-4 pb-32 pt-2">
-          {view === "dashboard" && <DashboardView />}
-          {view === "transactions" && <TransactionsView onEdit={(id) => setExpenseDialog({ open: true, id })} />}
-          {view === "priorities" && (
-            <PrioritiesView
-              onEdit={(id) => setPriorityDialog({ open: true, id })}
-              onAdd={() => setPriorityDialog({ open: true, id: null })}
-            />
-          )}
-          {view === "assistant" && <AssistantView onAddExpense={() => setExpenseDialog({ open: true, id: null })} />}
-          {view === "settings" && <SettingsView onEditPeople={() => setPeopleOpen(true)} onEditMonth={() => setMonthOpen(true)} />}
+        <main className="flex-1 px-4 pb-32 pt-3">
+          <div key={view} className="animate-view">
+            {view === "dashboard" && <DashboardView />}
+            {view === "transactions" && <TransactionsView onEdit={(id) => setExpenseDialog({ open: true, id })} />}
+            {view === "priorities" && (
+              <PrioritiesView
+                onEdit={(id) => setPriorityDialog({ open: true, id })}
+                onAdd={() => setPriorityDialog({ open: true, id: null })}
+              />
+            )}
+            {view === "assistant" && <AssistantView onAddExpense={() => setExpenseDialog({ open: true, id: null })} />}
+            {view === "settings" && <SettingsView onEditPeople={() => setPeopleOpen(true)} onEditMonth={() => setMonthOpen(true)} />}
+          </div>
         </main>
 
         {/* FAB — add expense */}
