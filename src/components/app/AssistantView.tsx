@@ -393,7 +393,7 @@ export function AssistantView({ onAddExpense }: AssistantViewProps) {
             type="button"
             onClick={savePurchaseSimulation}
             disabled={!purchaseName.trim() || purchaseAmount <= 0}
-            className="hero-gradient h-12 rounded-2xl font-display text-sm font-bold text-primary-foreground shadow-primary transition active:scale-[0.98] disabled:cursor-not-allowed disabled:opacity-45"
+            className="hero-gradient press focus-ring h-12 rounded-2xl font-display text-sm font-bold text-primary-foreground shadow-primary disabled:cursor-not-allowed disabled:opacity-45"
           >
             Salvar simulação em Metas
           </button>
