@@ -24,11 +24,11 @@ export function SideNav({
     <aside className="sticky top-0 flex h-dvh w-[248px] shrink-0 flex-col gap-1 border-r border-border/70 bg-card/60 px-4 py-6 backdrop-blur-xl">
       <div className="mb-6 flex items-center gap-3 px-2">
         <div className="hero-gradient flex h-11 w-11 items-center justify-center rounded-[1.1rem] font-display text-sm font-bold text-primary-foreground shadow-primary">
-          AF
+          AV
         </div>
         <div className="min-w-0">
-          <p className="truncate font-display text-sm font-bold text-foreground">Assistente</p>
-          <p className="truncate text-xs text-muted-foreground">Financeiro</p>
+          <p className="truncate font-display text-sm font-bold text-foreground">Aval</p>
+          <p className="truncate text-xs text-muted-foreground">Assistente financeiro</p>
         </div>
       </div>
 

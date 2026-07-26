@@ -46,7 +46,7 @@ export function AppHome() {
   const [peopleOpen, setPeopleOpen] = useState(false);
   const [profileMenuOpen, setProfileMenuOpen] = useState(false);
   const importRef = useRef<HTMLInputElement>(null);
-  const initials = getInitials(activeUser?.name || "Assistente Financeiro");
+  const initials = getInitials(activeUser?.name || "Aval");
 
   async function onImport(e: React.ChangeEvent<HTMLInputElement>) {
     const file = e.target.files?.[0];
@@ -200,7 +200,7 @@ export function AppHome() {
               <div className="min-w-0 flex-1">
                 <p className="text-[11px] font-bold uppercase tracking-[0.16em] text-primary/70">{titles[view]}</p>
                 <h1 className="truncate font-display text-2xl font-bold text-foreground">
-                  {activeUser?.name || "Assistente financeiro"}
+                  {activeUser?.name || "Aval"}
                 </h1>
               </div>
               <div className="flex items-center gap-2">{monthPicker}</div>

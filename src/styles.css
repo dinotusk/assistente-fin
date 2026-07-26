@@ -6,7 +6,7 @@
 
 @custom-variant dark (&:is(.dark *));
 
-/* Finance Core — dark, assistant-first fintech design system. */
+/* Aval - dark, assistant-first fintech design system. */
 
 @theme inline {
   --radius-sm: calc(var(--radius) - 6px);
@@ -48,7 +48,7 @@
   --shadow-soft: 0 8px 24px -18px rgb(0 0 0 / 0.8);
   --shadow-card: 0 18px 42px -28px rgb(0 0 0 / 0.95);
   --shadow-float: 0 24px 48px -22px rgb(0 0 0 / 0.95);
-  --shadow-primary: 0 16px 34px -20px rgb(204 255 102 / 0.75);
+  --shadow-primary: 0 16px 34px -20px rgb(201 168 106 / 0.75);
   --ease-out-soft: cubic-bezier(0.22, 1, 0.36, 1);
 }
 
@@ -56,31 +56,31 @@
   --radius: 1.25rem;
 
   color-scheme: dark;
-  --background: #0b0c0f;
-  --surface: #101218;
-  --foreground: #f2f4ef;
-  --card: #12141a;
+  --background: #0a1a15;
+  --surface: #10281f;
+  --foreground: #f4f1ea;
+  --card: #123028;
   --card-foreground: #f2f4ef;
-  --popover: #151820;
+  --popover: #123028;
   --popover-foreground: #f2f4ef;
-  --primary: #ccff66;
+  --primary: #c9a86a;
   --primary-foreground: #0a0b0d;
-  --primary-soft: rgb(204 255 102 / 0.12);
+  --primary-soft: rgb(201 168 106 / 0.14);
   --secondary: rgb(255 255 255 / 0.05);
   --secondary-foreground: #f2f4ef;
   --muted: rgb(255 255 255 / 0.06);
   --muted-foreground: rgb(242 244 239 / 0.58);
-  --accent: rgb(204 255 102 / 0.14);
-  --accent-foreground: #ccff66;
-  --destructive: #ff7a5e;
+  --accent: rgb(201 168 106 / 0.16);
+  --accent-foreground: #c9a86a;
+  --destructive: #c9705a;
   --destructive-foreground: #0a0b0d;
-  --success: #32d583;
+  --success: #7fa88a;
   --success-foreground: #08130e;
-  --warning: #f0ae35;
+  --warning: #d9a54e;
   --warning-foreground: #171006;
   --border: rgb(255 255 255 / 0.1);
   --input: rgb(255 255 255 / 0.14);
-  --ring: #ccff66;
+  --ring: #c9a86a;
 }
 
 .dark {
@@ -132,8 +132,9 @@
 
 @utility app-backdrop {
   background:
-    repeating-linear-gradient(90deg, rgb(204 255 102 / 0.025) 0, rgb(204 255 102 / 0.025) 1px, transparent 1px, transparent 64px),
-    radial-gradient(115% 75% at 50% 0%, #171a1e 0%, #0c0d11 55%, #08090b 100%);
+    repeating-linear-gradient(90deg, rgb(201 168 106 / 0.055) 0, rgb(201 168 106 / 0.055) 1px, transparent 1px, transparent 64px),
+    radial-gradient(circle at 100% -10%, rgb(201 168 106 / 0.18), transparent 30%),
+    linear-gradient(180deg, #17392e 0%, #10281f 52%, #0a1a15 100%);
 }
 
 @utility card-surface {
@@ -144,14 +145,14 @@
 }
 
 @utility hero-gradient {
-  background: linear-gradient(145deg, #d9ff8f 0%, #ccff66 52%, #aee640 100%);
+  background: radial-gradient(circle at 32% 26%, #f6ecd4, #dcc38c 22%, #c9a86a 44%, #8a6a2f 78%, #63481c);
 }
 
 @utility finance-hero {
   background:
-    radial-gradient(circle at 100% 0%, rgb(204 255 102 / 0.11), transparent 38%),
-    linear-gradient(160deg, #1d2117 0%, #12141a 62%);
-  border: 1px solid rgb(204 255 102 / 0.22);
+    radial-gradient(circle at 100% 0%, rgb(201 168 106 / 0.16), transparent 38%),
+    linear-gradient(160deg, #1f4a3a 0%, #123026 62%);
+  border: 1px solid rgb(201 168 106 / 0.3);
   box-shadow: 0 26px 50px -26px rgb(0 0 0 / 0.9);
 }
 

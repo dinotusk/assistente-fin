@@ -1,12 +1,12 @@
 {
-  "name": "Assistente Financeiro da Casa",
-  "short_name": "Financeiro",
-  "description": "Controle financeiro familiar para Minha casa e Pai da namorada.",
+  "name": "Aval",
+  "short_name": "Aval",
+  "description": "Assistente financeiro familiar com IA.",
   "start_url": "/",
   "scope": "/",
   "display": "standalone",
-  "background_color": "#f2f8f4",
-  "theme_color": "#12a06a",
+  "background_color": "#0a1a15",
+  "theme_color": "#0a1a15",
   "orientation": "portrait",
   "categories": ["finance", "productivity"],
   "icons": [

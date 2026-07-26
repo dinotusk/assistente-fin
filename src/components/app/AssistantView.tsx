@@ -28,7 +28,7 @@ import {
   viewLabelForPeople,
 } from "@/lib/finance/calc";
 import { answerLocally, askGemini, buildAiContext } from "@/lib/finance/ai";
-import { categories, paymentMethods, VIEW_ALL } from "@/lib/finance/constants";
+import { categories, paymentMethods, VIEW_ALL, VIEW_ME, VIEW_SPOUSE } from "@/lib/finance/constants";
 import { useFinance } from "@/lib/finance/FinanceContext";
 import { uid } from "@/lib/finance/seed";
 import type { Expense } from "@/lib/finance/types";
@@ -51,6 +51,7 @@ export function AssistantView({ onAddExpense }: AssistantViewProps) {
     state,
     month,
     envelopes,
+    saveMonthSettings,
     saveExpense,
     savePriority,
     saveEnvelopes,
@@ -148,16 +149,12 @@ export function AssistantView({ onAddExpense }: AssistantViewProps) {
   async function askQuestion(question: string) {
     if (!question || busy) return;
     chatRef.current?.scrollIntoView({ behavior: "smooth", block: "start" });
-    const parsedExpense = parseExpenseCommand(question, state.activeMonth, resolveViewOwner(view) || "Minha casa");
-    if (parsedExpense) {
-      saveExpense(parsedExpense);
+    const commandAnswer = handleAssistantCommand(question);
+    if (commandAnswer) {
       setMessages((m) => [
         ...m,
         { role: "user", text: question },
-        {
-          role: "ai",
-          text: `Gasto registrado.\nDescricao: ${parsedExpense.name}\nValor: ${money(parsedExpense.amount)}\nCategoria: ${parsedExpense.category}\nResponsavel: ${ownerLabelForPeople(parsedExpense.owner, state.people)}\nStatus: ${parsedExpense.status}`,
-        },
+        { role: "ai", text: commandAnswer },
       ]);
       return;
     }
@@ -175,6 +172,98 @@ export function AssistantView({ onAddExpense }: AssistantViewProps) {
       return next;
     });
     setBusy(false);
+  }
+
+  function handleAssistantCommand(question: string): string | null {
+    const normalized = normalizeText(question);
+    const activeOwner = resolveViewOwner(view) || "Minha casa";
+    const activeLabel = ownerLabelForPeople(activeOwner, state.people);
+    const amountInfo = extractAmount(question);
+
+    if (amountInfo && /\b(meta|prioridade)\b/.test(normalized) && /\b(cria|criar|nova|novo|adiciona|adicionar)\b/.test(normalized)) {
+      const name = cleanCommandName(question, amountInfo.raw, [
+        "cria",
+        "criar",
+        "nova",
+        "novo",
+        "adiciona",
+        "adicionar",
+        "meta",
+        "prioridade",
+        "de",
+        "para",
+      ]);
+      savePriority({
+        id: uid(),
+        name: name || "Nova meta",
+        amount: amountInfo.amount,
+        rank: 2,
+        status: "A pagar",
+        responsavel: activeOwner,
+        createdAt: new Date().toISOString(),
+      });
+      return `Meta criada.\nDescricao: ${name || "Nova meta"}\nValor: ${money(amountInfo.amount)}\nResponsavel: ${activeLabel}`;
+    }
+
+    if (amountInfo && /orcamento|orçamento/.test(normalized)) {
+      const profileBudgets = { ...(month.profileBudgets || {}) };
+      let income = month.income;
+      let houseContribution = month.houseContribution;
+
+      if (view === VIEW_SPOUSE) {
+        houseContribution = amountInfo.amount;
+      } else if (view !== VIEW_ALL && view !== VIEW_ME) {
+        profileBudgets[view] = amountInfo.amount;
+      } else {
+        income = amountInfo.amount;
+      }
+
+      saveMonthSettings(month.label, income, houseContribution, profileBudgets);
+      return `Orcamento atualizado.\nPerfil: ${viewLabelForPeople(view, state.people)}\nNovo limite: ${money(amountInfo.amount)}`;
+    }
+
+    if (!amountInfo && /\b(paguei|pagar|marcar|marca|quitei|quitar)\b/.test(normalized)) {
+      const term = cleanCommandName(question, "", [
+        "paguei",
+        "pagar",
+        "marcar",
+        "marca",
+        "quitei",
+        "quitar",
+        "como",
+        "pago",
+        "a",
+        "o",
+        "as",
+        "os",
+      ]);
+      const pending = expenses
+        .filter((item) => item.status === "A pagar")
+        .sort((a, b) => Number(b.amount || 0) - Number(a.amount || 0));
+      const found = pending.find((item) => {
+        const target = normalizeText(`${item.name} ${item.category} ${item.paymentMethod}`);
+        return term ? target.includes(normalizeText(term)) : false;
+      });
+
+      if (found) {
+        saveExpense({ ...found, status: "Pago" }, found.id);
+        return `Conta marcada como paga.\nDescricao: ${found.name}\nValor: ${money(found.amount)}\nResponsavel: ${ownerLabelForPeople(found.owner, state.people)}`;
+      }
+
+      if (pending.length) {
+        return `Nao encontrei essa conta aberta.\nContas a pagar: ${pending.slice(0, 4).map((item) => `${item.name} (${money(item.amount)})`).join(", ")}.`;
+      }
+      return "Nao ha contas abertas nesta visao agora.";
+    }
+
+    const parsedExpense = parseAssistantEntryCommand(question, state.activeMonth, activeOwner);
+    if (parsedExpense) {
+      saveExpense(parsedExpense);
+      const kind = parsedExpense.type === "income" ? "Receita registrada" : "Gasto registrado";
+      return `${kind}.\nDescricao: ${parsedExpense.name}\nValor: ${money(parsedExpense.amount)}\nCategoria: ${parsedExpense.category}\nResponsavel: ${ownerLabelForPeople(parsedExpense.owner, state.people)}\nStatus: ${parsedExpense.status}`;
+    }
+
+    return null;
   }
 
   function openPurchaseSimulator() {
@@ -218,7 +307,7 @@ export function AssistantView({ onAddExpense }: AssistantViewProps) {
           <div>
             <span className="inline-flex items-center gap-1.5 rounded-full bg-white/[0.055] px-3 py-1 text-[10px] font-bold uppercase tracking-[0.16em] text-white/80">
               <Sparkles className="h-3.5 w-3.5" />
-              Assistente financeiro
+              Aval
             </span>
             <h2 className="mt-4 max-w-[17rem] font-display text-[1.35rem] font-semibold leading-[1.3] tracking-normal">
               {monthReading}
@@ -304,7 +393,7 @@ export function AssistantView({ onAddExpense }: AssistantViewProps) {
           ))}
         </div>
         <div className="flex gap-2 overflow-x-auto no-scrollbar px-4 pb-3">
-          {["Quanto posso gastar?", "O que devo pagar primeiro?", "Como está o mês?"].map((question) => (
+          {["Analise o mes", "Falta pagar", "Meu limite", "Registre mercado 120"].map((question) => (
             <button
               key={question}
               type="button"
@@ -319,7 +408,7 @@ export function AssistantView({ onAddExpense }: AssistantViewProps) {
           <input
             value={input}
             onChange={(e) => setInput(e.target.value)}
-            placeholder="Ex.: posso pagar a prioridade 1?"
+            placeholder="Pergunte ou registre por texto"
             className="h-12 flex-1 rounded-2xl border border-input bg-secondary px-4 text-sm text-foreground outline-none transition-all duration-200 placeholder:text-muted-foreground/70 focus:border-primary focus:bg-card focus:ring-4 focus:ring-primary/12"
           />
           <button
@@ -563,6 +652,115 @@ function parseExpenseCommand(text: string, monthKey: string, owner: string): Exp
   };
 }
 
+function parseAssistantEntryCommand(text: string, monthKey: string, owner: string): Expense | null {
+  const normalized = normalizeText(text);
+  const isIncome = /\b(recebi|entrou|faturei|ganhei|salario|receita)\b/.test(normalized);
+  const looksLikeEntry = /\b(registra|registre|registrar|gastei|paguei|comprei|lanca|lancar|anota|anote|coloca|coloque|cadastro|cadastre|adiciona|adicionar|salva|salvar|recebi|entrou|faturei|ganhei)\b/.test(normalized);
+  if (!looksLikeEntry) return null;
+
+  const valueMatch = extractAmount(text);
+  if (!valueMatch || valueMatch.amount <= 0) return null;
+  const amount = valueMatch.amount;
+
+  const date = normalized.includes("ontem") ? offsetDate(-1) : new Date().toISOString().slice(0, 10);
+  const name =
+    extractMerchant(text, valueMatch.raw) ||
+    cleanCommandName(text, valueMatch.raw, [
+      "registra",
+      "registre",
+      "registrar",
+      "gastei",
+      "paguei",
+      "comprei",
+      "lanca",
+      "lancar",
+      "anota",
+      "anote",
+      "coloca",
+      "coloque",
+      "cadastro",
+      "cadastre",
+      "adiciona",
+      "adicionar",
+      "salva",
+      "salvar",
+      "compra",
+      "gasto",
+      "despesa",
+      "recebi",
+      "entrou",
+      "faturei",
+      "ganhei",
+      "de",
+      "com",
+      "no",
+      "na",
+      "em",
+      "por",
+    ]) ||
+    (isIncome ? "Receita informada pelo chat" : "Gasto informado pelo chat");
+
+  return {
+    id: uid(),
+    name,
+    category: isIncome ? guessIncomeCategory(text) : guessCategory(text),
+    amount,
+    status: isIncome || normalized.includes("paguei") || normalized.includes("pago") ? "Pago" : "A pagar",
+    type: isIncome ? "income" : "expense",
+    owner,
+    date: date || `${monthKey}-05`,
+    dueDate: date || `${monthKey}-05`,
+    competence: (date || `${monthKey}-05`).slice(0, 7),
+    paidBy: owner,
+    paymentMethod: guessPaymentMethod(text),
+    note: isIncome ? "Receita registrada pelo assistente" : "Registrado pelo assistente",
+    createdAt: new Date().toISOString(),
+  };
+}
+
+function extractAmount(text: string): { raw: string; amount: number } | null {
+  const match = text.match(/(?:r\$\s*)?(\d{1,3}(?:\.\d{3})+,\d{1,2}|\d{1,3}(?:\.\d{3})+|\d+(?:[.,]\d{1,2})?)/i);
+  if (!match) return null;
+  return { raw: match[0], amount: parseCurrencyInput(match[1]) };
+}
+
+function cleanCommandName(text: string, amountRaw: string, stopWords: string[]): string {
+  const escapedAmount = amountRaw ? amountRaw.replace(/[.*+?^${}()|[\]\\]/g, "\\$&") : "";
+  const withoutAmount = escapedAmount ? text.replace(new RegExp(escapedAmount, "i"), " ") : text;
+  const stop = stopWords.map((word) => word.replace(/[.*+?^${}()|[\]\\]/g, "\\$&")).join("|");
+  return titleCase(
+    withoutAmount
+      .replace(/\br\$\b/gi, " ")
+      .replace(new RegExp(`\\b(${stop})\\b`, "gi"), " ")
+      .replace(/\b(hoje|ontem|pix|debito|debito|credito|credito|cartao|cartao|dinheiro|boleto)\b/gi, " ")
+      .replace(/\s+/g, " ")
+      .trim(),
+  );
+}
+
+function extractMerchant(text: string, amountRaw: string): string {
+  const cleaned = text.replace(amountRaw, " ");
+  const match = cleaned.match(/\b(?:no|na|em|do|da)\s+([A-Za-zÀ-ÿ0-9 .'-]{2,28})/i);
+  if (!match) return "";
+  const value = match[1]
+    .replace(/\b(via|com|por|de|r\$|hoje|ontem|pix|debito|debito|credito|credito|cartao|cartao|dinheiro|boleto)\b.*$/i, "")
+    .replace(/\s+/g, " ")
+    .trim();
+  return titleCase(value);
+}
+
+function titleCase(value: string): string {
+  return value
+    .toLocaleLowerCase("pt-BR")
+    .replace(/(^|\s)(\S)/g, (_, space: string, letter: string) => `${space}${letter.toLocaleUpperCase("pt-BR")}`);
+}
+
+function offsetDate(days: number): string {
+  const date = new Date();
+  date.setDate(date.getDate() + days);
+  return date.toISOString().slice(0, 10);
+}
+
 function guessCategory(text: string): string {
   const normalized = normalizeText(text);
   const rules: [string, string[]][] = [
@@ -577,8 +775,16 @@ function guessCategory(text: string): string {
   return rules.find(([, words]) => words.some((word) => normalized.includes(normalizeText(word))))?.[0] || "Outros";
 }
 
+function guessIncomeCategory(text: string): string {
+  const normalized = normalizeText(text);
+  if (/\b(uber|corrida|faturei|faturamento)\b/.test(normalized)) return "Receita Uber";
+  return "Livre";
+}
+
 function guessPaymentMethod(text: string): string {
   const normalized = normalizeText(text);
+  if (/\b(cartao|credito)\b/.test(normalized)) return "Crédito";
+  if (/\b(debito)\b/.test(normalized)) return "Débito";
   return paymentMethods.find((method) => normalized.includes(normalizeText(method))) || "Pix";
 }
 
