@@ -76,6 +76,12 @@ export function AssistantView({ onAddExpense }: AssistantViewProps) {
     .filter((item) => item.status === "A pagar" && item.date === today)
     .sort((a, b) => b.amount - a.amount)[0];
   const weeklyAllowance = Math.max(0, (numbers.free / numbers.daysLeft) * 7);
+  const monthReading =
+    numbers.free < 0
+      ? `Você passou ${money(Math.abs(numbers.free))} do orçamento deste mês.`
+      : numbers.pending > 0
+        ? `Sobram ${money(numbers.free)}, mas ${money(numbers.pending)} ainda estão em contas a pagar.`
+        : `Mês sob controle: ${money(numbers.free)} disponíveis.`;
 
   const initialMessage = useMemo(
     () =>
@@ -232,26 +238,26 @@ export function AssistantView({ onAddExpense }: AssistantViewProps) {
 
   return (
     <div className="flex flex-col gap-4">
-      <section className="hero-gradient relative overflow-hidden rounded-[2rem] p-5 text-primary-foreground shadow-primary">
-        <div className="absolute -right-10 -top-12 h-36 w-36 rounded-full bg-white/10" />
-        <div className="absolute -bottom-16 left-8 h-44 w-44 rounded-full bg-emerald-200/10" />
+      <section className="finance-hero relative overflow-hidden rounded-[1.5rem] p-[1.125rem] text-foreground">
         <div className="relative flex items-start justify-between gap-3">
           <div>
-            <span className="inline-flex items-center gap-1.5 rounded-full bg-white/16 px-3 py-1 text-[10px] font-bold uppercase tracking-[0.16em] text-white/88">
+            <span className="inline-flex items-center gap-1.5 rounded-full bg-white/[0.055] px-3 py-1 text-[10px] font-bold uppercase tracking-[0.16em] text-white/80">
               <Sparkles className="h-3.5 w-3.5" />
               Assistente financeiro
             </span>
-            <h2 className="mt-4 font-display text-2xl font-bold leading-tight tracking-normal">
-              {timeGreeting()}, {activeUser?.name || "Junior"}
+            <h2 className="mt-4 max-w-[17rem] font-display text-[1.35rem] font-semibold leading-[1.3] tracking-normal">
+              {monthReading}
             </h2>
             <p className="mt-1 text-sm text-white/78">
-              {view === VIEW_ALL ? "Visão consolidada da casa" : `Visão: ${viewLabelForPeople(view, state.people)}`}
+              {view === VIEW_ALL
+                ? "Visão consolidada da casa"
+                : `${viewLabelForPeople(view, state.people)} · ${numbers.daysLeft} dias restantes`}
             </p>
           </div>
           <button
             type="button"
             onClick={() => chatRef.current?.scrollIntoView({ behavior: "smooth", block: "start" })}
-            className="flex h-12 w-12 shrink-0 items-center justify-center rounded-2xl bg-white/16 ring-1 ring-white/15 transition active:scale-95"
+            className="flex h-11 w-11 shrink-0 items-center justify-center rounded-[0.9rem] bg-white/[0.055] text-primary ring-1 ring-white/10 transition active:scale-95"
             aria-label="Abrir conversa"
           >
             <MessageCircle className="h-6 w-6" />
@@ -261,7 +267,7 @@ export function AssistantView({ onAddExpense }: AssistantViewProps) {
         <button
           type="button"
           onClick={() => askQuestion(numbers.free < 0 ? "Como posso reorganizar meu mes?" : "Quanto posso gastar com seguranca?")}
-          className="press relative mt-6 w-full rounded-[1.65rem] bg-white/13 p-4 text-left ring-1 ring-white/14 backdrop-blur transition hover:bg-white/18"
+          className="press relative mt-5 w-full rounded-[1.25rem] bg-white/[0.055] p-4 text-left ring-1 ring-white/10 backdrop-blur transition hover:bg-white/[0.075]"
         >
           <span className="flex items-center gap-1.5 text-[11px] font-semibold uppercase tracking-[0.14em] text-white/72">
             <PiggyBank className="h-3.5 w-3.5" />
@@ -611,12 +617,14 @@ function normalizeText(value: string): string {
 
 function HeroStat({ icon, label, value }: { icon: React.ReactNode; label: string; value: string }) {
   return (
-    <div className="min-w-0 rounded-2xl bg-white/12 p-3 ring-1 ring-white/10">
+    <div className="min-h-[4.75rem] min-w-0 rounded-2xl bg-white/12 p-3 ring-1 ring-white/10">
       <span className="flex items-center gap-1.5 text-[10px] font-semibold text-white/72">
         {icon}
         {label}
       </span>
-      <strong className="tnum mt-1 block truncate font-display text-sm font-bold">{value}</strong>
+      <strong className="tnum mt-1 block whitespace-nowrap font-display text-[10px] font-bold leading-tight tracking-normal">
+        {value}
+      </strong>
     </div>
   );
 }

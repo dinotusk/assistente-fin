@@ -1,45 +1,69 @@
-import { LayoutGrid, ArrowLeftRight, Star, Sparkles, Settings } from "lucide-react";
+import { LayoutGrid, List, Plus, Sparkles, Target } from "lucide-react";
 
 import { cn } from "@/lib/utils";
 import type { ViewKey } from "@/lib/finance/types";
 
 const items: { key: ViewKey; label: string; Icon: typeof LayoutGrid }[] = [
-  { key: "assistant", label: "Início", Icon: Sparkles },
+  { key: "assistant", label: "Assistente", Icon: Sparkles },
+  { key: "transactions", label: "Extrato", Icon: List },
+  { key: "priorities", label: "Metas", Icon: Target },
   { key: "dashboard", label: "Painel", Icon: LayoutGrid },
-  { key: "transactions", label: "Gastos", Icon: ArrowLeftRight },
-  { key: "priorities", label: "Metas", Icon: Star },
-  { key: "settings", label: "Config", Icon: Settings },
 ];
 
-export function BottomNav({ view, onChange }: { view: ViewKey; onChange: (v: ViewKey) => void }) {
+interface BottomNavProps {
+  view: ViewKey;
+  onChange: (view: ViewKey) => void;
+  onAdd: () => void;
+}
+
+export function BottomNav({ view, onChange, onAdd }: BottomNavProps) {
   return (
-    <nav className="pointer-events-none fixed inset-x-0 bottom-0 z-30 flex justify-center px-3 pb-[max(0.75rem,env(safe-area-inset-bottom))]">
-      <div className="pointer-events-auto flex w-full max-w-[440px] items-center justify-between rounded-[28px] border border-border bg-card/95 px-2 py-2 shadow-float backdrop-blur">
-        {items.map(({ key, label, Icon }) => {
-          const active = view === key;
-          return (
-            <button
-              key={key}
-              type="button"
-              onClick={() => onChange(key)}
-              className={cn(
-                "focus-ring flex flex-1 flex-col items-center gap-1 rounded-2xl py-1.5 transition-colors duration-200",
-                active ? "text-primary" : "text-muted-foreground hover:text-foreground",
-              )}
-            >
-              <span
-                className={cn(
-                  "flex h-9 w-9 items-center justify-center rounded-full transition-all duration-200",
-                  active ? "bg-primary-soft scale-105" : "scale-100",
-                )}
-              >
-                <Icon className="h-[18px] w-[18px]" strokeWidth={active ? 2.5 : 2} />
-              </span>
-              <span className="text-[10px] font-semibold">{label}</span>
-            </button>
-          );
-        })}
+    <nav
+      aria-label="Navegação principal"
+      className="pointer-events-none fixed inset-x-0 bottom-0 z-30 flex justify-center px-3 pb-[max(1rem,env(safe-area-inset-bottom))]"
+    >
+      <div className="pointer-events-auto grid w-full max-w-[416px] grid-cols-5 items-end rounded-[1.45rem] border border-white/10 bg-[#0d0e11]/90 px-2 pb-2 pt-2.5 shadow-float backdrop-blur-[22px]">
+        <NavButton item={items[0]} active={view === items[0].key} onChange={onChange} />
+        <NavButton item={items[1]} active={view === items[1].key} onChange={onChange} />
+
+        <button
+          type="button"
+          onClick={onAdd}
+          aria-label="Registrar novo gasto"
+          className="focus-ring press mx-auto -mt-7 flex h-14 w-14 items-center justify-center rounded-[1.25rem] bg-primary text-primary-foreground shadow-primary"
+        >
+          <Plus className="h-6 w-6" strokeWidth={2.4} />
+        </button>
+
+        <NavButton item={items[2]} active={view === items[2].key} onChange={onChange} />
+        <NavButton item={items[3]} active={view === items[3].key} onChange={onChange} />
       </div>
     </nav>
+  );
+}
+
+function NavButton({
+  item: { key, label, Icon },
+  active,
+  onChange,
+}: {
+  item: (typeof items)[number];
+  active: boolean;
+  onChange: (view: ViewKey) => void;
+}) {
+  return (
+    <button
+      type="button"
+      onClick={() => onChange(key)}
+      aria-current={active ? "page" : undefined}
+      className={cn(
+        "focus-ring flex min-h-12 flex-col items-center justify-end gap-1 rounded-xl px-1 py-1 text-[9px] font-semibold transition duration-200 active:scale-95",
+        active ? "text-primary" : "text-muted-foreground hover:text-foreground",
+      )}
+    >
+      <Icon className="h-[18px] w-[18px]" strokeWidth={active ? 2.5 : 2} />
+      <span>{label}</span>
+      <span className={cn("h-1 w-1 rounded-full", active ? "bg-primary" : "bg-transparent")} />
+    </button>
   );
 }

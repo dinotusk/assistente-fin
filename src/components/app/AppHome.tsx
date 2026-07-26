@@ -62,6 +62,8 @@ export function AppHome() {
   }
 
   const showFab = view === "assistant" || view === "dashboard" || view === "transactions";
+  const activeMonthLabel = state.months[state.activeMonth]?.label || formatMonthLabel(state.activeMonth);
+  const firstName = activeUser?.name?.trim().split(/\s+/)[0] || "Você";
 
   const profileMenu = (
     <div className="rounded-[1.5rem] border border-border bg-card/96 p-3 text-left shadow-float backdrop-blur-xl">
@@ -231,21 +233,21 @@ export function AppHome() {
 
   return (
     <div className="app-backdrop min-h-dvh">
-      <div className="relative mx-auto flex min-h-dvh w-full max-w-[440px] flex-col bg-background/60">
+      <div className="relative mx-auto flex min-h-dvh w-full max-w-[440px] flex-col bg-background/30">
         {/* Header */}
-        <header className="sticky top-0 z-20 border-b border-border/70 bg-background/80 px-4 pb-3 pt-[max(0.75rem,env(safe-area-inset-top))] shadow-[0_8px_24px_-16px_oklch(0.2_0.05_160_/_0.18)] backdrop-blur-xl">
+        <header className="sticky top-0 z-20 border-b border-white/6 bg-background/88 px-5 pb-3 pt-[max(1rem,env(safe-area-inset-top))] backdrop-blur-[22px]">
           <div className="flex items-center justify-between gap-3">
             <div className="min-w-0">
-              <p className="text-[11px] font-bold uppercase tracking-[0.16em] text-primary/70">{titles[view]}</p>
-              <h1 className="truncate font-display text-lg font-bold text-foreground">
-                {activeUser?.name || "Assistente financeiro"}
+              <p className="text-[10px] font-bold uppercase tracking-[0.14em] text-muted-foreground">{activeMonthLabel}</p>
+              <h1 className="mt-1 truncate font-display text-[1.7rem] font-semibold leading-none text-foreground">
+                {view === "assistant" ? `Olá, ${firstName}` : titles[view]}
               </h1>
             </div>
             <div className="relative">
               <button
                 type="button"
                 onClick={() => setProfileMenuOpen((value) => !value)}
-                className="hero-gradient press focus-ring flex h-11 w-11 shrink-0 items-center justify-center rounded-[1.25rem] font-display text-sm font-bold text-primary-foreground shadow-primary"
+                className="hero-gradient press focus-ring flex h-11 w-11 shrink-0 items-center justify-center rounded-[0.95rem] font-display text-sm font-bold text-primary-foreground shadow-primary"
                 aria-label="Abrir opcoes do perfil"
               >
                 {initials}
@@ -256,27 +258,19 @@ export function AppHome() {
             </div>
           </div>
 
-          <div className="mt-3 flex items-center gap-2">{monthPicker}</div>
+          <div className="mt-4 flex items-center gap-2">{monthPicker}</div>
 
-          {personSegmented ? <div className="mt-2.5">{personSegmented}</div> : null}
+          {personSegmented ? <div className="mt-3">{personSegmented}</div> : null}
         </header>
 
         {/* Content */}
-        <main className="flex-1 px-4 pb-32 pt-3">{content}</main>
+        <main className="flex-1 px-5 pb-32 pt-4">{content}</main>
 
-        {/* FAB — add expense */}
-        {showFab && (
-          <button
-            type="button"
-            onClick={() => setExpenseDialog({ open: true, id: null })}
-            className="press hover-lift focus-ring fixed bottom-[max(6.5rem,calc(env(safe-area-inset-bottom)+6rem))] right-[max(1.25rem,calc(50%-220px+1.25rem))] z-30 flex h-14 w-14 items-center justify-center rounded-full bg-primary text-primary-foreground shadow-primary"
-            aria-label="Adicionar gasto"
-          >
-            <Plus className="h-6 w-6" strokeWidth={2.5} />
-          </button>
-        )}
-
-        <BottomNav view={view} onChange={setView} />
+        <BottomNav
+          view={view}
+          onChange={setView}
+          onAdd={() => setExpenseDialog({ open: true, id: null })}
+        />
       </div>
 
       {hiddenImport}

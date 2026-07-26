@@ -37,7 +37,7 @@ export function DashboardView() {
   return (
     <div className="flex flex-col gap-4">
       {/* Hero balance card */}
-      <section className="hero-gradient relative overflow-hidden rounded-3xl p-5 text-primary-foreground shadow-primary">
+      <section className="finance-hero relative overflow-hidden rounded-3xl p-5 text-foreground">
         <div className="flex items-center justify-between">
           <span className="text-sm font-medium opacity-90">
             {view === VIEW_SPOUSE ? "Repasse do mês" : "Orçamento do mês"}
