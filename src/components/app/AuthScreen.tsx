@@ -91,18 +91,20 @@ export function AuthScreen() {
           </button>
         </div>
 
-        <label className="flex flex-col gap-2">
-          <span className="text-xs font-semibold uppercase tracking-[0.04em] text-muted-foreground">
-            Seu nome
-          </span>
-          <input
-            value={name}
-            onChange={(event) => setName(event.target.value)}
-            autoComplete="name"
-            placeholder="Como deseja ser chamado"
-            className="h-12 rounded-xl border border-input bg-secondary px-4 text-base text-foreground outline-none transition-all duration-200 placeholder:text-muted-foreground/70 focus:border-primary focus:bg-card focus:ring-4 focus:ring-primary/12"
-          />
-        </label>
+        {mode === "register" && (
+          <label className="flex flex-col gap-2">
+            <span className="text-xs font-semibold uppercase tracking-[0.04em] text-muted-foreground">
+              Seu nome
+            </span>
+            <input
+              value={name}
+              onChange={(event) => setName(event.target.value)}
+              autoComplete="name"
+              placeholder="Como deseja ser chamado"
+              className="h-12 rounded-xl border border-input bg-secondary px-4 text-base text-foreground outline-none transition-all duration-200 placeholder:text-muted-foreground/70 focus:border-primary focus:bg-card focus:ring-4 focus:ring-primary/12"
+            />
+          </label>
+        )}
 
         <label className="flex flex-col gap-2">
           <span className="text-xs font-semibold uppercase tracking-[0.04em] text-muted-foreground">
