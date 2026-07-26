@@ -114,7 +114,13 @@ export async function registerWithSupabase(input: AuthInput): Promise<void> {
   const { data, error } = await supabase.auth.signUp({
     email: input.email,
     password: input.password,
-    options: { data: { display_name: input.name } },
+    options: {
+      data: { display_name: input.name },
+      emailRedirectTo:
+        typeof window === "undefined"
+          ? "https://assistente-fin.lovable.app"
+          : window.location.origin,
+    },
   });
   throwIfError(error);
 
