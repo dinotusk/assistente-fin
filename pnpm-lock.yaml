@@ -178,8 +178,8 @@ importers:
         specifier: ^9.32.0
         version: 9.39.4
       '@lovable.dev/vite-tanstack-config':
-        specifier: 2.7.0
-        version: 2.7.0(@emnapi/core@1.11.1)(@emnapi/runtime@1.11.1)(@tailwindcss/vite@4.3.2(vite@8.1.3(@types/node@22.20.0)(jiti@1.21.7)))(@tanstack/react-start@1.168.27(crossws@0.4.9(srvx@0.11.21))(react-dom@19.2.7(react@19.2.7))(react@19.2.7)(rolldown@1.1.4)(vite@8.1.3(@types/node@22.20.0)(jiti@1.21.7)))(@vitejs/plugin-react@5.2.0(vite@8.1.3(@types/node@22.20.0)(jiti@1.21.7)))(nitro@3.0.260603-beta(chokidar@5.0.0)(jiti@1.21.7)(vite@8.1.3(@types/node@22.20.0)(jiti@1.21.7)))(vite-tsconfig-paths@6.1.1(typescript@5.9.3)(vite@8.1.3(@types/node@22.20.0)(jiti@1.21.7)))(vite@8.1.3(@types/node@22.20.0)(jiti@1.21.7))
+        specifier: 2.7.1
+        version: 2.7.1(@emnapi/core@1.11.1)(@emnapi/runtime@1.11.1)(@tailwindcss/vite@4.3.2(vite@8.1.3(@types/node@22.20.0)(jiti@1.21.7)))(@tanstack/react-start@1.168.27(crossws@0.4.9(srvx@0.11.21))(react-dom@19.2.7(react@19.2.7))(react@19.2.7)(rolldown@1.1.4)(vite@8.1.3(@types/node@22.20.0)(jiti@1.21.7)))(@vitejs/plugin-react@5.2.0(vite@8.1.3(@types/node@22.20.0)(jiti@1.21.7)))(nitro@3.0.260603-beta(chokidar@5.0.0)(jiti@1.21.7)(vite@8.1.3(@types/node@22.20.0)(jiti@1.21.7)))(vite-tsconfig-paths@6.1.1(typescript@5.9.3)(vite@8.1.3(@types/node@22.20.0)(jiti@1.21.7)))(vite@8.1.3(@types/node@22.20.0)(jiti@1.21.7))
       '@types/node':
         specifier: ^22.16.5
         version: 22.20.0
@@ -601,8 +601,8 @@ packages:
     peerDependencies:
       vite: '>=5.0.0 <9.0.0'
 
-  '@lovable.dev/vite-tanstack-config@2.7.0':
-    resolution: {integrity: sha512-a6IMTa5NPWve8zbJziwTaeZkNpsPPzOyDC0EkFguFjpSvHssJP0YmOTik9Ek4SxFlE/jQJY9iKcZUD2z3tC+Kw==}
+  '@lovable.dev/vite-tanstack-config@2.7.1':
+    resolution: {integrity: sha512-PCb3Rh65bCxm/rlTx8g5xxMyaV3A/Mn+JkSM/2MYYksYJQx4v/AhE1qTi+JI4o/FCAzJVljM01SKzTqz0icA5A==}
     peerDependencies:
       '@tailwindcss/vite': '>=4.0.0'
       '@tanstack/react-start': '>=1.100.0'
@@ -3732,7 +3732,7 @@ snapshots:
     dependencies:
       vite: 8.1.3(@types/node@22.20.0)(jiti@1.21.7)
 
-  '@lovable.dev/vite-tanstack-config@2.7.0(@emnapi/core@1.11.1)(@emnapi/runtime@1.11.1)(@tailwindcss/vite@4.3.2(vite@8.1.3(@types/node@22.20.0)(jiti@1.21.7)))(@tanstack/react-start@1.168.27(crossws@0.4.9(srvx@0.11.21))(react-dom@19.2.7(react@19.2.7))(react@19.2.7)(rolldown@1.1.4)(vite@8.1.3(@types/node@22.20.0)(jiti@1.21.7)))(@vitejs/plugin-react@5.2.0(vite@8.1.3(@types/node@22.20.0)(jiti@1.21.7)))(nitro@3.0.260603-beta(chokidar@5.0.0)(jiti@1.21.7)(vite@8.1.3(@types/node@22.20.0)(jiti@1.21.7)))(vite-tsconfig-paths@6.1.1(typescript@5.9.3)(vite@8.1.3(@types/node@22.20.0)(jiti@1.21.7)))(vite@8.1.3(@types/node@22.20.0)(jiti@1.21.7))':
+  '@lovable.dev/vite-tanstack-config@2.7.1(@emnapi/core@1.11.1)(@emnapi/runtime@1.11.1)(@tailwindcss/vite@4.3.2(vite@8.1.3(@types/node@22.20.0)(jiti@1.21.7)))(@tanstack/react-start@1.168.27(crossws@0.4.9(srvx@0.11.21))(react-dom@19.2.7(react@19.2.7))(react@19.2.7)(rolldown@1.1.4)(vite@8.1.3(@types/node@22.20.0)(jiti@1.21.7)))(@vitejs/plugin-react@5.2.0(vite@8.1.3(@types/node@22.20.0)(jiti@1.21.7)))(nitro@3.0.260603-beta(chokidar@5.0.0)(jiti@1.21.7)(vite@8.1.3(@types/node@22.20.0)(jiti@1.21.7)))(vite-tsconfig-paths@6.1.1(typescript@5.9.3)(vite@8.1.3(@types/node@22.20.0)(jiti@1.21.7)))(vite@8.1.3(@types/node@22.20.0)(jiti@1.21.7))':
     dependencies:
       '@lovable.dev/vite-plugin-dev-server-bridge': 1.0.3(vite@8.1.3(@types/node@22.20.0)(jiti@1.21.7))
       '@lovable.dev/vite-plugin-hmr-gate': 1.1.2(vite@8.1.3(@types/node@22.20.0)(jiti@1.21.7))
