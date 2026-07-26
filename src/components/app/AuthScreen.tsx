@@ -15,8 +15,12 @@ export function AuthScreen() {
     event.preventDefault();
     setFeedback("");
 
-    if (!name.trim() || !email.trim() || !password) {
-      setFeedback("Preencha nome, e-mail e senha.");
+    if (!email.trim() || !password) {
+      setFeedback("Preencha e-mail e senha.");
+      return;
+    }
+    if (mode === "register" && !name.trim()) {
+      setFeedback("Informe seu nome para criar a conta.");
       return;
     }
     if (password.length < 6) {
@@ -26,8 +30,12 @@ export function AuthScreen() {
 
     setLoading(true);
     try {
-      const action = mode === "register" ? register : login;
-      await action(name.trim(), email.trim().toLowerCase(), password);
+      const normalizedEmail = email.trim().toLowerCase();
+      if (mode === "register") {
+        await register(name.trim(), normalizedEmail, password);
+      } else {
+        await login(name.trim() || normalizedEmail, normalizedEmail, password);
+      }
     } catch (error) {
       setFeedback(error instanceof Error ? error.message : "Nao foi possivel continuar agora.");
     } finally {
