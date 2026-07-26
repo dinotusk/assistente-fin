@@ -5,7 +5,7 @@ export default async function handler(request, response) {
     return response.status(405).json({ error: "Metodo nao permitido" });
   }
 
-  const apiKey = process.env.GEMINI_API_KEY || process.env.GEMINI_API;
+  const apiKey = getGeminiApiKey();
   if (!apiKey) {
     return response.status(500).json({ error: "GEMINI_API_KEY ou GEMINI_API nao configurada" });
   }
@@ -30,14 +30,34 @@ export default async function handler(request, response) {
 
     if (!geminiResponse.ok) {
       const details = await geminiResponse.text();
-      return response.status(geminiResponse.status).json({ error: "Erro ao chamar Gemini", details });
+      return response
+        .status(geminiResponse.status)
+        .json({ error: "Erro ao chamar Gemini", details: normalizeGeminiError(details), model: GEMINI_MODEL });
     }
 
     const data = await geminiResponse.json();
     const answer = cleanAnswer(data?.candidates?.[0]?.content?.parts?.map((part) => part.text || "").join("\n").trim());
+    if (!answer && data?.promptFeedback?.blockReason) {
+      return response
+        .status(502)
+        .json({ error: `Gemini bloqueou a resposta: ${data.promptFeedback.blockReason}`, model: GEMINI_MODEL });
+    }
     return response.status(200).json({ answer: answer || "Nao consegui gerar uma resposta agora." });
   } catch (error) {
     return response.status(500).json({ error: error.message || "Erro inesperado" });
+  }
+}
+
+function getGeminiApiKey() {
+  return String(process.env.GEMINI_API_KEY || process.env.GEMINI_API || "").trim();
+}
+
+function normalizeGeminiError(details) {
+  try {
+    const data = JSON.parse(details);
+    return [data?.error?.status, data?.error?.message].filter(Boolean).join(": ") || details;
+  } catch {
+    return String(details).slice(0, 500);
   }
 }
 

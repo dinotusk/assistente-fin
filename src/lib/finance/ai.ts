@@ -111,8 +111,17 @@ export async function askGemini(question: string, context: unknown): Promise<str
     headers: { "Content-Type": "application/json" },
     body: JSON.stringify({ question, context }),
   });
-  if (!response.ok) throw new Error("Gemini indisponível");
-  const data = await response.json();
+  const data = await response.json().catch(() => ({}));
+  if (!response.ok) {
+    const message =
+      typeof data?.error === "string"
+        ? data.error
+        : typeof data?.details === "string"
+          ? data.details
+          : "Gemini indisponivel";
+    console.warn("Gemini backend unavailable:", message);
+    throw new Error(message);
+  }
   if (!data.answer) throw new Error("Resposta vazia");
   return data.answer as string;
 }

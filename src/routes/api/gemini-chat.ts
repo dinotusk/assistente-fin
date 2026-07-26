@@ -7,9 +7,9 @@ export const Route = createFileRoute("/api/gemini-chat")({
   server: {
     handlers: {
       POST: async ({ request }) => {
-        const apiKey = process.env.GEMINI_API_KEY || process.env.GEMINI_API;
+        const apiKey = getGeminiApiKey();
         if (!apiKey) {
-          return Response.json({ error: "GEMINI_API_KEY não configurada" }, { status: 500 });
+          return Response.json({ error: "GEMINI_API_KEY ou GEMINI_API nao configurada" }, { status: 500 });
         }
         const model = process.env.GEMINI_MODEL || "gemini-2.5-flash";
 
@@ -34,14 +34,24 @@ export const Route = createFileRoute("/api/gemini-chat")({
           if (!response.ok) {
             const details = await response.text();
             console.error(`Gemini error [${response.status}]: ${details}`);
-            return Response.json({ error: "Erro ao chamar Gemini" }, { status: response.status });
+            return Response.json(
+              { error: "Erro ao chamar Gemini", details: normalizeGeminiError(details), model },
+              { status: response.status },
+            );
           }
 
           const data = (await response.json()) as {
             candidates?: { content?: { parts?: { text?: string }[] } }[];
+            promptFeedback?: { blockReason?: string };
           };
           const raw = data?.candidates?.[0]?.content?.parts?.map((p) => p.text || "").join("\n").trim();
-          return Response.json({ answer: cleanAnswer(raw) || "Não consegui gerar uma resposta agora." });
+          if (!raw && data?.promptFeedback?.blockReason) {
+            return Response.json(
+              { error: `Gemini bloqueou a resposta: ${data.promptFeedback.blockReason}`, model },
+              { status: 502 },
+            );
+          }
+          return Response.json({ answer: cleanAnswer(raw) || "Nao consegui gerar uma resposta agora." });
         } catch (error) {
           console.error(error);
           return Response.json({ error: "Erro inesperado" }, { status: 500 });
@@ -50,6 +60,19 @@ export const Route = createFileRoute("/api/gemini-chat")({
     },
   },
 });
+
+function getGeminiApiKey(): string {
+  return String(process.env.GEMINI_API_KEY || process.env.GEMINI_API || "").trim();
+}
+
+function normalizeGeminiError(details: string): string {
+  try {
+    const data = JSON.parse(details) as { error?: { message?: string; status?: string } };
+    return [data.error?.status, data.error?.message].filter(Boolean).join(": ") || details;
+  } catch {
+    return details.slice(0, 500);
+  }
+}
 
 function buildPrompt(question: string, context: unknown): string {
   return `
