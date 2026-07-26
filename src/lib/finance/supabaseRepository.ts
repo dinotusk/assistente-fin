@@ -162,6 +162,9 @@ async function bootstrapWorkspace(displayName: string): Promise<string> {
 }
 
 export async function loadRemoteFinance(user: User): Promise<LoadedFinance> {
+  const metadataName = String(user.user_metadata?.display_name || user.email || "Usuario");
+  await bootstrapWorkspace(metadataName);
+
   const { data: appUser, error: userError } = await supabase
     .from("app_users")
     .select("display_name")
@@ -169,9 +172,7 @@ export async function loadRemoteFinance(user: User): Promise<LoadedFinance> {
     .maybeSingle();
   throwIfError(userError);
 
-  const displayName = String(
-    appUser?.display_name || user.user_metadata?.display_name || user.email || "Usuario",
-  );
+  const displayName = String(appUser?.display_name || metadataName);
   const householdId = await findHouseholdId();
 
   const [
