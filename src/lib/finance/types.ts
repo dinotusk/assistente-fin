@@ -55,4 +55,11 @@ export interface ActiveUser {
   name: string;
 }
 
+export interface EnvelopeRule {
+  id: string;
+  label: string;
+  limit: number;
+  categories: string[];
+}
+
 export type ViewKey = "assistant" | "dashboard" | "transactions" | "priorities" | "settings";

@@ -15,6 +15,13 @@ export const VIEW_ALL = "todos";
 export const VIEW_ME = "me";
 export const VIEW_SPOUSE = "spouse";
 
+export const defaultEnvelopeRules = [
+  { id: "gasolina", label: "Gasolina", limit: 500, categories: ["Transporte"] },
+  { id: "lazer", label: "Lazer", limit: 300, categories: ["Lazer"] },
+  { id: "compras", label: "Compras pessoais", limit: 200, categories: ["Livre", "Outros"] },
+  { id: "emergencias", label: "Emergencias", limit: 300, categories: ["Saude"] },
+];
+
 // Category order matters (matches original, with "Empréstimo" inserted before "Investimento").
 export const categories = [
   "Alimentação",

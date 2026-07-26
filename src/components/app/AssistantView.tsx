@@ -1,4 +1,4 @@
-import { useEffect, useMemo, useRef, useState } from "react";
+import { useMemo, useRef, useState } from "react";
 import {
   ArrowRight,
   CalendarClock,
@@ -45,24 +45,16 @@ interface AssistantViewProps {
   onAddExpense: () => void;
 }
 
-interface EnvelopeRule {
-  id: string;
-  label: string;
-  limit: number;
-  categories: string[];
-}
-
-const ENVELOPES_KEY = "assistente-financeiro-envelopes-v1";
-
-const defaultEnvelopeRules: EnvelopeRule[] = [
-  { id: "gasolina", label: "Gasolina", limit: 500, categories: ["Transporte"] },
-  { id: "lazer", label: "Lazer", limit: 300, categories: ["Lazer"] },
-  { id: "compras", label: "Compras pessoais", limit: 200, categories: ["Livre", "Outros"] },
-  { id: "emergencias", label: "Emergências", limit: 300, categories: ["Saúde"] },
-];
-
 export function AssistantView({ onAddExpense }: AssistantViewProps) {
-  const { activeUser, state, month, saveExpense, savePriority } = useFinance();
+  const {
+    activeUser,
+    state,
+    month,
+    envelopes,
+    saveExpense,
+    savePriority,
+    saveEnvelopes,
+  } = useFinance();
   const view = state.activePerson;
   const numbers = calc(month, view);
   const expenses = expensesForView(month, view);
@@ -94,34 +86,17 @@ export function AssistantView({ onAddExpense }: AssistantViewProps) {
   const [busy, setBusy] = useState(false);
   const [purchaseName, setPurchaseName] = useState("");
   const [purchaseValue, setPurchaseValue] = useState("");
-  const [envelopes, setEnvelopes] = useState<EnvelopeRule[]>(defaultEnvelopeRules);
   const [editingEnvelopes, setEditingEnvelopes] = useState(false);
   const chatRef = useRef<HTMLDivElement | null>(null);
   const simulatorRef = useRef<HTMLDivElement | null>(null);
   const purchaseNameRef = useRef<HTMLInputElement | null>(null);
 
-  useEffect(() => {
-    try {
-      const saved = window.localStorage.getItem(ENVELOPES_KEY);
-      if (!saved) return;
-      const parsed = JSON.parse(saved);
-      if (Array.isArray(parsed)) setEnvelopes(parsed);
-    } catch {
-      setEnvelopes(defaultEnvelopeRules);
-    }
-  }, []);
-
-  function persistEnvelopes(next: EnvelopeRule[]) {
-    setEnvelopes(next);
-    window.localStorage.setItem(ENVELOPES_KEY, JSON.stringify(next));
-  }
-
-  function updateEnvelope(id: string, patch: Partial<EnvelopeRule>) {
-    persistEnvelopes(envelopes.map((item) => (item.id === id ? { ...item, ...patch } : item)));
+  function updateEnvelope(id: string, patch: Partial<(typeof envelopes)[number]>) {
+    saveEnvelopes(envelopes.map((item) => (item.id === id ? { ...item, ...patch } : item)));
   }
 
   function addEnvelope() {
-    persistEnvelopes([
+    saveEnvelopes([
       ...envelopes,
       { id: `env-${Date.now()}`, label: "Novo envelope", limit: 0, categories: ["Outros"] },
     ]);
@@ -129,7 +104,7 @@ export function AssistantView({ onAddExpense }: AssistantViewProps) {
   }
 
   function deleteEnvelope(id: string) {
-    persistEnvelopes(envelopes.filter((item) => item.id !== id));
+    saveEnvelopes(envelopes.filter((item) => item.id !== id));
   }
 
   const purchaseAmount = parseCurrencyInput(purchaseValue);

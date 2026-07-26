@@ -4,30 +4,36 @@ import {
   useContext,
   useEffect,
   useMemo,
+  useRef,
   useState,
   type ReactNode,
 } from "react";
 
 import { profileId } from "./calc";
-import { categories, paymentMethods, VIEW_ALL, VIEW_ME, VIEW_SPOUSE } from "./constants";
+import {
+  categories,
+  defaultEnvelopeRules,
+  paymentMethods,
+  VIEW_ALL,
+  VIEW_ME,
+  VIEW_SPOUSE,
+} from "./constants";
 import { createSeedState, uid } from "./seed";
 import {
-  getProfiles,
-  loadActiveUser,
-  loadState,
-  localLogin,
+  getAuthenticatedUser,
+  loadRemoteFinance,
+  loginWithSupabase,
+  logoutFromSupabase,
+  registerWithSupabase,
+  saveRemoteEnvelopes,
+  saveRemoteFinance,
+  saveSessionPreference,
+  type FinanceWorkspace,
+} from "./supabaseRepository";
+import {
   migrateState,
-  saveProfiles,
-  saveState,
-  setActiveUser as persistActiveUser,
 } from "./storage";
-import type {
-  ActiveUser,
-  Expense,
-  FinanceState,
-  MonthData,
-  Priority,
-} from "./types";
+import type { ActiveUser, EnvelopeRule, Expense, FinanceState, MonthData, Priority } from "./types";
 import { currentUserName, formatMonthLabel, getNextMonthKey, spouseName } from "./calc";
 
 interface FinanceContextValue {
@@ -35,7 +41,9 @@ interface FinanceContextValue {
   activeUser: ActiveUser | null;
   state: FinanceState;
   month: MonthData;
-  login: (name: string, pin: string) => Promise<ActiveUser>;
+  envelopes: EnvelopeRule[];
+  login: (name: string, email: string, password: string) => Promise<ActiveUser>;
+  register: (name: string, email: string, password: string) => Promise<ActiveUser>;
   logout: () => void;
   setActiveMonth: (key: string) => void;
   setActivePerson: (view: string) => void;
@@ -49,6 +57,7 @@ interface FinanceContextValue {
   savePriority: (priority: Priority, id?: string) => void;
   deletePriority: (id: string) => void;
   togglePriorityStatus: (id: string) => void;
+  saveEnvelopes: (envelopes: EnvelopeRule[]) => void;
   exportData: () => void;
   importData: (file: File) => Promise<void>;
   resetSeed: () => void;
@@ -59,64 +68,114 @@ const FinanceContext = createContext<FinanceContextValue | null>(null);
 export function FinanceProvider({ children }: { children: ReactNode }) {
   const [ready, setReady] = useState(false);
   const [activeUser, setActiveUserState] = useState<ActiveUser | null>(null);
-  const [state, setState] = useState<FinanceState>(() => migrateState(createSeedState()));
+  const [state, setState] = useState<FinanceState>(() => createEmptyState());
+  const [envelopes, setEnvelopes] = useState<EnvelopeRule[]>(defaultEnvelopeRules);
+  const workspaceRef = useRef<FinanceWorkspace | null>(null);
+  const writeQueueRef = useRef<Promise<void>>(Promise.resolve());
 
-  // Hydrate from localStorage on the client only (avoids SSR mismatch).
   useEffect(() => {
-    const user = loadActiveUser();
-    setActiveUserState(user);
-    setState(loadState(user));
-    setReady(true);
+    let mounted = true;
+    getAuthenticatedUser()
+      .then(async (user) => {
+        if (!user || !mounted) return;
+        const loaded = await loadRemoteFinance(user);
+        if (!mounted) return;
+        workspaceRef.current = loaded.workspace;
+        setActiveUserState(loaded.user);
+        setState(loaded.state);
+        if (loaded.envelopes.length) {
+          setEnvelopes(loaded.envelopes);
+        } else {
+          const saved = await saveRemoteEnvelopes(loaded.workspace.householdId, defaultEnvelopeRules);
+          if (mounted) setEnvelopes(saved);
+        }
+      })
+      .catch((error) => console.error("Falha ao carregar dados do Supabase", error))
+      .finally(() => {
+        if (mounted) setReady(true);
+      });
+    return () => {
+      mounted = false;
+    };
   }, []);
 
-  const persist = useCallback(
-    (next: FinanceState, user: ActiveUser | null = activeUser) => {
-      saveState(next, user);
-      setState({ ...next });
-    },
-    [activeUser],
+  const persist = useCallback((next: FinanceState) => {
+    setState({ ...next });
+    if (!workspaceRef.current) return;
+
+    writeQueueRef.current = writeQueueRef.current
+      .catch(() => undefined)
+      .then(async () => {
+        if (!workspaceRef.current) return;
+        workspaceRef.current = await saveRemoteFinance(workspaceRef.current, next);
+      })
+      .catch((error) => {
+        console.error("Falha ao sincronizar dados financeiros", error);
+      });
+  }, []);
+
+  const month = useMemo(
+    () => state.months[state.activeMonth] || createEmptyMonth(state.activeMonth),
+    [state],
   );
 
-  const month = useMemo(() => state.months[state.activeMonth], [state]);
-
-  const login = useCallback(async (name: string, pin: string): Promise<ActiveUser> => {
-    const usuario = localLogin(name, pin);
-    const profile = { id: usuario.id, name: usuario.name, pin };
-    const profiles = getProfiles();
-    const existingIndex = profiles.findIndex((item) => item.id === profile.id);
-    if (existingIndex >= 0) profiles[existingIndex] = { ...profiles[existingIndex], ...profile };
-    else profiles.push(profile);
-    saveProfiles(profiles);
-
-    const user: ActiveUser = { id: profile.id, name: profile.name };
-    persistActiveUser(user);
-    const loaded = loadState(user);
-    saveState(loaded, user);
-    setActiveUserState(user);
-    setState(loaded);
-    return user;
+  const hydrateAuthenticatedUser = useCallback(async (): Promise<ActiveUser> => {
+    const authenticated = await getAuthenticatedUser();
+    if (!authenticated) throw new Error("Sessao nao encontrada.");
+    const loaded = await loadRemoteFinance(authenticated);
+    workspaceRef.current = loaded.workspace;
+    setActiveUserState(loaded.user);
+    setState(loaded.state);
+    if (loaded.envelopes.length) {
+      setEnvelopes(loaded.envelopes);
+    } else {
+      setEnvelopes(await saveRemoteEnvelopes(loaded.workspace.householdId, defaultEnvelopeRules));
+    }
+    return loaded.user;
   }, []);
 
+  const login = useCallback(
+    async (name: string, email: string, password: string): Promise<ActiveUser> => {
+      await loginWithSupabase({ name, email, password });
+      return hydrateAuthenticatedUser();
+    },
+    [hydrateAuthenticatedUser],
+  );
+
+  const register = useCallback(
+    async (name: string, email: string, password: string): Promise<ActiveUser> => {
+      await registerWithSupabase({ name, email, password });
+      return hydrateAuthenticatedUser();
+    },
+    [hydrateAuthenticatedUser],
+  );
+
   const logout = useCallback(() => {
-    saveState(state, activeUser);
-    persistActiveUser(null);
-    setActiveUserState(null);
-  }, [state, activeUser]);
+    void writeQueueRef.current.finally(async () => {
+      await logoutFromSupabase();
+      workspaceRef.current = null;
+      setActiveUserState(null);
+      setState(createEmptyState());
+      setEnvelopes(defaultEnvelopeRules);
+    });
+  }, []);
 
   const setActiveMonth = useCallback(
     (key: string) => {
       if (!state.months[key]) return;
-      persist({ ...state, activeMonth: key });
+      saveSessionPreference("activeMonth", key);
+      setState({ ...state, activeMonth: key });
     },
-    [state, persist],
+    [state],
   );
 
   const setActivePerson = useCallback(
     (view: string) => {
       if (![VIEW_ALL, VIEW_ME, VIEW_SPOUSE, ...state.people].includes(view)) return;
-      persist({ ...state, activePerson: view });
+      saveSessionPreference("activePerson", view);
+      setState({ ...state, activePerson: view });
     },
-    [state, persist],
+    [state],
   );
 
   const createNextMonth = useCallback((): string => {
@@ -313,6 +372,20 @@ export function FinanceProvider({ children }: { children: ReactNode }) {
     [persist, activeUser, state],
   );
 
+  const saveEnvelopes = useCallback((next: EnvelopeRule[]) => {
+    setEnvelopes(next);
+    const householdId = workspaceRef.current?.householdId;
+    if (!householdId) return;
+    writeQueueRef.current = writeQueueRef.current
+      .catch(() => undefined)
+      .then(async () => {
+        setEnvelopes(await saveRemoteEnvelopes(householdId, next));
+      })
+      .catch((error) => {
+        console.error("Falha ao sincronizar envelopes", error);
+      });
+  }, []);
+
   const resetSeed = useCallback(() => {
     persist(migrateState(createSeedState(), activeUser?.name));
   }, [persist, activeUser]);
@@ -322,7 +395,9 @@ export function FinanceProvider({ children }: { children: ReactNode }) {
     activeUser,
     state,
     month,
+    envelopes,
     login,
+    register,
     logout,
     setActiveMonth,
     setActivePerson,
@@ -336,6 +411,7 @@ export function FinanceProvider({ children }: { children: ReactNode }) {
     savePriority,
     deletePriority,
     togglePriorityStatus,
+    saveEnvelopes,
     exportData,
     importData,
     resetSeed,
@@ -351,6 +427,27 @@ export function useFinance(): FinanceContextValue {
 }
 
 export { profileId };
+
+function createEmptyMonth(key: string): MonthData {
+  return {
+    label: formatMonthLabel(key),
+    income: 0,
+    houseContribution: 0,
+    profileBudgets: {},
+    expenses: [],
+    priorities: [],
+  };
+}
+
+function createEmptyState(): FinanceState {
+  const key = new Date().toISOString().slice(0, 7);
+  return {
+    people: [],
+    activePerson: VIEW_ME,
+    activeMonth: key,
+    months: { [key]: createEmptyMonth(key) },
+  };
+}
 
 async function importSpreadsheet(file: File, state: FinanceState): Promise<FinanceState> {
   const XLSX = await import("xlsx");
