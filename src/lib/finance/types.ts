@@ -3,6 +3,7 @@
 
 export type ExpenseStatus = "Pago" | "A pagar";
 export type PriorityStatus = "A pagar" | "Pago" | "Adiar";
+export type EntryType = "expense" | "income";
 
 export interface Expense {
   id: string;
@@ -10,10 +11,19 @@ export interface Expense {
   category: string;
   amount: number;
   status: ExpenseStatus;
+  type?: EntryType;
   owner: string; // "Minha casa" | "Pai da namorada"
   date: string; // YYYY-MM-DD
+  dueDate?: string; // YYYY-MM-DD
+  competence?: string; // YYYY-MM
+  paidBy?: string;
   paymentMethod: string;
   note: string;
+  recurring?: boolean;
+  recurringKey?: string;
+  installmentKey?: string;
+  installmentNumber?: number;
+  installmentTotal?: number;
   createdAt?: string;
 }
 
@@ -24,6 +34,7 @@ export interface Priority {
   rank: number; // 1 alta, 2 média, 3 baixa
   status: PriorityStatus;
   responsavel: string;
+  saved?: number;
   createdAt?: string;
 }
 

@@ -34,13 +34,22 @@ interface ExpenseRow {
   id: string;
   month_id: string;
   owner_profile_id: string;
+  paid_by_profile_id: string | null;
   description: string;
+  entry_type: "expense" | "income";
   category: string;
   amount: number | string;
   status: Expense["status"];
   expense_date: string;
+  due_date: string | null;
+  competence: string;
   payment_method: string;
   note: string;
+  recurring: boolean;
+  recurring_key: string | null;
+  installment_key: string | null;
+  installment_number: number | null;
+  installment_total: number | null;
   created_at: string;
 }
 
@@ -50,6 +59,7 @@ interface PriorityRow {
   profile_id: string;
   description: string;
   target_amount: number | string;
+  saved_amount: number | string;
   priority: number;
   status: Priority["status"];
   created_at: string;
@@ -200,13 +210,13 @@ export async function loadRemoteFinance(user: User): Promise<LoadedFinance> {
     supabase
       .from("expenses")
       .select(
-        "id, month_id, owner_profile_id, description, category, amount, status, expense_date, payment_method, note, created_at",
+        "id, month_id, owner_profile_id, paid_by_profile_id, description, entry_type, category, amount, status, expense_date, due_date, competence, payment_method, note, recurring, recurring_key, installment_key, installment_number, installment_total, created_at",
       )
       .eq("household_id", householdId)
       .order("expense_date"),
     supabase
       .from("priorities")
-      .select("id, month_id, profile_id, description, target_amount, priority, status, created_at")
+      .select("id, month_id, profile_id, description, target_amount, saved_amount, priority, status, created_at")
       .eq("household_id", householdId)
       .order("priority"),
     supabase
@@ -252,11 +262,24 @@ export async function loadRemoteFinance(user: User): Promise<LoadedFinance> {
           category: expense.category,
           amount: numberValue(expense.amount),
           status: expense.status,
+          type: expense.entry_type || "expense",
           owner:
             profileNames.get(expense.owner_profile_id) || activeProfiles[0]?.name || "Minha casa",
           date: expense.expense_date,
+          dueDate: expense.due_date || expense.expense_date,
+          competence: monthKey(expense.competence || expense.expense_date),
+          paidBy:
+            profileNames.get(expense.paid_by_profile_id || "") ||
+            profileNames.get(expense.owner_profile_id) ||
+            activeProfiles[0]?.name ||
+            "Minha casa",
           paymentMethod: expense.payment_method,
           note: expense.note,
+          recurring: Boolean(expense.recurring),
+          recurringKey: expense.recurring_key || undefined,
+          installmentKey: expense.installment_key || undefined,
+          installmentNumber: expense.installment_number || undefined,
+          installmentTotal: expense.installment_total || undefined,
           createdAt: expense.created_at,
         }));
       const monthPriorities: Priority[] = priorities
@@ -265,6 +288,7 @@ export async function loadRemoteFinance(user: User): Promise<LoadedFinance> {
           id: priority.id,
           name: priority.description,
           amount: numberValue(priority.target_amount),
+          saved: numberValue(priority.saved_amount),
           rank: priority.priority,
           status: priority.status,
           responsavel:
@@ -491,6 +515,7 @@ async function syncExpenses(
       const monthId = monthIds.get(key);
       const ownerId = profileIds.get(expense.owner) || fallbackProfileId;
       if (!monthId || !ownerId) return [];
+      const paidById = profileIds.get(expense.paidBy || expense.owner) || ownerId;
       expense.id = validId(expense.id);
       return [
         {
@@ -498,13 +523,22 @@ async function syncExpenses(
           household_id: householdId,
           month_id: monthId,
           owner_profile_id: ownerId,
+          paid_by_profile_id: paidById,
           description: expense.name,
+          entry_type: expense.type || "expense",
           category: expense.category,
           amount: expense.amount,
           status: expense.status,
           expense_date: expense.date,
+          due_date: expense.dueDate || expense.date,
+          competence: `${expense.competence || expense.date.slice(0, 7)}-01`,
           payment_method: expense.paymentMethod,
           note: expense.note || "",
+          recurring: Boolean(expense.recurring),
+          recurring_key: expense.recurringKey && isUuid(expense.recurringKey) ? expense.recurringKey : null,
+          installment_key: expense.installmentKey && isUuid(expense.installmentKey) ? expense.installmentKey : null,
+          installment_number: expense.installmentNumber || null,
+          installment_total: expense.installmentTotal || null,
         },
       ];
     }),
@@ -533,6 +567,7 @@ async function syncPriorities(
           profile_id: profileId,
           description: priority.name,
           target_amount: priority.amount,
+          saved_amount: priority.saved || 0,
           priority: priority.rank,
           status: priority.status,
         },
@@ -545,7 +580,7 @@ async function syncPriorities(
 async function replaceRows(
   table: "expenses" | "priorities" | "envelopes",
   householdId: string,
-  rows: Array<Record<string, string | number | string[]>>,
+  rows: Array<Record<string, string | number | boolean | null | string[]>>,
 ): Promise<void> {
   const { data: existing, error: readError } = await supabase
     .from(table)

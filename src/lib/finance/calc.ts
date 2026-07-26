@@ -111,7 +111,7 @@ export interface CategoryTotal {
 }
 
 export function getCategoryTotals(monthData: MonthData, view: string): CategoryTotal[] {
-  const expenses = expensesForView(monthData, view);
+  const expenses = expensesForView(monthData, view).filter((item) => item.type !== "income");
   return categories
     .map((category) => ({ category, total: sum(expenses.filter((item) => item.category === category)) }))
     .filter((item) => item.total > 0)
@@ -120,6 +120,7 @@ export function getCategoryTotals(monthData: MonthData, view: string): CategoryT
 
 export interface Metrics {
   total: number;
+  received: number;
   pending: number;
   paid: number;
   free: number;
@@ -131,7 +132,9 @@ export interface Metrics {
 }
 
 export function calc(monthData: MonthData, view: string): Metrics {
-  const expenses = expensesForView(monthData, view);
+  const entries = expensesForView(monthData, view);
+  const expenses = entries.filter((item) => item.type !== "income");
+  const received = sum(entries.filter((item) => item.type === "income"));
   const budget = budgetForView(monthData, view);
   const total = sum(expenses);
   const pending = sum(expenses.filter((item) => item.status === "A pagar"));
@@ -142,7 +145,13 @@ export function calc(monthData: MonthData, view: string): Metrics {
   const topCategory = byCategory[0];
   const now = new Date();
   const daysLeft = Math.max(1, new Date(now.getFullYear(), now.getMonth() + 1, 0).getDate() - now.getDate() + 1);
-  return { total, pending, paid, free, saving, topCategory, paidRate: total ? paid / total : 0, daysLeft, budget };
+  return { total, received, pending, paid, free, saving, topCategory, paidRate: total ? paid / total : 0, daysLeft, budget };
+}
+
+export function expenseCompetence(expense: Expense): string {
+  return /^\d{4}-\d{2}$/.test(expense.competence || "")
+    ? expense.competence!
+    : expense.date.slice(0, 7);
 }
 
 export function sortedMonthEntries(state: FinanceState): [string, MonthData][] {

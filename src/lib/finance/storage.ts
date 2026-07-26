@@ -54,16 +54,29 @@ export function setActiveUser(user: ActiveUser | null): void {
 }
 
 function normalizeExpense(expense: Partial<Expense>, monthKey: string): Expense {
+  const date = expense.date || `${monthKey}-05`;
+  const competence = /^\d{4}-\d{2}$/.test(expense.competence || "")
+    ? expense.competence
+    : date.slice(0, 7);
   return {
     id: expense.id || uid(),
     name: expense.name || (expense as { description?: string }).description || "Gasto sem descrição",
     category: categories.includes(expense.category || "") ? (expense.category as string) : "Outros",
     amount: Number(expense.amount || 0),
     status: expense.status === "Pago" ? "Pago" : "A pagar",
+    type: expense.type === "income" ? "income" : "expense",
     owner: expense.owner || DEFAULT_FAMILY_PEOPLE[0],
     note: expense.note || "",
-    date: expense.date || `${monthKey}-05`,
+    date,
+    dueDate: expense.dueDate || date,
+    competence,
+    paidBy: expense.paidBy || expense.owner || DEFAULT_FAMILY_PEOPLE[0],
     paymentMethod: expense.paymentMethod || "Pix",
+    recurring: Boolean(expense.recurring),
+    recurringKey: expense.recurringKey,
+    installmentKey: expense.installmentKey,
+    installmentNumber: expense.installmentNumber,
+    installmentTotal: expense.installmentTotal,
     createdAt: expense.createdAt,
   };
 }
@@ -94,6 +107,7 @@ export function migrateState(nextState: FinanceState, loginName = ""): FinanceSt
     data.priorities = data.priorities || [];
     data.priorities.forEach((priority) => {
       priority.responsavel = legacyOwners[priority.responsavel] || priority.responsavel || "Minha casa";
+      priority.saved = Number(priority.saved || 0);
     });
     data.income = Number(data.income || 0);
     data.houseContribution = Number(data.houseContribution || 0);
