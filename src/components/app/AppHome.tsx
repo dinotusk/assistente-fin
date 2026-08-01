@@ -105,6 +105,7 @@ export function AppHome() {
         <select
           value={state.activeMonth}
           onChange={(e) => setActiveMonth(e.target.value)}
+          aria-label="Selecionar mês"
           className="focus-ring h-11 w-full appearance-none rounded-[1.35rem] border border-border bg-card px-4 pr-10 text-sm font-bold text-foreground shadow-soft outline-none transition focus:border-primary"
         >
           {Object.entries(state.months)
