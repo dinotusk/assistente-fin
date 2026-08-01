@@ -1,4 +1,4 @@
-import { Pencil, Plus, Trash2 } from "lucide-react";
+import { Pencil, Plus, Target, Trash2 } from "lucide-react";
 
 import { calc, money, priorityMatchesView } from "@/lib/finance/calc";
 import { useFinance } from "@/lib/finance/FinanceContext";
@@ -33,7 +33,24 @@ export function PrioritiesView({ onEdit, onAdd }: { onEdit: (id: string) => void
           }
         />
         <div className="flex flex-col gap-2.5">
-          {priorities.length === 0 && <p className="py-2 text-sm text-muted-foreground">Sem prioridades ainda.</p>}
+          {priorities.length === 0 && (
+            <div className="flex flex-col items-center px-4 py-8 text-center">
+              <div className="flex h-14 w-14 items-center justify-center rounded-full bg-primary-soft">
+                <Target className="h-6 w-6 text-primary" strokeWidth={2} />
+              </div>
+              <h3 className="mt-4 text-sm font-bold text-foreground">Sem prioridades ainda</h3>
+              <p className="mt-1 max-w-[26ch] text-[13px] text-muted-foreground">
+                Adicione o que precisa pagar este mês para saber o que dá pra encaixar no orçamento.
+              </p>
+              <button
+                type="button"
+                onClick={onAdd}
+                className="press focus-ring mt-4 inline-flex items-center gap-1.5 rounded-full bg-primary px-4 py-2 text-xs font-bold text-primary-foreground shadow-primary"
+              >
+                <Plus className="h-3.5 w-3.5" strokeWidth={2.5} /> Adicionar prioridade
+              </button>
+            </div>
+          )}
           {priorities.map((item) => (
             <div key={item.id} className="rounded-2xl border border-border bg-secondary p-3.5 transition-colors hover:border-primary/25">
               <div className="flex items-start justify-between gap-2">

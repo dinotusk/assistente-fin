@@ -1,5 +1,5 @@
 import { useMemo, useState } from "react";
-import { Copy, Pencil, Trash2, Search } from "lucide-react";
+import { Copy, Pencil, Plus, Receipt, Trash2, Search } from "lucide-react";
 
 import { categories, categoryIcons } from "@/lib/finance/constants";
 import { categoryLabel, expenseMatchesView, formatDate, money, ownerLabelForPeople } from "@/lib/finance/calc";
@@ -8,7 +8,7 @@ import { useFinance } from "@/lib/finance/FinanceContext";
 import { SelectInput, TextInput } from "./forms";
 import { StatusPill } from "./ui";
 
-export function TransactionsView({ onEdit }: { onEdit: (id: string) => void }) {
+export function TransactionsView({ onEdit, onAdd }: { onEdit: (id: string) => void; onAdd: () => void }) {
   const { month, state, toggleExpenseStatus, deleteExpense, duplicateExpense } = useFinance();
   const [term, setTerm] = useState("");
   const [category, setCategory] = useState("todos");
@@ -27,6 +27,8 @@ export function TransactionsView({ onEdit }: { onEdit: (id: string) => void }) {
       })
       .sort((a, b) => (b.date || "").localeCompare(a.date || ""));
   }, [month, term, category, status, state.activePerson]);
+
+  const filtersActive = Boolean(term) || category !== "todos" || status !== "todos";
 
   return (
     <div className="flex flex-col gap-3">
@@ -70,7 +72,28 @@ export function TransactionsView({ onEdit }: { onEdit: (id: string) => void }) {
       </div>
 
       {rows.length === 0 ? (
-        <p className="card-surface p-6 text-center text-sm text-muted-foreground">Nenhum gasto encontrado.</p>
+        filtersActive ? (
+          <p className="card-surface p-6 text-center text-sm text-muted-foreground">
+            Nenhum gasto encontrado para esses filtros.
+          </p>
+        ) : (
+          <div className="card-surface flex flex-col items-center px-4 py-10 text-center">
+            <div className="flex h-14 w-14 items-center justify-center rounded-full bg-primary-soft">
+              <Receipt className="h-6 w-6 text-primary" strokeWidth={2} />
+            </div>
+            <h3 className="mt-4 text-sm font-bold text-foreground">Nenhum gasto neste mês</h3>
+            <p className="mt-1 max-w-[26ch] text-[13px] text-muted-foreground">
+              Registre o primeiro gasto para começar a acompanhar seu orçamento.
+            </p>
+            <button
+              type="button"
+              onClick={onAdd}
+              className="press focus-ring mt-4 inline-flex items-center gap-1.5 rounded-full bg-primary px-4 py-2 text-xs font-bold text-primary-foreground shadow-primary"
+            >
+              <Plus className="h-3.5 w-3.5" strokeWidth={2.5} /> Adicionar gasto
+            </button>
+          </div>
+        )
       ) : (
         rows.map((item) => (
           <div key={item.id} className="card-surface hover-lift p-3.5">
