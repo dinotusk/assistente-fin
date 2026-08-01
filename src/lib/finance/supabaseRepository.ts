@@ -158,7 +158,8 @@ export async function logoutFromSupabase(): Promise<void> {
 
 export async function getAuthenticatedUser(): Promise<User | null> {
   const { data, error } = await supabase.auth.getUser();
-  throwIfError(error);
+  // Supabase returns AuthSessionMissingError for the normal "not logged in" case — not a real failure.
+  if (error && error.name !== "AuthSessionMissingError") throwIfError(error);
   return data.user;
 }
 
@@ -379,6 +380,7 @@ function readSessionPreference(key: "activeMonth" | "activePerson"): string | nu
 
 export async function saveRemoteFinance(
   workspace: FinanceWorkspace,
+  previousState: FinanceState,
   nextState: FinanceState,
 ): Promise<FinanceWorkspace> {
   const profiles = await syncProfiles(workspace, nextState.people);
@@ -387,10 +389,51 @@ export async function saveRemoteFinance(
   const monthIdByKey = new Map(months.map((month) => [monthKey(month.period), month.id]));
 
   await syncBudgets(workspace.householdId, nextState, profileIdByName, monthIdByKey);
-  await syncExpenses(workspace.householdId, nextState, profileIdByName, monthIdByKey);
-  await syncPriorities(workspace.householdId, nextState, profileIdByName, monthIdByKey);
+  await syncExpenses(workspace.householdId, previousState, nextState, profileIdByName, monthIdByKey);
+  await syncPriorities(workspace.householdId, previousState, nextState, profileIdByName, monthIdByKey);
 
   return { householdId: workspace.householdId, profiles, months };
+}
+
+/**
+ * Diffs two id-keyed lists so callers only write what actually changed.
+ * Deliberately does NOT reconcile against a live DB read — a device only
+ * knows about entities it has locally, so it must never delete rows it
+ * simply hasn't loaded yet (e.g. one just added by another device).
+ */
+function diffById<T extends { id: string }>(previous: T[], next: T[]): { changed: T[]; deletedIds: string[] } {
+  const previousById = new Map(previous.map((item) => [item.id, item]));
+  const nextIds = new Set(next.map((item) => item.id));
+  const changed = next.filter((item) => {
+    const before = previousById.get(item.id);
+    return !before || JSON.stringify(before) !== JSON.stringify(item);
+  });
+  const deletedIds = previous.filter((item) => !nextIds.has(item.id)).map((item) => item.id);
+  return { changed, deletedIds };
+}
+
+/** Envelopes are a short, rarely-edited list, so a full live-diff replace is fine here. */
+async function replaceEnvelopeRows(
+  householdId: string,
+  rows: Array<Record<string, string | number | boolean | null | string[]>>,
+): Promise<void> {
+  const { data: existing, error: readError } = await supabase
+    .from("envelopes")
+    .select("id")
+    .eq("household_id", householdId);
+  throwIfError(readError);
+
+  if (rows.length) {
+    const { error } = await supabase.from("envelopes").upsert(rows, { onConflict: "id" });
+    throwIfError(error);
+  }
+
+  const activeIds = new Set(rows.map((row) => String(row.id)));
+  const staleIds = (existing || []).map((row) => row.id).filter((id) => !activeIds.has(id));
+  if (staleIds.length) {
+    const { error } = await supabase.from("envelopes").delete().in("id", staleIds);
+    throwIfError(error);
+  }
 }
 
 export async function saveRemoteEnvelopes(
@@ -409,7 +452,7 @@ export async function saveRemoteEnvelopes(
     categories: envelope.categories.length ? envelope.categories : ["Outros"],
     monthly_limit: Math.max(0, envelope.limit),
   }));
-  await replaceRows("envelopes", householdId, rows);
+  await replaceEnvelopeRows(householdId, rows);
   return normalized;
 }
 
@@ -505,13 +548,25 @@ async function syncBudgets(
 
 async function syncExpenses(
   householdId: string,
+  previousState: FinanceState,
   state: FinanceState,
   profileIds: Map<string, string>,
   monthIds: Map<string, string>,
 ): Promise<void> {
   const fallbackProfileId = profileIds.values().next().value as string | undefined;
-  const rows = Object.entries(state.months).flatMap(([key, month]) =>
-    month.expenses.flatMap((expense) => {
+  const previousExpenses = Object.values(previousState.months).flatMap((month) => month.expenses);
+  const nextExpenses = Object.entries(state.months).flatMap(([key, month]) =>
+    month.expenses.map((expense) => ({ key, expense })),
+  );
+  const { changed, deletedIds } = diffById(
+    previousExpenses,
+    nextExpenses.map(({ expense }) => expense),
+  );
+  const changedIds = new Set(changed.map((expense) => expense.id));
+
+  const rows = nextExpenses
+    .filter(({ expense }) => changedIds.has(expense.id))
+    .flatMap(({ key, expense }) => {
       const monthId = monthIds.get(key);
       const ownerId = profileIds.get(expense.owner) || fallbackProfileId;
       if (!monthId || !ownerId) return [];
@@ -541,20 +596,31 @@ async function syncExpenses(
           installment_total: expense.installmentTotal || null,
         },
       ];
-    }),
-  );
-  await replaceRows("expenses", householdId, rows);
+    });
+  await upsertAndDelete("expenses", rows, deletedIds.map(validId));
 }
 
 async function syncPriorities(
   householdId: string,
+  previousState: FinanceState,
   state: FinanceState,
   profileIds: Map<string, string>,
   monthIds: Map<string, string>,
 ): Promise<void> {
   const fallbackProfileId = profileIds.values().next().value as string | undefined;
-  const rows = Object.entries(state.months).flatMap(([key, month]) =>
-    month.priorities.flatMap((priority) => {
+  const previousPriorities = Object.values(previousState.months).flatMap((month) => month.priorities);
+  const nextPriorities = Object.entries(state.months).flatMap(([key, month]) =>
+    month.priorities.map((priority) => ({ key, priority })),
+  );
+  const { changed, deletedIds } = diffById(
+    previousPriorities,
+    nextPriorities.map(({ priority }) => priority),
+  );
+  const changedIds = new Set(changed.map((priority) => priority.id));
+
+  const rows = nextPriorities
+    .filter(({ priority }) => changedIds.has(priority.id))
+    .flatMap(({ key, priority }) => {
       const monthId = monthIds.get(key);
       const profileId = profileIds.get(priority.responsavel) || fallbackProfileId;
       if (!monthId || !profileId) return [];
@@ -572,31 +638,21 @@ async function syncPriorities(
           status: priority.status,
         },
       ];
-    }),
-  );
-  await replaceRows("priorities", householdId, rows);
+    });
+  await upsertAndDelete("priorities", rows, deletedIds.map(validId));
 }
 
-async function replaceRows(
-  table: "expenses" | "priorities" | "envelopes",
-  householdId: string,
+async function upsertAndDelete(
+  table: "expenses" | "priorities",
   rows: Array<Record<string, string | number | boolean | null | string[]>>,
+  deleteIds: string[],
 ): Promise<void> {
-  const { data: existing, error: readError } = await supabase
-    .from(table)
-    .select("id")
-    .eq("household_id", householdId);
-  throwIfError(readError);
-
   if (rows.length) {
     const { error } = await supabase.from(table).upsert(rows, { onConflict: "id" });
     throwIfError(error);
   }
-
-  const activeIds = new Set(rows.map((row) => String(row.id)));
-  const staleIds = (existing || []).map((row) => row.id).filter((id) => !activeIds.has(id));
-  if (staleIds.length) {
-    const { error } = await supabase.from(table).delete().in("id", staleIds);
+  if (deleteIds.length) {
+    const { error } = await supabase.from(table).delete().in("id", deleteIds);
     throwIfError(error);
   }
 }

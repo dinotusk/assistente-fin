@@ -8,6 +8,7 @@ import {
   useState,
   type ReactNode,
 } from "react";
+import { toast } from "sonner";
 
 import { profileId } from "./calc";
 import {
@@ -38,6 +39,8 @@ import { currentUserName, formatMonthLabel, getNextMonthKey, spouseName } from "
 
 interface FinanceContextValue {
   ready: boolean;
+  authError: string | null;
+  retryAuth: () => void;
   activeUser: ActiveUser | null;
   state: FinanceState;
   month: MonthData;
@@ -67,20 +70,27 @@ const FinanceContext = createContext<FinanceContextValue | null>(null);
 
 export function FinanceProvider({ children }: { children: ReactNode }) {
   const [ready, setReady] = useState(false);
+  const [authError, setAuthError] = useState<string | null>(null);
+  const [bootAttempt, setBootAttempt] = useState(0);
   const [activeUser, setActiveUserState] = useState<ActiveUser | null>(null);
   const [state, setState] = useState<FinanceState>(() => createEmptyState());
   const [envelopes, setEnvelopes] = useState<EnvelopeRule[]>(defaultEnvelopeRules);
   const workspaceRef = useRef<FinanceWorkspace | null>(null);
   const writeQueueRef = useRef<Promise<void>>(Promise.resolve());
+  /** State as of the last persist() call, used to diff writes instead of reconciling against a full local snapshot. */
+  const previousStateRef = useRef<FinanceState>(createEmptyState());
 
   useEffect(() => {
     let mounted = true;
+    setReady(false);
+    setAuthError(null);
     getAuthenticatedUser()
       .then(async (user) => {
         if (!user || !mounted) return;
         const loaded = await loadRemoteFinance(user);
         if (!mounted) return;
         workspaceRef.current = loaded.workspace;
+        previousStateRef.current = loaded.state;
         setActiveUserState(loaded.user);
         setState(loaded.state);
         if (loaded.envelopes.length) {
@@ -90,16 +100,27 @@ export function FinanceProvider({ children }: { children: ReactNode }) {
           if (mounted) setEnvelopes(saved);
         }
       })
-      .catch((error) => console.error("Falha ao carregar dados do Supabase", error))
+      .catch((error) => {
+        console.error("Falha ao carregar dados do Supabase", error);
+        if (mounted) {
+          setAuthError(
+            error instanceof Error ? error.message : "Nao foi possivel conectar. Verifique sua internet.",
+          );
+        }
+      })
       .finally(() => {
         if (mounted) setReady(true);
       });
     return () => {
       mounted = false;
     };
-  }, []);
+  }, [bootAttempt]);
+
+  const retryAuth = useCallback(() => setBootAttempt((attempt) => attempt + 1), []);
 
   const persist = useCallback((next: FinanceState) => {
+    const previous = previousStateRef.current;
+    previousStateRef.current = next;
     setState({ ...next });
     if (!workspaceRef.current) return;
 
@@ -107,10 +128,11 @@ export function FinanceProvider({ children }: { children: ReactNode }) {
       .catch(() => undefined)
       .then(async () => {
         if (!workspaceRef.current) return;
-        workspaceRef.current = await saveRemoteFinance(workspaceRef.current, next);
+        workspaceRef.current = await saveRemoteFinance(workspaceRef.current, previous, next);
       })
       .catch((error) => {
         console.error("Falha ao sincronizar dados financeiros", error);
+        toast.error("Não foi possível salvar sua última alteração. Verifique sua conexão e tente de novo.");
       });
   }, []);
 
@@ -124,6 +146,7 @@ export function FinanceProvider({ children }: { children: ReactNode }) {
     if (!authenticated) throw new Error("Sessao nao encontrada.");
     const loaded = await loadRemoteFinance(authenticated);
     workspaceRef.current = loaded.workspace;
+    previousStateRef.current = loaded.state;
     setActiveUserState(loaded.user);
     setState(loaded.state);
     if (loaded.envelopes.length) {
@@ -154,6 +177,7 @@ export function FinanceProvider({ children }: { children: ReactNode }) {
     void writeQueueRef.current.finally(async () => {
       await logoutFromSupabase();
       workspaceRef.current = null;
+      previousStateRef.current = createEmptyState();
       setActiveUserState(null);
       setState(createEmptyState());
       setEnvelopes(defaultEnvelopeRules);
@@ -383,6 +407,7 @@ export function FinanceProvider({ children }: { children: ReactNode }) {
       })
       .catch((error) => {
         console.error("Falha ao sincronizar envelopes", error);
+        toast.error("Não foi possível salvar os envelopes. Verifique sua conexão e tente de novo.");
       });
   }, []);
 
@@ -392,6 +417,8 @@ export function FinanceProvider({ children }: { children: ReactNode }) {
 
   const value: FinanceContextValue = {
     ready,
+    authError,
+    retryAuth,
     activeUser,
     state,
     month,
