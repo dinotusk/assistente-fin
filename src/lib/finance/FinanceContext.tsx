@@ -52,6 +52,7 @@ interface FinanceContextValue {
   setActivePerson: (view: string) => void;
   createNextMonth: () => string;
   saveMonthSettings: (label: string, income: number, houseContribution: number, profileBudgets?: Record<string, number>) => void;
+  deleteMonth: (key: string) => void;
   savePeople: (people: string[]) => void;
   saveExpense: (expense: Expense, id?: string) => void;
   deleteExpense: (id: string) => void;
@@ -231,6 +232,18 @@ export function FinanceProvider({ children }: { children: ReactNode }) {
       persist({ ...state, months: { ...state.months, [state.activeMonth]: updated } });
     },
     [state, month, persist],
+  );
+
+  const deleteMonth = useCallback(
+    (key: string) => {
+      const remainingKeys = Object.keys(state.months).filter((item) => item !== key);
+      if (!remainingKeys.length) return; // always keep at least one month
+      const months = { ...state.months };
+      delete months[key];
+      const activeMonth = state.activeMonth === key ? remainingKeys.sort().at(-1)! : state.activeMonth;
+      persist({ ...state, months, activeMonth });
+    },
+    [state, persist],
   );
 
   const savePeople = useCallback(
@@ -430,6 +443,7 @@ export function FinanceProvider({ children }: { children: ReactNode }) {
     setActivePerson,
     createNextMonth,
     saveMonthSettings,
+    deleteMonth,
     savePeople,
     saveExpense,
     deleteExpense,

@@ -1,4 +1,5 @@
 import { useEffect, useState } from "react";
+import { Trash2 } from "lucide-react";
 
 import {
   Drawer,
@@ -235,11 +236,12 @@ function blankPriority(): Priority {
 
 /* ---------------- Month ---------------- */
 export function MonthDialog({ open, onOpenChange }: { open: boolean; onOpenChange: (v: boolean) => void }) {
-  const { month, state, saveMonthSettings } = useFinance();
+  const { month, state, saveMonthSettings, deleteMonth } = useFinance();
   const [label, setLabel] = useState("");
   const [income, setIncome] = useState(0);
   const [contribution, setContribution] = useState(0);
   const [profileBudgets, setProfileBudgets] = useState<Record<string, number>>({});
+  const canDelete = Object.keys(state.months).length > 1;
 
   useEffect(() => {
     if (!open) return;
@@ -257,6 +259,14 @@ export function MonthDialog({ open, onOpenChange }: { open: boolean; onOpenChang
 
   function setProfileBudget(profile: string, value: number) {
     setProfileBudgets((current) => ({ ...current, [profile]: value }));
+  }
+
+  function handleDelete() {
+    if (!canDelete) return;
+    const ok = confirm(`Excluir "${month.label}"? Todos os gastos e prioridades desse mês serão apagados. Essa ação não pode ser desfeita.`);
+    if (!ok) return;
+    deleteMonth(state.activeMonth);
+    onOpenChange(false);
   }
 
   return (
@@ -300,6 +310,23 @@ export function MonthDialog({ open, onOpenChange }: { open: boolean; onOpenChang
             />
           </Field>
         ))}
+
+        <div className="mt-1 border-t border-border/70 pt-4">
+          <button
+            type="button"
+            onClick={handleDelete}
+            disabled={!canDelete}
+            className="press focus-ring flex h-11 w-full items-center justify-center gap-2 rounded-xl text-sm font-semibold text-destructive hover:bg-destructive/10 disabled:pointer-events-none disabled:opacity-35"
+          >
+            <Trash2 className="h-4 w-4" /> Excluir este mês
+          </button>
+          {!canDelete && (
+            <p className="mt-1.5 text-center text-[11px] text-muted-foreground">
+              Não é possível excluir o único mês existente.
+            </p>
+          )}
+        </div>
+
         <Actions onCancel={() => onOpenChange(false)} />
       </form>
     </SheetShell>

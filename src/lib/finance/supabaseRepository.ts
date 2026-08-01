@@ -514,6 +514,15 @@ async function syncMonths(
     .upsert(rows, { onConflict: "id" })
     .select("id, household_id, period, label, income, house_contribution, planned");
   throwIfError(error);
+
+  // Cascades to that month's budgets/expenses/priorities (FK ON DELETE CASCADE).
+  const keptKeys = new Set(Object.keys(months));
+  const staleIds = existing.filter((row) => !keptKeys.has(monthKey(row.period))).map((row) => row.id);
+  if (staleIds.length) {
+    const { error: deleteError } = await supabase.from("finance_months").delete().in("id", staleIds);
+    throwIfError(deleteError);
+  }
+
   return data as MonthRow[];
 }
 
