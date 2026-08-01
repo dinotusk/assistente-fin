@@ -108,6 +108,12 @@
       "sourceType": "github",
       "skillPath": "skills/supabase-postgres-best-practices/SKILL.md",
       "computedHash": "128fac78002d916c8ca908245d398e634f540d8bcf20915b2b2359aeb18eba59"
+    },
+    "tailwind-ui-refactor": {
+      "source": "pproenca/dot-skills",
+      "sourceType": "github",
+      "skillPath": "skills/.experimental/tailwind-ui-refactor/SKILL.md",
+      "computedHash": "ab43824fb51fae5ccf2e33ff7b4ca811786b65f5ea92f10c88f4f613ee91bf9d"
     }
   }
 }
