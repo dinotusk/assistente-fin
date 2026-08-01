@@ -131,7 +131,19 @@ export interface Metrics {
   budget: number;
 }
 
-export function calc(monthData: MonthData, view: string): Metrics {
+/** Days left in `monthKey` relative to today; a past month has 0 left, a future month is fully ahead. */
+export function daysLeftInMonth(monthKey?: string): number {
+  const now = new Date();
+  const currentKey = currentCalendarMonthKey();
+  if (!monthKey || monthKey === currentKey) {
+    return Math.max(1, new Date(now.getFullYear(), now.getMonth() + 1, 0).getDate() - now.getDate() + 1);
+  }
+  const [year, monthNumber] = monthKey.split("-").map(Number);
+  if (monthKey < currentKey) return 0;
+  return new Date(year, monthNumber, 0).getDate();
+}
+
+export function calc(monthData: MonthData, view: string, monthKey?: string): Metrics {
   const entries = expensesForView(monthData, view);
   const expenses = entries.filter((item) => item.type !== "income");
   const received = sum(entries.filter((item) => item.type === "income"));
@@ -143,8 +155,7 @@ export function calc(monthData: MonthData, view: string): Metrics {
   const saving = Math.max(0, budget - paid);
   const byCategory = getCategoryTotals(monthData, view);
   const topCategory = byCategory[0];
-  const now = new Date();
-  const daysLeft = Math.max(1, new Date(now.getFullYear(), now.getMonth() + 1, 0).getDate() - now.getDate() + 1);
+  const daysLeft = daysLeftInMonth(monthKey);
   return { total, received, pending, paid, free, saving, topCategory, paidRate: total ? paid / total : 0, daysLeft, budget };
 }
 
@@ -208,14 +219,15 @@ export function getLargestCategoryGrowth(state: FinanceState, view: string): { c
   );
 }
 
+/** Lowercases and strips accents so text can be matched regardless of typing style. */
+export function normalizeText(value: string): string {
+  return value
+    .trim()
+    .toLocaleLowerCase("pt-BR")
+    .normalize("NFD")
+    .replace(/[\u0300-\u036f]/g, "");
+}
+
 export function profileId(name: string): string {
-  return (
-    name
-      .trim()
-      .toLocaleLowerCase("pt-BR")
-      .normalize("NFD")
-      .replace(/[\u0300-\u036f]/g, "")
-      .replace(/[^a-z0-9]+/g, "-")
-      .replace(/^-|-$/g, "") || "perfil"
-  );
+  return normalizeText(name).replace(/[^a-z0-9]+/g, "-").replace(/^-|-$/g, "") || "perfil";
 }

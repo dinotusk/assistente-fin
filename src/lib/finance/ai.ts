@@ -5,6 +5,7 @@ import {
   currentUserName,
   expensesForView,
   money,
+  normalizeText,
   priorityMatchesView,
   spouseName,
   viewLabel,
@@ -15,7 +16,7 @@ import type { FinanceState } from "./types";
 export function buildAiContext(state: FinanceState) {
   const monthData = state.months[state.activeMonth];
   const view = state.activePerson;
-  const numbers = calc(monthData, view);
+  const numbers = calc(monthData, view, state.activeMonth);
   const currentExpenses = expensesForView(monthData, view)
     .slice()
     .sort((a, b) => Number(b.amount || 0) - Number(a.amount || 0))
@@ -55,21 +56,37 @@ export function buildAiContext(state: FinanceState) {
 }
 
 /** Offline heuristic answer — used when Gemini is unavailable. */
+const INTENT_KEYWORDS: Array<{ intent: string; words: string[] }> = [
+  { intent: "responsavel", words: ["responsavel", "responsaveis", "casal", "cada um"] },
+  { intent: "pendente", words: ["falta", "faltam", "pagar", "pendente", "pendencia", "pendencias"] },
+  { intent: "prioridade", words: ["prioridade", "prioridades", "comprar", "posso", "consigo"] },
+  { intent: "pessoa", words: ["pessoa", "quem", "gastou"] },
+  { intent: "saldo", words: ["saldo", "sobrar", "sobra", "sobrou", "disponivel"] },
+];
+
+/** Matches a normalized question against intent keywords by whole word, not raw substring. */
+function matchIntent(normalizedQuestion: string): string | null {
+  const questionWords = new Set(normalizedQuestion.split(/\s+/).filter(Boolean));
+  const match = INTENT_KEYWORDS.find(({ words }) => words.some((word) => questionWords.has(word)));
+  return match?.intent || null;
+}
+
+/** Offline heuristic answer — used when Gemini is unavailable. */
 export function answerLocally(question: string, state: FinanceState): string {
-  const q = question.toLowerCase();
+  const intent = matchIntent(normalizeText(question));
   const monthData = state.months[state.activeMonth];
   const view = state.activePerson;
-  const numbers = calc(monthData, view);
+  const numbers = calc(monthData, view, state.activeMonth);
   const filteredExpenses = expensesForView(monthData, view);
   const pending = filteredExpenses.filter((item) => item.status === "A pagar");
 
-  if (q.includes("responsavel") || q.includes("responsável") || q.includes("casal")) {
+  if (intent === "responsavel") {
     return [
       `${currentUserName()}: ${money(sum(expensesForView(monthData, VIEW_ME)))}`,
       `${spouseName()}: ${money(sum(expensesForView(monthData, VIEW_SPOUSE)))}`,
     ].join(" | ");
   }
-  if (q.includes("falta") || q.includes("pagar")) {
+  if (intent === "pendente") {
     return `Ainda faltam ${money(numbers.pending)}. As maiores pendências são: ${
       pending
         .slice()
@@ -79,7 +96,7 @@ export function answerLocally(question: string, state: FinanceState): string {
         .join(", ") || "nenhuma"
     }.`;
   }
-  if (q.includes("prioridade") || q.includes("comprar") || q.includes("posso")) {
+  if (intent === "prioridade") {
     const first = monthData.priorities
       .filter((item) => priorityMatchesView(item, view) && item.status === "A pagar")
       .slice()
@@ -89,12 +106,12 @@ export function answerLocally(question: string, state: FinanceState): string {
       ? `Dá para pagar ${first.name} de ${money(first.amount)} e ainda ficaria com ${money(numbers.free - first.amount)}.`
       : `Eu adiaria ${first.name} por enquanto. Faltam ${money(first.amount - numbers.free)} para pagar sem apertar o saldo.`;
   }
-  if (q.includes("pessoa") || q.includes("quem")) {
+  if (intent === "pessoa") {
     return state.people
       .map((person) => `${person}: ${money(sum(monthData.expenses.filter((item) => item.owner === person)))}`)
       .join(" · ");
   }
-  if (q.includes("saldo") || q.includes("sobrar")) {
+  if (intent === "saldo") {
     return `Com a renda de ${money(monthData.income)} e gastos de ${money(numbers.total)}, o saldo livre estimado é ${money(numbers.free)}.`;
   }
   return `Resumo rápido: total do mês ${money(numbers.total)}, falta pagar ${money(numbers.pending)}, saldo livre ${money(numbers.free)}.`;

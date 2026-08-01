@@ -22,7 +22,7 @@ import { Panel, PanelHead } from "./ui";
 export function DashboardView() {
   const { state, month, setActiveMonth } = useFinance();
   const view = state.activePerson;
-  const numbers = calc(month, view);
+  const numbers = calc(month, view, state.activeMonth);
   const byCategory = getCategoryTotals(month, view);
   const budget = budgetForView(month, view);
   const balance = getDashboardBalance(numbers.free);

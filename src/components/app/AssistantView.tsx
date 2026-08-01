@@ -22,6 +22,7 @@ import {
   expensesForView,
   getLargestCategoryGrowth,
   money,
+  normalizeText,
   ownerLabelForPeople,
   resolveViewOwner,
   sum,
@@ -57,7 +58,7 @@ export function AssistantView({ onAddExpense }: AssistantViewProps) {
     saveEnvelopes,
   } = useFinance();
   const view = state.activePerson;
-  const numbers = calc(month, view);
+  const numbers = calc(month, view, state.activeMonth);
   const expenses = expensesForView(month, view);
   const growth = getLargestCategoryGrowth(state, view);
   const biggestPending = expenses
@@ -68,7 +69,7 @@ export function AssistantView({ onAddExpense }: AssistantViewProps) {
   const dueToday = expenses
     .filter((item) => item.status === "A pagar" && item.date === today)
     .sort((a, b) => b.amount - a.amount)[0];
-  const weeklyAllowance = Math.max(0, (numbers.free / numbers.daysLeft) * 7);
+  const weeklyAllowance = numbers.daysLeft > 0 ? Math.max(0, (numbers.free / numbers.daysLeft) * 7) : 0;
   const monthReading =
     numbers.free < 0
       ? `Você passou ${money(Math.abs(numbers.free))} do orçamento deste mês.`
@@ -786,14 +787,6 @@ function guessPaymentMethod(text: string): string {
   if (/\b(cartao|credito)\b/.test(normalized)) return "Crédito";
   if (/\b(debito)\b/.test(normalized)) return "Débito";
   return paymentMethods.find((method) => normalized.includes(normalizeText(method))) || "Pix";
-}
-
-function normalizeText(value: string): string {
-  return value
-    .trim()
-    .toLocaleLowerCase("pt-BR")
-    .normalize("NFD")
-    .replace(/[\u0300-\u036f]/g, "");
 }
 
 function HeroStat({ icon, label, value }: { icon: React.ReactNode; label: string; value: string }) {
