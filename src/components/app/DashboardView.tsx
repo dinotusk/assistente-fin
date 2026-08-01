@@ -166,6 +166,6 @@ function getDashboardBalance(free: number) {
     label: "Saldo restante",
     shortLabel: "Saldo",
     amount: free,
-    hint: (daysLeft: number) => `${money(free / daysLeft)} por dia`,
+    hint: (daysLeft: number) => (daysLeft > 0 ? `${money(free / daysLeft)} por dia` : "Mês encerrado"),
   };
 }
