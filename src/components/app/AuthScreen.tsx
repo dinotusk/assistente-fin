@@ -49,14 +49,14 @@ export function AuthScreen() {
         onSubmit={handleSubmit}
         className="card-surface flex w-full max-w-[400px] flex-col gap-6 p-7"
       >
-        <div className="hero-gradient flex h-14 w-14 items-center justify-center rounded-2xl font-display text-xl font-bold text-primary-foreground shadow-primary">
+        <div className="hero-gradient flex h-14 w-14 items-center justify-center rounded-2xl text-xl font-bold text-primary-foreground shadow-primary">
           AV
         </div>
         <div className="flex flex-col gap-1.5">
           <p className="text-xs font-semibold uppercase tracking-wide text-primary">
             Aval
           </p>
-          <h1 className="font-display text-2xl font-bold text-foreground">
+          <h1 className="font-display text-3xl text-foreground">
             {mode === "login" ? "Entre na sua casa" : "Crie sua conta"}
           </h1>
           <p className="text-sm leading-relaxed text-muted-foreground">
@@ -139,7 +139,7 @@ export function AuthScreen() {
         <button
           type="submit"
           disabled={loading}
-          className="hero-gradient press focus-ring h-12 rounded-xl font-display text-base font-semibold text-primary-foreground shadow-primary disabled:opacity-60"
+          className="hero-gradient press focus-ring h-12 rounded-xl text-base font-semibold text-primary-foreground shadow-primary disabled:opacity-60"
         >
           {loading ? "Aguarde..." : mode === "login" ? "Entrar" : "Criar conta"}
         </button>

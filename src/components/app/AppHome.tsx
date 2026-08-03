@@ -68,7 +68,7 @@ export function AppHome() {
   const profileMenu = (
     <div className="rounded-[1.5rem] border border-border bg-card/96 p-3 text-left shadow-float backdrop-blur-xl">
       <div className="mb-3 flex items-center gap-3 rounded-2xl bg-secondary p-3">
-        <div className="hero-gradient flex h-10 w-10 items-center justify-center rounded-2xl font-display text-sm font-bold text-primary-foreground">
+        <div className="hero-gradient flex h-10 w-10 items-center justify-center rounded-2xl text-sm font-bold text-primary-foreground">
           {initials}
         </div>
         <div className="min-w-0">
@@ -184,7 +184,7 @@ export function AppHome() {
                 onClick={() => setProfileMenuOpen((value) => !value)}
                 className="press focus-ring flex w-full items-center gap-3 rounded-2xl border border-border bg-secondary/60 px-3 py-2.5 text-left"
               >
-                <div className="hero-gradient flex h-9 w-9 shrink-0 items-center justify-center rounded-xl font-display text-xs font-bold text-primary-foreground">
+                <div className="hero-gradient flex h-9 w-9 shrink-0 items-center justify-center rounded-xl text-xs font-bold text-primary-foreground">
                   {initials}
                 </div>
                 <div className="min-w-0 flex-1">
@@ -205,7 +205,7 @@ export function AppHome() {
             <div className="mx-auto flex w-full max-w-[1100px] flex-wrap items-center gap-4">
               <div className="min-w-0 flex-1">
                 <p className="text-[11px] font-bold uppercase tracking-[0.16em] text-primary/70">{titles[view]}</p>
-                <h1 className="truncate font-display text-2xl font-bold text-foreground">
+                <h1 className="truncate font-display text-3xl text-foreground">
                   {activeUser?.name || "Aval"}
                 </h1>
               </div>
@@ -245,7 +245,7 @@ export function AppHome() {
           <div className="flex items-center justify-between gap-3">
             <div className="min-w-0">
               <p className="text-[10px] font-bold uppercase tracking-[0.14em] text-muted-foreground">{activeMonthLabel}</p>
-              <h1 className="mt-1 truncate font-display text-[1.7rem] font-semibold leading-none text-foreground">
+              <h1 className="mt-1 truncate font-display text-[2rem] leading-none text-foreground">
                 {view === "assistant" ? `Olá, ${firstName}` : titles[view]}
               </h1>
             </div>
@@ -253,7 +253,7 @@ export function AppHome() {
               <button
                 type="button"
                 onClick={() => setProfileMenuOpen((value) => !value)}
-                className="hero-gradient press focus-ring flex h-11 w-11 shrink-0 items-center justify-center rounded-[0.95rem] font-display text-sm font-bold text-primary-foreground shadow-primary"
+                className="hero-gradient press focus-ring flex h-11 w-11 shrink-0 items-center justify-center rounded-[0.95rem] text-sm font-bold text-primary-foreground shadow-primary"
                 aria-label="Abrir opcoes do perfil"
               >
                 {initials}

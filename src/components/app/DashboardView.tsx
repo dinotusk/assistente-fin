@@ -49,7 +49,7 @@ export function DashboardView() {
             <span className="rounded-full bg-white/15 px-3 py-1 text-xs font-semibold">{viewLabelForPeople(view, state.people)}</span>
           </div>
         </div>
-        <strong className="tnum mt-2 block font-display text-3xl font-bold">{money(budget)}</strong>
+        <strong className="tnum mt-2 block font-display text-4xl">{money(budget)}</strong>
         <div className="mt-4 grid grid-cols-3 gap-2">
           {[
             { label: "Gasto", value: numbers.total },
@@ -150,7 +150,7 @@ function MetricCard({ label, value, hint }: { label: string; value: string; hint
   return (
     <div className="card-surface hover-lift p-3.5">
       <span className="text-xs font-medium text-muted-foreground">{label}</span>
-      <strong className="tnum mt-1 block font-display text-lg font-bold text-foreground">{value}</strong>
+      <strong className="tnum mt-1 block font-display text-xl text-foreground">{value}</strong>
       <small className="mt-0.5 block truncate text-[11px] text-muted-foreground">{hint}</small>
     </div>
   );

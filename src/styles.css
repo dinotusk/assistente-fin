@@ -1,7 +1,7 @@
 @import "tailwindcss" source(none);
 @source "../src";
 @import "tw-animate-css";
-@import "@fontsource-variable/sora";
+@import "@fontsource/instrument-serif";
 @import "@fontsource-variable/plus-jakarta-sans";
 
 @custom-variant dark (&:is(.dark *));
@@ -42,7 +42,7 @@
   --color-ring: var(--ring);
   --color-surface: var(--surface);
 
-  --font-display: "Sora Variable", ui-sans-serif, system-ui, sans-serif;
+  --font-display: "Instrument Serif", Georgia, serif;
   --font-sans: "Plus Jakarta Sans Variable", ui-sans-serif, system-ui, sans-serif;
 
   --shadow-soft: 0 8px 24px -18px rgb(0 0 0 / 0.8);

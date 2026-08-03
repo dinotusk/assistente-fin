@@ -14,7 +14,7 @@ Panel.displayName = "Panel";
 export function PanelHead({ title, hint, action }: { title: string; hint?: ReactNode; action?: ReactNode }) {
   return (
     <div className="mb-3 flex items-center justify-between gap-2">
-      <h2 className="font-display text-[15px] font-bold text-foreground">{title}</h2>
+      <h2 className="text-[13px] font-bold uppercase tracking-[0.06em] text-foreground/62">{title}</h2>
       {action ?? (hint ? <span className="shrink-0 text-xs font-medium text-muted-foreground">{hint}</span> : null)}
     </div>
   );

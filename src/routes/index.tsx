@@ -26,7 +26,7 @@ function Gate() {
         <div className="card-surface flex w-full max-w-[400px] flex-col items-center gap-4 p-7 text-center">
           <TriangleAlert className="h-8 w-8 text-destructive" />
           <div className="flex flex-col gap-1.5">
-            <h1 className="font-display text-lg font-bold text-foreground">Não foi possível conectar</h1>
+            <h1 className="font-display text-xl text-foreground">Não foi possível conectar</h1>
             <p className="text-sm text-muted-foreground">{authError}</p>
           </div>
           <button

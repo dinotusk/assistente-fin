@@ -313,7 +313,7 @@ export function AssistantView({ onAddExpense }: AssistantViewProps) {
               <Sparkles className="h-3.5 w-3.5" />
               Aval
             </span>
-            <h2 className="mt-4 max-w-[17rem] font-display text-[1.35rem] font-semibold leading-[1.3] tracking-normal">
+            <h2 className="mt-4 max-w-[17rem] font-display text-[1.5rem] leading-[1.3] tracking-normal">
               {monthReading}
             </h2>
             <p className="mt-1 text-sm text-white/78">
@@ -341,7 +341,7 @@ export function AssistantView({ onAddExpense }: AssistantViewProps) {
             <PiggyBank className="h-3.5 w-3.5" />
             {balanceState.label}
           </span>
-          <strong className="tnum mt-1 block font-display text-[2rem] font-bold leading-none">{balanceState.value}</strong>
+          <strong className="tnum mt-1 block font-display text-[2rem] leading-none">{balanceState.value}</strong>
           <p className="mt-2 text-xs leading-relaxed text-white/72">{balanceState.description}</p>
           <span className="mt-3 inline-flex rounded-full bg-white/12 px-3 py-1 text-[11px] font-bold text-white/78">
             Toque para analisar
@@ -467,7 +467,7 @@ export function AssistantView({ onAddExpense }: AssistantViewProps) {
             type="button"
             onClick={savePurchaseSimulation}
             disabled={!purchaseName.trim() || purchaseAmount <= 0}
-            className="hero-gradient press focus-ring h-12 rounded-2xl font-display text-sm font-bold text-primary-foreground shadow-primary disabled:cursor-not-allowed disabled:opacity-45"
+            className="hero-gradient press focus-ring h-12 rounded-2xl text-sm font-bold text-primary-foreground shadow-primary disabled:cursor-not-allowed disabled:opacity-45"
           >
             Salvar simulação em Metas
           </button>
@@ -799,7 +799,7 @@ function HeroStat({ icon, label, value }: { icon: React.ReactNode; label: string
         {icon}
         {label}
       </span>
-      <strong className="tnum mt-1 block whitespace-nowrap font-display text-[10px] font-bold leading-tight tracking-normal">
+      <strong className="tnum mt-1 block whitespace-nowrap text-[11px] font-bold leading-tight tracking-normal">
         {value}
       </strong>
     </div>
