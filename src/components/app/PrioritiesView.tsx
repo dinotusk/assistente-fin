@@ -1,12 +1,13 @@
 import { Pencil, Plus, Target, Trash2 } from "lucide-react";
 
-import { calc, money, priorityMatchesView } from "@/lib/finance/calc";
-import { useFinance } from "@/lib/finance/FinanceContext";
+import { calc, priorityMatchesView } from "@/lib/finance/calc";
+import { useFinance, useMoney } from "@/lib/finance/FinanceContext";
 
 import { Panel, PanelHead, StatusPill } from "./ui";
 
 export function PrioritiesView({ onEdit, onAdd }: { onEdit: (id: string) => void; onAdd: () => void }) {
   const { month, state, togglePriorityStatus, deletePriority } = useFinance();
+  const money = useMoney();
   const view = state.activePerson;
   const priorities = month.priorities
     .filter((item) => priorityMatchesView(item, view))

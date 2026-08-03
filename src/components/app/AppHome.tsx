@@ -1,5 +1,5 @@
 import { useEffect, useRef, useState, type ReactNode } from "react";
-import { Plus, CalendarPlus, ChevronDown, Download, LogOut, Settings, Upload, UserRound } from "lucide-react";
+import { Plus, CalendarPlus, ChevronDown, Download, Eye, EyeOff, LogOut, Settings, Upload, UserRound } from "lucide-react";
 
 import { formatMonthLabel } from "@/lib/finance/calc";
 import { VIEW_ALL, VIEW_ME, VIEW_SPOUSE } from "@/lib/finance/constants";
@@ -37,7 +37,7 @@ function useIsDesktop() {
 }
 
 export function AppHome() {
-  const { activeUser, state, setActivePerson, setActiveMonth, createNextMonth, exportData, importData, logout } = useFinance();
+  const { activeUser, state, hideValues, toggleHideValues, setActivePerson, setActiveMonth, createNextMonth, exportData, importData, logout } = useFinance();
   const isDesktop = useIsDesktop();
   const [view, setView] = useState<ViewKey>("assistant");
   const [expenseDialog, setExpenseDialog] = useState<{ open: boolean; id: string | null }>({ open: false, id: null });
@@ -209,7 +209,10 @@ export function AppHome() {
                   {activeUser?.name || "Aval"}
                 </h1>
               </div>
-              <div className="flex items-center gap-2">{monthPicker}</div>
+              <div className="flex items-center gap-2">
+                <HideValuesToggle hidden={hideValues} onClick={toggleHideValues} />
+                {monthPicker}
+              </div>
               {showFab && (
                 <button
                   type="button"
@@ -249,18 +252,21 @@ export function AppHome() {
                 {view === "assistant" ? `Olá, ${firstName}` : titles[view]}
               </h1>
             </div>
-            <div className="relative">
-              <button
-                type="button"
-                onClick={() => setProfileMenuOpen((value) => !value)}
-                className="hero-gradient press focus-ring flex h-11 w-11 shrink-0 items-center justify-center rounded-[0.95rem] text-sm font-bold text-primary-foreground shadow-primary"
-                aria-label="Abrir opcoes do perfil"
-              >
-                {initials}
-              </button>
-              {profileMenuOpen ? (
-                <div className="absolute right-0 top-12 z-40 w-[260px]">{profileMenu}</div>
-              ) : null}
+            <div className="flex shrink-0 items-center gap-2">
+              <HideValuesToggle hidden={hideValues} onClick={toggleHideValues} />
+              <div className="relative">
+                <button
+                  type="button"
+                  onClick={() => setProfileMenuOpen((value) => !value)}
+                  className="hero-gradient press focus-ring flex h-11 w-11 shrink-0 items-center justify-center rounded-[0.95rem] text-sm font-bold text-primary-foreground shadow-primary"
+                  aria-label="Abrir opcoes do perfil"
+                >
+                  {initials}
+                </button>
+                {profileMenuOpen ? (
+                  <div className="absolute right-0 top-12 z-40 w-[260px]">{profileMenu}</div>
+                ) : null}
+              </div>
             </div>
           </div>
 
@@ -282,6 +288,23 @@ export function AppHome() {
       {hiddenImport}
       {dialogs}
     </div>
+  );
+}
+
+function HideValuesToggle({ hidden, onClick }: { hidden: boolean; onClick: () => void }) {
+  return (
+    <button
+      type="button"
+      onClick={onClick}
+      aria-pressed={hidden}
+      aria-label={hidden ? "Mostrar valores" : "Ocultar valores"}
+      title={hidden ? "Mostrar valores" : "Ocultar valores"}
+      className={`press focus-ring flex h-11 w-11 shrink-0 items-center justify-center rounded-[0.95rem] border border-white/12 bg-white/[0.07] transition-colors ${
+        hidden ? "text-primary" : "text-muted-foreground hover:text-foreground"
+      }`}
+    >
+      {hidden ? <EyeOff className="h-[18px] w-[18px]" strokeWidth={2} /> : <Eye className="h-[18px] w-[18px]" strokeWidth={2} />}
+    </button>
   );
 }
 

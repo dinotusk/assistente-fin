@@ -1,4 +1,4 @@
-import { useFinance } from "@/lib/finance/FinanceContext";
+import { useFinance, useMoney } from "@/lib/finance/FinanceContext";
 import {
   calc,
   budgetForView,
@@ -6,7 +6,6 @@ import {
   chartMonthEntries,
   expensesForView,
   getCategoryTotals,
-  money,
   sum,
   timelineMonthEntries,
   viewLabelForPeople,
@@ -21,11 +20,12 @@ import { Panel, PanelHead } from "./ui";
 
 export function DashboardView() {
   const { state, month, setActiveMonth } = useFinance();
+  const money = useMoney();
   const view = state.activePerson;
   const numbers = calc(month, view, state.activeMonth);
   const byCategory = getCategoryTotals(month, view);
   const budget = budgetForView(month, view);
-  const balance = getDashboardBalance(numbers.free);
+  const balance = getDashboardBalance(numbers.free, money);
 
   const chartEntries = chartMonthEntries(state, 6).map(([key, data]) => ({
     key,
@@ -156,7 +156,7 @@ function MetricCard({ label, value, hint }: { label: string; value: string; hint
   );
 }
 
-function getDashboardBalance(free: number) {
+function getDashboardBalance(free: number, formatMoney: (value: number) => string) {
   if (free < 0) {
     const amount = Math.abs(free);
     return {
@@ -171,6 +171,6 @@ function getDashboardBalance(free: number) {
     label: "Saldo restante",
     shortLabel: "Saldo",
     amount: free,
-    hint: (daysLeft: number) => (daysLeft > 0 ? `${money(free / daysLeft)} por dia` : "Mês encerrado"),
+    hint: (daysLeft: number) => (daysLeft > 0 ? `${formatMoney(free / daysLeft)} por dia` : "Mês encerrado"),
   };
 }

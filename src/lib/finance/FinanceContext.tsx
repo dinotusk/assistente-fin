@@ -10,7 +10,7 @@ import {
 } from "react";
 import { toast } from "sonner";
 
-import { profileId } from "./calc";
+import { money, moneyShort, profileId } from "./calc";
 import {
   categories,
   defaultEnvelopeRules,
@@ -41,6 +41,8 @@ interface FinanceContextValue {
   ready: boolean;
   authError: string | null;
   retryAuth: () => void;
+  hideValues: boolean;
+  toggleHideValues: () => void;
   activeUser: ActiveUser | null;
   state: FinanceState;
   month: MonthData;
@@ -78,6 +80,7 @@ const FinanceContext = createContext<FinanceContextValue | null>(null);
 export function FinanceProvider({ children }: { children: ReactNode }) {
   const [ready, setReady] = useState(false);
   const [authError, setAuthError] = useState<string | null>(null);
+  const [hideValues, setHideValues] = useState(false);
   const [bootAttempt, setBootAttempt] = useState(0);
   const [activeUser, setActiveUserState] = useState<ActiveUser | null>(null);
   const [state, setState] = useState<FinanceState>(() => createEmptyState());
@@ -124,6 +127,8 @@ export function FinanceProvider({ children }: { children: ReactNode }) {
   }, [bootAttempt]);
 
   const retryAuth = useCallback(() => setBootAttempt((attempt) => attempt + 1), []);
+
+  const toggleHideValues = useCallback(() => setHideValues((value) => !value), []);
 
   const persist = useCallback((next: FinanceState) => {
     const previous = previousStateRef.current;
@@ -446,6 +451,8 @@ export function FinanceProvider({ children }: { children: ReactNode }) {
     ready,
     authError,
     retryAuth,
+    hideValues,
+    toggleHideValues,
     activeUser,
     state,
     month,
@@ -479,6 +486,18 @@ export function useFinance(): FinanceContextValue {
   const ctx = useContext(FinanceContext);
   if (!ctx) throw new Error("useFinance must be used within FinanceProvider");
   return ctx;
+}
+
+/** Currency formatter aware of the "hide values" toggle — masks with "R$ ••••" when active. */
+export function useMoney(): (value: number) => string {
+  const { hideValues } = useFinance();
+  return useCallback((value: number) => (hideValues ? "R$ ••••" : money(value)), [hideValues]);
+}
+
+/** Compact currency formatter (chart labels) aware of the "hide values" toggle. */
+export function useMoneyShort(): (value: number) => string {
+  const { hideValues } = useFinance();
+  return useCallback((value: number) => (hideValues ? "R$ ••••" : moneyShort(value)), [hideValues]);
 }
 
 export { profileId };

@@ -1,4 +1,4 @@
-import { moneyShort } from "@/lib/finance/calc";
+import { useMoneyShort } from "@/lib/finance/FinanceContext";
 
 interface MonthlyBarsProps {
   entries: { key: string; label: string; total: number }[];
@@ -7,6 +7,7 @@ interface MonthlyBarsProps {
 }
 
 export function MonthlyBars({ entries, activeKey, onSelect }: MonthlyBarsProps) {
+  const moneyShort = useMoneyShort();
   if (!entries.length) return <p className="py-4 text-sm text-muted-foreground">Sem histórico.</p>;
   const max = Math.max(...entries.map((e) => e.total), 1);
   return (

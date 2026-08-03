@@ -1,8 +1,10 @@
 import { categoryColors } from "@/lib/finance/constants";
-import { categoryLabel, money } from "@/lib/finance/calc";
+import { categoryLabel } from "@/lib/finance/calc";
 import type { CategoryTotal } from "@/lib/finance/calc";
+import { useMoney } from "@/lib/finance/FinanceContext";
 
 export function CategoryBars({ data }: { data: CategoryTotal[] }) {
+  const money = useMoney();
   if (!data.length) {
     return <p className="py-4 text-sm text-muted-foreground">Nenhum gasto neste mês.</p>;
   }

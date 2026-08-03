@@ -2,14 +2,15 @@ import { useMemo, useState } from "react";
 import { Copy, Pencil, Plus, Receipt, Trash2, Search } from "lucide-react";
 
 import { categories, categoryIcons } from "@/lib/finance/constants";
-import { categoryLabel, expenseMatchesView, formatDate, money, ownerLabelForPeople } from "@/lib/finance/calc";
-import { useFinance } from "@/lib/finance/FinanceContext";
+import { categoryLabel, expenseMatchesView, formatDate, ownerLabelForPeople } from "@/lib/finance/calc";
+import { useFinance, useMoney } from "@/lib/finance/FinanceContext";
 
 import { SelectInput, TextInput } from "./forms";
 import { StatusPill } from "./ui";
 
 export function TransactionsView({ onEdit, onAdd }: { onEdit: (id: string) => void; onAdd: () => void }) {
   const { month, state, toggleExpenseStatus, deleteExpense, duplicateExpense } = useFinance();
+  const money = useMoney();
   const [term, setTerm] = useState("");
   const [category, setCategory] = useState("todos");
   const [status, setStatus] = useState("todos");

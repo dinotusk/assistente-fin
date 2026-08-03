@@ -1,6 +1,7 @@
 import { categoryColors } from "@/lib/finance/constants";
-import { categoryLabel, money } from "@/lib/finance/calc";
+import { categoryLabel } from "@/lib/finance/calc";
 import type { CategoryTotal } from "@/lib/finance/calc";
+import { useMoney } from "@/lib/finance/FinanceContext";
 
 interface DonutChartProps {
   data: CategoryTotal[];
@@ -13,6 +14,7 @@ const RADIUS = (SIZE - STROKE) / 2;
 const CIRC = 2 * Math.PI * RADIUS;
 
 export function DonutChart({ data, total }: DonutChartProps) {
+  const money = useMoney();
   if (!data.length || total <= 0) {
     return (
       <div className="flex flex-col items-center gap-3 py-6">

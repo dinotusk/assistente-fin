@@ -6,6 +6,7 @@ import {
   calc,
   daysLeftInMonth,
   expensesForView,
+  maskMoneyInText,
   money,
   normalizeText,
   profileId,
@@ -59,6 +60,22 @@ describe("sum", () => {
 
   it("returns 0 for an empty list", () => {
     expect(sum([])).toBe(0);
+  });
+});
+
+describe("maskMoneyInText", () => {
+  it("replaces every currency amount with a masked placeholder", () => {
+    expect(maskMoneyInText("Voce gastou R$ 1.234,56 de R$ 5.000,00")).toBe(
+      "Voce gastou R$ •••• de R$ ••••",
+    );
+  });
+
+  it("handles negative amounts and leaves the rest of the text untouched", () => {
+    expect(maskMoneyInText("Saldo: R$ -120,00. Tudo certo.")).toBe("Saldo: R$ ••••. Tudo certo.");
+  });
+
+  it("is a no-op when there is no currency amount", () => {
+    expect(maskMoneyInText("Nenhum gasto encontrado.")).toBe("Nenhum gasto encontrado.");
   });
 });
 

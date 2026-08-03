@@ -1,4 +1,4 @@
-import { moneyShort } from "@/lib/finance/calc";
+import { useMoneyShort } from "@/lib/finance/FinanceContext";
 
 interface TrendChartProps {
   entries: { key: string; label: string; total: number }[];
@@ -13,6 +13,7 @@ const PAD_TOP = 16;
 const PAD_BOTTOM = 8;
 
 export function TrendChart({ entries, activeKey, onSelect }: TrendChartProps) {
+  const moneyShort = useMoneyShort();
   if (entries.length < 2) {
     return <p className="py-4 text-sm text-muted-foreground">Cadastre mais meses para ver a evolução.</p>;
   }

@@ -21,7 +21,7 @@ import {
   categoryLabel,
   expensesForView,
   getLargestCategoryGrowth,
-  money,
+  maskMoneyInText,
   normalizeText,
   ownerLabelForPeople,
   resolveViewOwner,
@@ -30,7 +30,7 @@ import {
 } from "@/lib/finance/calc";
 import { answerLocally, askGemini, buildAiContext } from "@/lib/finance/ai";
 import { categories, paymentMethods, VIEW_ALL, VIEW_ME, VIEW_SPOUSE } from "@/lib/finance/constants";
-import { useFinance } from "@/lib/finance/FinanceContext";
+import { useFinance, useMoney } from "@/lib/finance/FinanceContext";
 import { uid } from "@/lib/finance/seed";
 import type { Expense } from "@/lib/finance/types";
 
@@ -52,11 +52,13 @@ export function AssistantView({ onAddExpense }: AssistantViewProps) {
     state,
     month,
     envelopes,
+    hideValues,
     saveMonthSettings,
     saveExpense,
     savePriority,
     saveEnvelopes,
   } = useFinance();
+  const money = useMoney();
   const view = state.activePerson;
   const numbers = calc(month, view, state.activeMonth);
   const expenses = expensesForView(month, view);
@@ -113,7 +115,7 @@ export function AssistantView({ onAddExpense }: AssistantViewProps) {
   }
 
   const purchaseAmount = parseCurrencyInput(purchaseValue);
-  const purchaseResult = getPurchaseResult(purchaseName, purchaseAmount, numbers.free, weeklyAllowance);
+  const purchaseResult = getPurchaseResult(purchaseName, purchaseAmount, numbers.free, weeklyAllowance, money);
 
   function updatePurchaseValue(value: string) {
     setPurchaseValue(value.replace(/[^\d,.]/g, ""));
@@ -172,7 +174,7 @@ export function AssistantView({ onAddExpense }: AssistantViewProps) {
     }
     setMessages((m) => {
       const next = [...m];
-      next[next.length - 1] = { role: "ai", text: answer };
+      next[next.length - 1] = { role: "ai", text: hideValues ? maskMoneyInText(answer) : answer };
       return next;
     });
     setBusy(false);
@@ -301,7 +303,7 @@ export function AssistantView({ onAddExpense }: AssistantViewProps) {
   ];
 
   const dueLabel = dueToday ? dueToday.name : biggestPending?.name || "Nada urgente";
-  const balanceState = getBalanceState(numbers.free, numbers.pending);
+  const balanceState = getBalanceState(numbers.free, numbers.pending, money);
   const health = balanceState.status;
 
   return (
@@ -595,11 +597,11 @@ function timeGreeting(): string {
   return "Boa noite";
 }
 
-function getBalanceState(free: number, pending: number) {
+function getBalanceState(free: number, pending: number, formatMoney: (value: number) => string) {
   if (free < 0) {
     return {
       label: "Ajuste necessario",
-      value: money(Math.abs(free)),
+      value: formatMoney(Math.abs(free)),
       status: "Reorganizar",
       description: pending > 0
         ? "O mes precisa de revisao. Veja o que pode ser adiado antes de assumir novos gastos."
@@ -610,7 +612,7 @@ function getBalanceState(free: number, pending: number) {
   if (pending > free) {
     return {
       label: "Saldo sob pressao",
-      value: money(free),
+      value: formatMoney(free),
       status: "Cautela",
       description: "Ainda existe saldo, mas as contas pendentes exigem cuidado nas proximas compras.",
     };
@@ -618,7 +620,7 @@ function getBalanceState(free: number, pending: number) {
 
   return {
     label: "Saldo disponivel",
-    value: money(free),
+    value: formatMoney(free),
     status: "Saudavel",
     description: "O mes esta dentro do planejado. Mantenha o ritmo antes de novas compras.",
   };
@@ -835,7 +837,13 @@ function QuickAction({
   );
 }
 
-function getPurchaseResult(name: string, amount: number, free: number, weeklyAllowance: number) {
+function getPurchaseResult(
+  name: string,
+  amount: number,
+  free: number,
+  weeklyAllowance: number,
+  formatMoney: (value: number) => string,
+) {
   if (!name.trim() || amount <= 0) {
     return {
       ok: true,
@@ -848,20 +856,20 @@ function getPurchaseResult(name: string, amount: number, free: number, weeklyAll
     return {
       ok: false,
       title: "Melhor não comprar agora",
-      body: `Essa compra deixaria o mês negativo em ${money(Math.abs(remaining))}. O ideal é adiar ou trocar por uma opção menor.`,
+      body: `Essa compra deixaria o mês negativo em ${formatMoney(Math.abs(remaining))}. O ideal é adiar ou trocar por uma opção menor.`,
     };
   }
   if (amount > weeklyAllowance && weeklyAllowance > 0) {
     return {
       ok: false,
       title: "Compra possível, mas pesada",
-      body: `Você ainda ficaria com ${money(remaining)}, mas passaria do limite saudável da semana. Vale negociar ou planejar para o próximo mês.`,
+      body: `Você ainda ficaria com ${formatMoney(remaining)}, mas passaria do limite saudável da semana. Vale negociar ou planejar para o próximo mês.`,
     };
   }
   return {
     ok: true,
     title: "Compra segura para este mês",
-    body: `Se comprar ${name.trim()} hoje, ainda sobra ${money(remaining)} no orçamento selecionado.`,
+    body: `Se comprar ${name.trim()} hoje, ainda sobra ${formatMoney(remaining)} no orçamento selecionado.`,
   };
 }
 

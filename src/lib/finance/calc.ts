@@ -14,6 +14,11 @@ export function money(value: number): string {
   return Number(value || 0).toLocaleString("pt-BR", { style: "currency", currency: "BRL" });
 }
 
+/** Masks every "R$ ..." amount in free-form text — used for AI/local-fallback chat replies when values are hidden. */
+export function maskMoneyInText(text: string): string {
+  return text.replace(/R\$\s?-?\d{1,3}(?:\.\d{3})*(?:,\d{2})?/g, "R$ ••••");
+}
+
 /** Compact currency for tight chart labels, e.g. R$ 1,2 mil. */
 export function moneyShort(value: number): string {
   const v = Number(value || 0);
