@@ -43,6 +43,7 @@ export function buildAiContext(state: FinanceState) {
     }));
   return {
     mes: monthData.label,
+    planejamento: Boolean(monthData.planned),
     visao: viewLabel(view),
     orcamento: budgetForView(monthData, view),
     totalGasto: numbers.total,
@@ -87,14 +88,15 @@ export function answerLocally(question: string, state: FinanceState): string {
     ].join(" | ");
   }
   if (intent === "pendente") {
-    return `Ainda faltam ${money(numbers.pending)}. As maiores pendências são: ${
-      pending
-        .slice()
-        .sort((a, b) => b.amount - a.amount)
-        .slice(0, 3)
-        .map((item) => `${item.name} (${money(item.amount)})`)
-        .join(", ") || "nenhuma"
-    }.`;
+    const top = pending
+      .slice()
+      .sort((a, b) => b.amount - a.amount)
+      .slice(0, 3)
+      .map((item) => `${item.name} (${money(item.amount)})`)
+      .join(", ") || "nenhuma";
+    return monthData.planned
+      ? `Previsto até agora: ${money(numbers.pending)}. Os maiores itens planejados são: ${top}.`
+      : `Ainda faltam ${money(numbers.pending)}. As maiores pendências são: ${top}.`;
   }
   if (intent === "prioridade") {
     const first = monthData.priorities
@@ -114,7 +116,9 @@ export function answerLocally(question: string, state: FinanceState): string {
   if (intent === "saldo") {
     return `Com a renda de ${money(monthData.income)} e gastos de ${money(numbers.total)}, o saldo livre estimado é ${money(numbers.free)}.`;
   }
-  return `Resumo rápido: total do mês ${money(numbers.total)}, falta pagar ${money(numbers.pending)}, saldo livre ${money(numbers.free)}.`;
+  return monthData.planned
+    ? `Planejamento do mês: ${money(numbers.total)} previstos, ${money(numbers.pending)} ainda por definir como pago, saldo previsto ${money(numbers.free)}.`
+    : `Resumo rápido: total do mês ${money(numbers.total)}, falta pagar ${money(numbers.pending)}, saldo livre ${money(numbers.free)}.`;
 }
 
 function sum(items: { amount?: number }[]): number {

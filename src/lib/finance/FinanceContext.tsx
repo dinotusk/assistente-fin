@@ -51,7 +51,13 @@ interface FinanceContextValue {
   setActiveMonth: (key: string) => void;
   setActivePerson: (view: string) => void;
   createNextMonth: () => string;
-  saveMonthSettings: (label: string, income: number, houseContribution: number, profileBudgets?: Record<string, number>) => void;
+  saveMonthSettings: (
+    label: string,
+    income: number,
+    houseContribution: number,
+    profileBudgets?: Record<string, number>,
+    planned?: boolean,
+  ) => void;
   deleteMonth: (key: string) => void;
   savePeople: (people: string[]) => void;
   saveExpense: (expense: Expense, id?: string) => void;
@@ -214,6 +220,8 @@ export function FinanceProvider({ children }: { children: ReactNode }) {
       label: formatMonthLabel(nextKey),
       income: current.income,
       houseContribution: current.houseContribution,
+      // A freshly created future month hasn't started yet — treat it as a forecast until edited.
+      planned: true,
       expenses: current.expenses.map((item) => ({
         ...item,
         id: uid(),
@@ -227,8 +235,14 @@ export function FinanceProvider({ children }: { children: ReactNode }) {
   }, [state, persist]);
 
   const saveMonthSettings = useCallback(
-    (label: string, income: number, houseContribution: number, profileBudgets: Record<string, number> = {}) => {
-      const updated: MonthData = { ...month, label: label.trim(), income, houseContribution, profileBudgets };
+    (
+      label: string,
+      income: number,
+      houseContribution: number,
+      profileBudgets: Record<string, number> = {},
+      planned = false,
+    ) => {
+      const updated: MonthData = { ...month, label: label.trim(), income, houseContribution, profileBudgets, planned };
       persist({ ...state, months: { ...state.months, [state.activeMonth]: updated } });
     },
     [state, month, persist],

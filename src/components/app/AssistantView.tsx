@@ -70,8 +70,11 @@ export function AssistantView({ onAddExpense }: AssistantViewProps) {
     .filter((item) => item.status === "A pagar" && item.date === today)
     .sort((a, b) => b.amount - a.amount)[0];
   const weeklyAllowance = numbers.daysLeft > 0 ? Math.max(0, (numbers.free / numbers.daysLeft) * 7) : 0;
-  const monthReading =
-    numbers.free < 0
+  const monthReading = month.planned
+    ? numbers.free < 0
+      ? `Este planejamento já estoura o orçamento em ${money(Math.abs(numbers.free))}.`
+      : `Previsão: ${money(numbers.pending)} de gastos planejados, sobrando ${money(numbers.free)}.`
+    : numbers.free < 0
       ? `Você passou ${money(Math.abs(numbers.free))} do orçamento deste mês.`
       : numbers.pending > 0
         ? `Sobram ${money(numbers.free)}, mas ${money(numbers.pending)} ainda estão em contas a pagar.`

@@ -241,6 +241,7 @@ export function MonthDialog({ open, onOpenChange }: { open: boolean; onOpenChang
   const [income, setIncome] = useState(0);
   const [contribution, setContribution] = useState(0);
   const [profileBudgets, setProfileBudgets] = useState<Record<string, number>>({});
+  const [planned, setPlanned] = useState(false);
   const canDelete = Object.keys(state.months).length > 1;
 
   useEffect(() => {
@@ -249,11 +250,12 @@ export function MonthDialog({ open, onOpenChange }: { open: boolean; onOpenChang
     setIncome(month.income);
     setContribution(month.houseContribution || 0);
     setProfileBudgets(month.profileBudgets || {});
+    setPlanned(Boolean(month.planned));
   }, [open, month]);
 
   function submit(event: React.FormEvent) {
     event.preventDefault();
-    saveMonthSettings(label, income, contribution, profileBudgets);
+    saveMonthSettings(label, income, contribution, profileBudgets, planned);
     onOpenChange(false);
   }
 
@@ -275,6 +277,28 @@ export function MonthDialog({ open, onOpenChange }: { open: boolean; onOpenChang
         <Field label="Nome do mes">
           <TextInput value={label} onChange={(e) => setLabel(e.target.value)} required />
         </Field>
+
+        <div className="flex items-center justify-between gap-3 rounded-2xl border border-border bg-secondary p-3.5">
+          <div className="min-w-0">
+            <strong className="block text-sm font-bold text-foreground">Mês planejado</strong>
+            <span className="block text-[12px] leading-snug text-muted-foreground">
+              Marque se este mês ainda não começou — os valores viram uma previsão até você desmarcar.
+            </span>
+          </div>
+          <button
+            type="button"
+            role="switch"
+            aria-checked={planned}
+            aria-label="Mês planejado"
+            onClick={() => setPlanned((value) => !value)}
+            className={`press focus-ring relative h-7 w-12 shrink-0 rounded-full transition-colors ${planned ? "bg-primary" : "bg-muted"}`}
+          >
+            <span
+              className={`absolute top-0.5 h-6 w-6 rounded-full bg-white shadow transition-transform ${planned ? "translate-x-5" : "translate-x-0.5"}`}
+            />
+          </button>
+        </div>
+
         <Field label={`Orcamento (${state.people[0] || "Perfil 1"})`}>
           <TextInput
             type="number"

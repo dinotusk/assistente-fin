@@ -38,17 +38,22 @@ export function DashboardView() {
     <div className="flex flex-col gap-4">
       {/* Hero balance card */}
       <section className="finance-hero relative overflow-hidden rounded-3xl p-5 text-foreground">
-        <div className="flex items-center justify-between">
+        <div className="flex items-center justify-between gap-2">
           <span className="text-sm font-medium opacity-90">
-            {view === VIEW_SPOUSE ? "Repasse do mês" : "Orçamento do mês"}
+            {month.planned ? "Planejamento do mês" : view === VIEW_SPOUSE ? "Repasse do mês" : "Orçamento do mês"}
           </span>
-          <span className="rounded-full bg-white/15 px-3 py-1 text-xs font-semibold">{viewLabelForPeople(view, state.people)}</span>
+          <div className="flex shrink-0 items-center gap-1.5">
+            {month.planned && (
+              <span className="rounded-full bg-primary px-3 py-1 text-xs font-bold text-primary-foreground">Previsão</span>
+            )}
+            <span className="rounded-full bg-white/15 px-3 py-1 text-xs font-semibold">{viewLabelForPeople(view, state.people)}</span>
+          </div>
         </div>
         <strong className="tnum mt-2 block font-display text-3xl font-bold">{money(budget)}</strong>
         <div className="mt-4 grid grid-cols-3 gap-2">
           {[
             { label: "Gasto", value: numbers.total },
-            { label: "Falta pagar", value: numbers.pending },
+            { label: month.planned ? "Previsto" : "Falta pagar", value: numbers.pending },
             { label: balance.shortLabel, value: balance.amount },
           ].map((item) => (
             <div key={item.label} className="rounded-2xl bg-white/12 px-3 py-2.5">
