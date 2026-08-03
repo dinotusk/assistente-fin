@@ -1,74 +1,109 @@
 import { useMemo, useState } from "react";
-import { Copy, Pencil, Plus, Receipt, Trash2, Search } from "lucide-react";
+import { ArrowDownLeft, ArrowUpRight, Copy, Pencil, Plus, Receipt, Trash2, Search } from "lucide-react";
 
-import { categories, categoryIcons } from "@/lib/finance/constants";
-import { categoryLabel, expenseMatchesView, formatDate, ownerLabelForPeople } from "@/lib/finance/calc";
+import { categoryIcons } from "@/lib/finance/constants";
+import { expenseMatchesView, formatDate, normalizeText, ownerLabelForPeople, sum } from "@/lib/finance/calc";
 import { useFinance, useMoney } from "@/lib/finance/FinanceContext";
+import type { Expense } from "@/lib/finance/types";
 
-import { SelectInput, TextInput } from "./forms";
+import { TextInput } from "./forms";
 import { StatusPill } from "./ui";
+
+type FilterKey = "todos" | "entradas" | "saidas" | "apagar" | "pagos";
+
+const FILTERS: { key: FilterKey; label: string }[] = [
+  { key: "todos", label: "Tudo" },
+  { key: "entradas", label: "Entradas" },
+  { key: "saidas", label: "Saídas" },
+  { key: "apagar", label: "A pagar" },
+  { key: "pagos", label: "Pagos" },
+];
+
+function matchesFilter(item: Expense, filter: FilterKey): boolean {
+  if (filter === "entradas") return item.type === "income";
+  if (filter === "saidas") return item.type !== "income";
+  if (filter === "apagar") return item.status === "A pagar";
+  if (filter === "pagos") return item.status === "Pago";
+  return true;
+}
 
 export function TransactionsView({ onEdit, onAdd }: { onEdit: (id: string) => void; onAdd: () => void }) {
   const { month, state, toggleExpenseStatus, deleteExpense, duplicateExpense } = useFinance();
   const money = useMoney();
   const [term, setTerm] = useState("");
-  const [category, setCategory] = useState("todos");
-  const [status, setStatus] = useState("todos");
+  const [filter, setFilter] = useState<FilterKey>("todos");
 
   const rows = useMemo(() => {
+    const normalizedTerm = normalizeText(term);
     return month.expenses
       .filter((item) => {
-        const text = `${item.name} ${item.category} ${item.note} ${item.paymentMethod}`.toLowerCase();
+        const text = normalizeText(
+          `${item.name} ${item.category} ${item.note} ${item.paymentMethod} ${ownerLabelForPeople(item.owner, state.people)}`,
+        );
         return (
-          (!term || text.includes(term.toLowerCase())) &&
-          (category === "todos" || item.category === category) &&
-          (status === "todos" || item.status === status) &&
+          (!normalizedTerm || text.includes(normalizedTerm)) &&
+          matchesFilter(item, filter) &&
           expenseMatchesView(item, state.activePerson)
         );
       })
       .sort((a, b) => (b.date || "").localeCompare(a.date || ""));
-  }, [month, term, category, status, state.activePerson]);
+  }, [month, term, filter, state.activePerson, state.people]);
 
-  const filtersActive = Boolean(term) || category !== "todos" || status !== "todos";
+  const incomeTotal = sum(rows.filter((item) => item.type === "income"));
+  const expenseTotal = sum(rows.filter((item) => item.type !== "income"));
+  const filtersActive = Boolean(term) || filter !== "todos";
 
   return (
     <div className="flex flex-col gap-3">
-      <div className="card-surface flex flex-col gap-2.5 p-3.5">
-        <div className="relative">
-          <Search className="pointer-events-none absolute left-3.5 top-1/2 h-4 w-4 -translate-y-1/2 text-muted-foreground" />
-          <TextInput
-            value={term}
-            onChange={(e) => setTerm(e.target.value)}
-            placeholder="Buscar gasto ou categoria"
-            aria-label="Buscar gasto ou categoria"
-            className="!pl-10 text-sm"
-            style={{ paddingLeft: "2.5rem" }}
-          />
+      <div className="relative">
+        <Search className="pointer-events-none absolute left-4 top-1/2 h-4 w-4 -translate-y-1/2 text-muted-foreground" />
+        <TextInput
+          value={term}
+          onChange={(e) => setTerm(e.target.value)}
+          placeholder="Buscar"
+          aria-label="Buscar gasto, categoria, perfil ou pagamento"
+          className="h-12 rounded-full !pl-11 text-sm"
+        />
+      </div>
+
+      <div className="no-scrollbar flex gap-2 overflow-x-auto pb-0.5">
+        {FILTERS.map((item) => {
+          const active = filter === item.key;
+          return (
+            <button
+              key={item.key}
+              type="button"
+              onClick={() => setFilter(item.key)}
+              className={`press focus-ring shrink-0 rounded-full px-4 py-2 text-sm font-semibold transition-colors ${
+                active
+                  ? "bg-primary text-primary-foreground"
+                  : "border border-white/[0.14] bg-white/[0.05] text-muted-foreground hover:text-foreground"
+              }`}
+            >
+              {item.label}
+            </button>
+          );
+        })}
+      </div>
+
+      <div className="grid grid-cols-2 gap-2.5">
+        <div className="card-surface flex items-center gap-2.5 p-3">
+          <span className="flex h-[30px] w-[30px] shrink-0 items-center justify-center rounded-full bg-success/16 text-success">
+            <ArrowDownLeft className="h-4 w-4" strokeWidth={2.25} />
+          </span>
+          <div className="min-w-0">
+            <span className="block text-[11px] text-muted-foreground/80">Entradas</span>
+            <strong className="tnum block text-[15px] font-bold text-foreground">{money(incomeTotal)}</strong>
+          </div>
         </div>
-        <div className="grid grid-cols-2 gap-2.5">
-          <SelectInput
-            value={category}
-            onChange={(e) => setCategory(e.target.value)}
-            aria-label="Filtrar por categoria"
-            className="text-sm"
-          >
-            <option value="todos">Todas categorias</option>
-            {categories.map((c) => (
-              <option key={c} value={c}>
-                {categoryLabel(c)}
-              </option>
-            ))}
-          </SelectInput>
-          <SelectInput
-            value={status}
-            onChange={(e) => setStatus(e.target.value)}
-            aria-label="Filtrar por status"
-            className="text-sm"
-          >
-            <option value="todos">Todos status</option>
-            <option value="A pagar">A pagar</option>
-            <option value="Pago">Pago</option>
-          </SelectInput>
+        <div className="card-surface flex items-center gap-2.5 p-3">
+          <span className="flex h-[30px] w-[30px] shrink-0 items-center justify-center rounded-full bg-destructive/16 text-destructive">
+            <ArrowUpRight className="h-4 w-4" strokeWidth={2.25} />
+          </span>
+          <div className="min-w-0">
+            <span className="block text-[11px] text-muted-foreground/80">Saídas</span>
+            <strong className="tnum block text-[15px] font-bold text-foreground">{money(expenseTotal)}</strong>
+          </div>
         </div>
       </div>
 
