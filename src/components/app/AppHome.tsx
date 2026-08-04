@@ -13,7 +13,7 @@ import { DashboardView } from "./DashboardView";
 import { PrioritiesView } from "./PrioritiesView";
 import { SettingsView } from "./SettingsView";
 import { TransactionsView } from "./TransactionsView";
-import { BankImportDialog, CategoriesDialog, ExpenseDialog, MonthDialog, PeopleDialog, PriorityDialog } from "./dialogs";
+import { BankImportDialog, CategoriesDialog, ExpenseDialog, MonthDialog, PeopleDialog, PriorityDialog, VigiasDialog } from "./dialogs";
 import { Segmented } from "./ui";
 
 const titles: Record<ViewKey, string> = {
@@ -46,6 +46,7 @@ export function AppHome() {
   const [peopleOpen, setPeopleOpen] = useState(false);
   const [categoriesOpen, setCategoriesOpen] = useState(false);
   const [bankImportOpen, setBankImportOpen] = useState(false);
+  const [vigiasOpen, setVigiasOpen] = useState(false);
   const [profileMenuOpen, setProfileMenuOpen] = useState(false);
   const importRef = useRef<HTMLInputElement>(null);
   const initials = getInitials(activeUser?.name || "Aval");
@@ -153,6 +154,7 @@ export function AppHome() {
           onEditMonth={() => setMonthOpen(true)}
           onEditCategories={() => setCategoriesOpen(true)}
           onImportBank={() => setBankImportOpen(true)}
+          onEditVigias={() => setVigiasOpen(true)}
         />
       )}
     </div>
@@ -178,6 +180,7 @@ export function AppHome() {
       <PeopleDialog open={peopleOpen} onOpenChange={setPeopleOpen} />
       <CategoriesDialog open={categoriesOpen} onOpenChange={setCategoriesOpen} />
       <BankImportDialog open={bankImportOpen} onOpenChange={setBankImportOpen} />
+      <VigiasDialog open={vigiasOpen} onOpenChange={setVigiasOpen} />
     </>
   );
 

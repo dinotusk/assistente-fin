@@ -29,17 +29,23 @@ import { categories, paymentMethods, VIEW_ALL, VIEW_ME, VIEW_SPOUSE } from "@/li
 import { useFinance, useMoney } from "@/lib/finance/FinanceContext";
 import { uid } from "@/lib/finance/seed";
 import type { Expense } from "@/lib/finance/types";
+import { evaluateNewExpense, evaluateVigias, listVigias, markFired, type VigiaAlert } from "@/lib/finance/vigias";
 
 import { Field, SelectInput, TextArea, TextInput } from "./forms";
 import { Panel, PanelHead } from "./ui";
 
 interface Message {
+  sender?: string;
   role: "user" | "ai";
   text: string;
 }
 
 interface AssistantViewProps {
   onAddExpense: () => void;
+}
+
+function alertsToMessages(alerts: VigiaAlert[]): Message[] {
+  return alerts.map((alert) => ({ role: "ai", sender: alert.vigia.name, text: alert.message }));
 }
 
 export function AssistantView({ onAddExpense }: AssistantViewProps) {
@@ -79,6 +85,23 @@ export function AssistantView({ onAddExpense }: AssistantViewProps) {
   useEffect(() => {
     scrollEndRef.current?.scrollIntoView({ behavior: "smooth", block: "end" });
   }, [messages, busy]);
+
+  useEffect(() => {
+    const vigias = listVigias();
+    const alerts = evaluateVigias(vigias, state, month, envelopes);
+    if (!alerts.length) return;
+    setMessages((m) => [...m, ...alertsToMessages(alerts)]);
+    markFired(vigias, alerts.map((a) => a.vigia.id));
+    // Only on mount ("ao abrir o app") — deliberately not re-running on every state change.
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, []);
+
+  function fireNewExpenseVigia(expense: Expense) {
+    const alert = evaluateNewExpense(listVigias(), state, expense);
+    if (!alert) return;
+    setMessages((m) => [...m, ...alertsToMessages([alert])]);
+    markFired(listVigias(), [alert.vigia.id]);
+  }
 
   function startNewConversation() {
     setMessages([]);
@@ -250,6 +273,7 @@ export function AssistantView({ onAddExpense }: AssistantViewProps) {
     const parsedExpense = parseAssistantEntryCommand(question, state.activeMonth, activeOwner);
     if (parsedExpense) {
       saveExpense(parsedExpense);
+      if (parsedExpense.type !== "income") fireNewExpenseVigia(parsedExpense);
       const kind = parsedExpense.type === "income" ? "Receita registrada" : "Gasto registrado";
       return `${kind}.\nDescricao: ${parsedExpense.name}\nValor: ${money(parsedExpense.amount)}\nCategoria: ${parsedExpense.category}\nResponsavel: ${ownerLabelForPeople(parsedExpense.owner, state.people)}\nStatus: ${parsedExpense.status}`;
     }
@@ -325,9 +349,12 @@ export function AssistantView({ onAddExpense }: AssistantViewProps) {
                   {m.text}
                 </div>
               ) : (
-                <p key={i} className="whitespace-pre-line text-[15px] leading-[1.6] text-foreground">
-                  {m.text}
-                </p>
+                <div key={i}>
+                  {m.sender && (
+                    <span className="mb-1 block text-[11px] font-bold text-primary">{m.sender}</span>
+                  )}
+                  <p className="whitespace-pre-line text-[15px] leading-[1.6] text-foreground">{m.text}</p>
+                </div>
               ),
             )}
           </div>

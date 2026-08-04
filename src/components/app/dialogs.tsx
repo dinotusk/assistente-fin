@@ -14,6 +14,16 @@ import { forgetCategory, learnCategory, listLearnedCategories, lookupLearnedCate
 import { isDuplicate, parseCsv, parseOfx, type ParsedTransaction } from "@/lib/finance/bankImport";
 import { uid } from "@/lib/finance/seed";
 import type { Expense, Priority } from "@/lib/finance/types";
+import {
+  addVigia,
+  listVigias,
+  removeVigia,
+  toggleVigia,
+  VIGIA_RULE_LABELS,
+  type Vigia,
+  type VigiaRuleType,
+  type VigiaTone,
+} from "@/lib/finance/vigias";
 
 import { Field, SelectInput, TextArea, TextInput } from "./forms";
 
@@ -656,6 +666,149 @@ export function BankImportDialog({ open, onOpenChange }: { open: boolean; onOpen
           </div>
         </div>
       )}
+    </SheetShell>
+  );
+}
+
+/* ---------------- Vigias ---------------- */
+const RULE_TYPES = Object.keys(VIGIA_RULE_LABELS) as VigiaRuleType[];
+const TONES: { value: VigiaTone; label: string }[] = [
+  { value: "gentil", label: "Gentil" },
+  { value: "direto", label: "Direto" },
+  { value: "seco", label: "Seco" },
+];
+
+export function VigiasDialog({ open, onOpenChange }: { open: boolean; onOpenChange: (v: boolean) => void }) {
+  const [vigias, setVigias] = useState<Vigia[]>([]);
+  const [creating, setCreating] = useState(false);
+  const [name, setName] = useState("");
+  const [rule, setRule] = useState<VigiaRuleType>("contaVencendo");
+  const [tone, setTone] = useState<VigiaTone>("gentil");
+
+  useEffect(() => {
+    if (open) setVigias(listVigias());
+    else setCreating(false);
+  }, [open]);
+
+  function toggle(id: string, enabled: boolean) {
+    setVigias(toggleVigia(id, enabled));
+  }
+
+  function remove(id: string) {
+    setVigias(removeVigia(id));
+  }
+
+  function submitNewVigia(event: React.FormEvent) {
+    event.preventDefault();
+    if (!name.trim()) return;
+    setVigias(
+      addVigia({
+        name: name.trim(),
+        rule,
+        tone,
+        enabled: true,
+        frequency: rule === "contaVencendo" ? "sempre" : "diaria",
+      }),
+    );
+    setName("");
+    setCreating(false);
+  }
+
+  return (
+    <SheetShell open={open} onOpenChange={onOpenChange} title="Vigias">
+      <p className="text-sm text-muted-foreground">
+        Regras que observam seus dados e falam sozinhas na conversa, sem você precisar perguntar.
+      </p>
+      <div className="mt-4 flex flex-col gap-2">
+        {vigias.map((vigia) => (
+          <div key={vigia.id} className="rounded-2xl border border-border bg-secondary p-3.5">
+            <div className="flex items-center justify-between gap-3">
+              <div className="min-w-0">
+                <strong className="block truncate text-sm font-bold text-foreground">{vigia.name}</strong>
+                <span className="block text-[12px] text-muted-foreground">{VIGIA_RULE_LABELS[vigia.rule]}</span>
+              </div>
+              <div className="flex shrink-0 items-center gap-2">
+                <button
+                  type="button"
+                  role="switch"
+                  aria-checked={vigia.enabled}
+                  aria-label={`Ativar ${vigia.name}`}
+                  onClick={() => toggle(vigia.id, !vigia.enabled)}
+                  className={`press focus-ring relative h-7 w-12 rounded-full transition-colors ${vigia.enabled ? "bg-primary" : "bg-muted"}`}
+                >
+                  <span
+                    className={`absolute top-0.5 h-6 w-6 rounded-full bg-white shadow transition-transform ${vigia.enabled ? "translate-x-5" : "translate-x-0.5"}`}
+                  />
+                </button>
+                <button
+                  type="button"
+                  onClick={() => remove(vigia.id)}
+                  aria-label={`Excluir ${vigia.name}`}
+                  className="flex h-9 w-9 items-center justify-center rounded-xl bg-destructive/10 text-destructive"
+                >
+                  <Trash2 className="h-4 w-4" />
+                </button>
+              </div>
+            </div>
+          </div>
+        ))}
+      </div>
+
+      {creating ? (
+        <form onSubmit={submitNewVigia} className="mt-4 flex flex-col gap-3 rounded-2xl border border-border bg-secondary/50 p-3.5">
+          <Field label="Nome do vigia">
+            <TextInput value={name} onChange={(e) => setName(e.target.value)} placeholder="Ex.: Fiscal das assinaturas" required />
+          </Field>
+          <Field label="O que ele observa">
+            <SelectInput value={rule} onChange={(e) => setRule(e.target.value as VigiaRuleType)}>
+              {RULE_TYPES.map((type) => (
+                <option key={type} value={type}>
+                  {VIGIA_RULE_LABELS[type]}
+                </option>
+              ))}
+            </SelectInput>
+          </Field>
+          <Field label="Tom de voz">
+            <SelectInput value={tone} onChange={(e) => setTone(e.target.value as VigiaTone)}>
+              {TONES.map((item) => (
+                <option key={item.value} value={item.value}>
+                  {item.label}
+                </option>
+              ))}
+            </SelectInput>
+          </Field>
+          <div className="flex gap-2">
+            <button
+              type="button"
+              onClick={() => setCreating(false)}
+              className="press focus-ring h-11 flex-1 rounded-xl border border-input bg-secondary text-sm font-semibold text-foreground"
+            >
+              Cancelar
+            </button>
+            <button type="submit" className="hero-gradient press focus-ring h-11 flex-1 rounded-xl text-sm font-bold text-primary-foreground shadow-primary">
+              Criar vigia
+            </button>
+          </div>
+        </form>
+      ) : (
+        <button
+          type="button"
+          onClick={() => setCreating(true)}
+          className="mt-4 flex h-12 w-full items-center justify-center rounded-2xl border border-dashed border-primary/35 bg-primary-soft text-sm font-bold text-primary"
+        >
+          Novo vigia
+        </button>
+      )}
+
+      <div className="sticky bottom-0 -mx-5 mt-5 border-t border-border/70 bg-card/95 px-5 py-3 backdrop-blur">
+        <button
+          type="button"
+          onClick={() => onOpenChange(false)}
+          className="press focus-ring h-12 w-full rounded-xl border border-input bg-secondary font-semibold text-foreground hover:bg-muted"
+        >
+          Fechar
+        </button>
+      </div>
     </SheetShell>
   );
 }

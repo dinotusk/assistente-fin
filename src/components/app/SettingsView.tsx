@@ -1,5 +1,5 @@
 import { useRef } from "react";
-import { Users, CalendarCog, Download, Upload, RotateCcw, LogOut, ChevronRight, Rocket, Tag, Landmark } from "lucide-react";
+import { Users, CalendarCog, Download, Upload, RotateCcw, LogOut, ChevronRight, Rocket, Tag, Landmark, Eye } from "lucide-react";
 
 import { useFinance } from "@/lib/finance/FinanceContext";
 
@@ -10,11 +10,13 @@ export function SettingsView({
   onEditMonth,
   onEditCategories,
   onImportBank,
+  onEditVigias,
 }: {
   onEditPeople: () => void;
   onEditMonth: () => void;
   onEditCategories: () => void;
   onImportBank: () => void;
+  onEditVigias: () => void;
 }) {
   const { activeUser, state, exportData, importData, resetSeed, logout } = useFinance();
   const fileRef = useRef<HTMLInputElement>(null);
@@ -40,6 +42,7 @@ export function SettingsView({
         { icon: Users, title: "Perfis financeiros", desc: "Adicione, remova ou renomeie as visoes do orçamento.", action: onEditPeople },
         { icon: CalendarCog, title: "Mês atual", desc: "Ajuste renda, repasse e nome do mês selecionado.", action: onEditMonth },
         { icon: Tag, title: "Categorias", desc: "Veja e remova as regras aprendidas por estabelecimento.", action: onEditCategories },
+        { icon: Eye, title: "Vigias", desc: "Regras que avisam sozinhas na conversa quando algo importa.", action: onEditVigias },
         { icon: Download, title: "Exportar backup", desc: "Baixe um arquivo JSON com todo o histórico.", action: exportData },
         { icon: Upload, title: "Importar dados", desc: "Carregue backup JSON ou planilha XLS/XLSX.", action: () => fileRef.current?.click() },
         { icon: Landmark, title: "Importar extrato do banco", desc: "Envie um arquivo OFX ou CSV para revisar e importar.", action: onImportBank },
