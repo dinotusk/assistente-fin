@@ -1,5 +1,5 @@
 import { useRef } from "react";
-import { Users, CalendarCog, Download, Upload, RotateCcw, LogOut, ChevronRight, Rocket, Tag } from "lucide-react";
+import { Users, CalendarCog, Download, Upload, RotateCcw, LogOut, ChevronRight, Rocket, Tag, Landmark } from "lucide-react";
 
 import { useFinance } from "@/lib/finance/FinanceContext";
 
@@ -9,10 +9,12 @@ export function SettingsView({
   onEditPeople,
   onEditMonth,
   onEditCategories,
+  onImportBank,
 }: {
   onEditPeople: () => void;
   onEditMonth: () => void;
   onEditCategories: () => void;
+  onImportBank: () => void;
 }) {
   const { activeUser, state, exportData, importData, resetSeed, logout } = useFinance();
   const fileRef = useRef<HTMLInputElement>(null);
@@ -40,6 +42,7 @@ export function SettingsView({
         { icon: Tag, title: "Categorias", desc: "Veja e remova as regras aprendidas por estabelecimento.", action: onEditCategories },
         { icon: Download, title: "Exportar backup", desc: "Baixe um arquivo JSON com todo o histórico.", action: exportData },
         { icon: Upload, title: "Importar dados", desc: "Carregue backup JSON ou planilha XLS/XLSX.", action: () => fileRef.current?.click() },
+        { icon: Landmark, title: "Importar extrato do banco", desc: "Envie um arquivo OFX ou CSV para revisar e importar.", action: onImportBank },
         { icon: RotateCcw, title: "Restaurar exemplo", desc: "Volta para os dados de demonstração.", action: resetSeed },
       ],
     },

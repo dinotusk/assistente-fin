@@ -1,5 +1,5 @@
 import { useEffect, useState } from "react";
-import { Trash2 } from "lucide-react";
+import { Trash2, X } from "lucide-react";
 
 import {
   Drawer,
@@ -10,7 +10,8 @@ import {
 import { categories, paymentMethods } from "@/lib/finance/constants";
 import { categoryLabel, currentUserName, resolveViewOwner, spouseName } from "@/lib/finance/calc";
 import { useFinance } from "@/lib/finance/FinanceContext";
-import { forgetCategory, learnCategory, listLearnedCategories, type LearnedCategoryRule } from "@/lib/finance/learnedCategories";
+import { forgetCategory, learnCategory, listLearnedCategories, lookupLearnedCategory, type LearnedCategoryRule } from "@/lib/finance/learnedCategories";
+import { isDuplicate, parseCsv, parseOfx, type ParsedTransaction } from "@/lib/finance/bankImport";
 import { uid } from "@/lib/finance/seed";
 import type { Expense, Priority } from "@/lib/finance/types";
 
@@ -477,6 +478,184 @@ export function CategoriesDialog({ open, onOpenChange }: { open: boolean; onOpen
           Fechar
         </button>
       </div>
+    </SheetShell>
+  );
+}
+
+/* ---------------- Bank statement import (OFX/CSV) ---------------- */
+interface ImportCandidate {
+  id: string;
+  date: string;
+  amount: number;
+  type: "income" | "expense";
+  description: string;
+  category: string;
+  owner: string;
+}
+
+export function BankImportDialog({ open, onOpenChange }: { open: boolean; onOpenChange: (v: boolean) => void }) {
+  const { state, importExpenses } = useFinance();
+  const [candidates, setCandidates] = useState<ImportCandidate[]>([]);
+  const [skippedCount, setSkippedCount] = useState(0);
+  const [error, setError] = useState("");
+  const defaultOwner = resolveViewOwner(state.activePerson) || currentUserName();
+
+  useEffect(() => {
+    if (!open) {
+      setCandidates([]);
+      setSkippedCount(0);
+      setError("");
+    }
+  }, [open]);
+
+  async function onFile(event: React.ChangeEvent<HTMLInputElement>) {
+    const file = event.target.files?.[0];
+    event.target.value = "";
+    if (!file) return;
+    setError("");
+    try {
+      const text = await file.text();
+      const isOfx = /\.ofx$/i.test(file.name) || /<OFX>/i.test(text);
+      const parsed: ParsedTransaction[] = isOfx ? parseOfx(text) : parseCsv(text);
+      if (!parsed.length) {
+        setError("Não consegui reconhecer lançamentos nesse arquivo.");
+        return;
+      }
+
+      const existing = Object.values(state.months).flatMap((month) =>
+        month.expenses.map((item) => ({ date: item.date, amount: item.amount, name: item.name })),
+      );
+
+      const fresh: ImportCandidate[] = [];
+      let skipped = 0;
+      parsed.forEach((tx) => {
+        if (isDuplicate(tx, existing)) {
+          skipped += 1;
+          return;
+        }
+        fresh.push({
+          id: uid(),
+          date: tx.date,
+          amount: tx.amount,
+          type: tx.type,
+          description: tx.description,
+          category: tx.type === "income" ? "Livre" : lookupLearnedCategory(tx.description) || "Outros",
+          owner: defaultOwner,
+        });
+      });
+      setCandidates(fresh);
+      setSkippedCount(skipped);
+    } catch {
+      setError("Não consegui ler esse arquivo. Confira se é um OFX ou CSV válido.");
+    }
+  }
+
+  function updateCandidate(id: string, patch: Partial<ImportCandidate>) {
+    setCandidates((list) => list.map((item) => (item.id === id ? { ...item, ...patch } : item)));
+  }
+
+  function removeCandidate(id: string) {
+    setCandidates((list) => list.filter((item) => item.id !== id));
+  }
+
+  function importAll() {
+    const expenses: Expense[] = candidates.map((item) => ({
+      id: item.id,
+      name: item.description,
+      category: item.category,
+      amount: item.amount,
+      status: "Pago",
+      type: item.type,
+      owner: item.owner,
+      date: item.date,
+      dueDate: item.date,
+      competence: item.date.slice(0, 7),
+      paidBy: item.owner,
+      paymentMethod: "Não informado",
+      note: "Importado do extrato bancário",
+      createdAt: new Date().toISOString(),
+    }));
+    importExpenses(expenses);
+    onOpenChange(false);
+  }
+
+  return (
+    <SheetShell open={open} onOpenChange={onOpenChange} title="Importar extrato do banco">
+      {candidates.length === 0 ? (
+        <div className="flex flex-col gap-4">
+          <p className="text-sm text-muted-foreground">
+            Envie um arquivo OFX (padrão de extrato de qualquer banco) ou CSV. Nada entra no seu extrato sem você
+            revisar e confirmar.
+          </p>
+          <label className="press focus-ring flex h-14 cursor-pointer items-center justify-center rounded-2xl border border-dashed border-primary/35 bg-primary-soft text-sm font-bold text-primary">
+            Escolher arquivo (.ofx ou .csv)
+            <input type="file" accept=".ofx,.csv,text/csv" className="hidden" onChange={onFile} />
+          </label>
+          {error && <p className="text-sm text-destructive">{error}</p>}
+        </div>
+      ) : (
+        <div className="flex flex-col gap-3">
+          <p className="text-sm text-muted-foreground">
+            {candidates.length} lançamento(s) prontos para revisão
+            {skippedCount > 0 ? ` · ${skippedCount} ignorado(s) por já existir(em)` : ""}.
+          </p>
+          {candidates.map((item) => (
+            <div key={item.id} className="rounded-2xl border border-border bg-secondary p-3.5">
+              <div className="flex items-start justify-between gap-2">
+                <div className="min-w-0">
+                  <strong className="block truncate text-sm font-bold text-foreground">{item.description}</strong>
+                  <span className="text-[11px] text-muted-foreground">
+                    {item.date} · {item.type === "income" ? "Entrada" : "Saída"} · {categoryLabel(item.category).replace(/^\S+\s/, "")}
+                  </span>
+                </div>
+                <strong className="tnum shrink-0 text-sm font-bold text-foreground">
+                  {item.amount.toLocaleString("pt-BR", { style: "currency", currency: "BRL" })}
+                </strong>
+              </div>
+              <div className="mt-2.5 grid grid-cols-[1fr_1fr_auto] gap-2">
+                <SelectInput value={item.category} onChange={(e) => updateCandidate(item.id, { category: e.target.value })}>
+                  {categories.map((cat) => (
+                    <option key={cat} value={cat}>
+                      {categoryLabel(cat)}
+                    </option>
+                  ))}
+                </SelectInput>
+                <SelectInput value={item.owner} onChange={(e) => updateCandidate(item.id, { owner: e.target.value })}>
+                  {state.people.map((person, index) => (
+                    <option key={`${person}-${index}`} value={index === 0 ? currentUserName() : index === 1 ? spouseName() : person}>
+                      {person}
+                    </option>
+                  ))}
+                </SelectInput>
+                <button
+                  type="button"
+                  onClick={() => removeCandidate(item.id)}
+                  aria-label="Descartar este lançamento"
+                  className="flex h-12 w-12 items-center justify-center rounded-xl bg-destructive/10 text-destructive"
+                >
+                  <X className="h-4 w-4" />
+                </button>
+              </div>
+            </div>
+          ))}
+          <div className="sticky bottom-0 -mx-5 mt-2 flex gap-3 border-t border-border/70 bg-card/95 px-5 py-3 backdrop-blur">
+            <button
+              type="button"
+              onClick={() => setCandidates([])}
+              className="press focus-ring h-12 flex-1 rounded-xl border border-input bg-secondary font-semibold text-foreground hover:bg-muted"
+            >
+              Descartar tudo
+            </button>
+            <button
+              type="button"
+              onClick={importAll}
+              className="hero-gradient press focus-ring h-12 flex-1 rounded-xl font-display font-semibold text-primary-foreground shadow-primary"
+            >
+              Importar tudo
+            </button>
+          </div>
+        </div>
+      )}
     </SheetShell>
   );
 }

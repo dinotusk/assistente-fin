@@ -64,6 +64,7 @@ interface FinanceContextValue {
   deleteMonth: (key: string) => void;
   savePeople: (people: string[]) => void;
   saveExpense: (expense: Expense, id?: string) => void;
+  importExpenses: (expenses: Expense[]) => void;
   deleteExpense: (id: string) => void;
   duplicateExpense: (id: string) => void;
   toggleExpenseStatus: (id: string) => void;
@@ -333,6 +334,21 @@ export function FinanceProvider({ children }: { children: ReactNode }) {
     [updateMonthExpenses],
   );
 
+  /** Adds imported expenses, grouping them into the right month by competence/date (may span months). */
+  const importExpenses = useCallback(
+    (rows: Expense[]) => {
+      if (!rows.length) return;
+      const months = { ...state.months };
+      rows.forEach((expense) => {
+        const key = expense.competence || expense.date.slice(0, 7);
+        const current = months[key] || createEmptyMonth(key);
+        months[key] = { ...current, expenses: [...current.expenses, expense] };
+      });
+      persist({ ...state, months });
+    },
+    [state, persist],
+  );
+
   const duplicateExpense = useCallback(
     (id: string) =>
       updateMonthExpenses((list) => {
@@ -468,6 +484,7 @@ export function FinanceProvider({ children }: { children: ReactNode }) {
     deleteMonth,
     savePeople,
     saveExpense,
+    importExpenses,
     deleteExpense,
     duplicateExpense,
     toggleExpenseStatus,
