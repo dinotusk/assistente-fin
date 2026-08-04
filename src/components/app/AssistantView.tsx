@@ -32,7 +32,7 @@ import type { Expense } from "@/lib/finance/types";
 import { evaluateNewExpense, evaluateVigias, listVigias, markFired, type VigiaAlert } from "@/lib/finance/vigias";
 
 import { Field, SelectInput, TextArea, TextInput } from "./forms";
-import { Panel, PanelHead } from "./ui";
+import { AvalMark, Panel, PanelHead } from "./ui";
 
 interface Message {
   sender?: string;
@@ -330,7 +330,7 @@ export function AssistantView({ onAddExpense }: AssistantViewProps) {
       <div className="flex flex-col">
         {messages.length === 0 ? (
           <div className="flex flex-col items-center px-4 py-10 text-center">
-            <Medallion size={56} />
+            <AvalMark size={56} />
             <h1 className="mt-5 font-display text-[1.8rem] leading-tight text-foreground">
               Olá, {firstName}
             </h1>
@@ -759,23 +759,6 @@ function guessPaymentMethod(text: string): string {
   if (/\b(cartao|credito)\b/.test(normalized)) return "Crédito";
   if (/\b(debito)\b/.test(normalized)) return "Débito";
   return paymentMethods.find((method) => normalized.includes(normalizeText(method))) || "Pix";
-}
-
-function Medallion({ size }: { size: number }) {
-  const notch = Math.round(size * 0.2);
-  return (
-    <div className="hero-gradient relative rounded-full shadow-primary" style={{ width: size, height: size }}>
-      <span
-        className="absolute left-1/2 top-1/2 bg-background"
-        style={{
-          width: notch,
-          height: notch,
-          borderRadius: 2,
-          transform: "translate(-50%, -50%) rotate(45deg)",
-        }}
-      />
-    </div>
-  );
 }
 
 function getPurchaseResult(

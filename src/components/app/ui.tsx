@@ -2,6 +2,24 @@ import { forwardRef, type ReactNode } from "react";
 
 import { cn } from "@/lib/utils";
 
+/** Aval's mark: an arch with a dot, in a thin circle — used wherever the brand itself is shown, not user avatars. */
+export function AvalMark({ size = 28, className }: { size?: number; className?: string }) {
+  return (
+    <svg
+      width={size}
+      height={size}
+      viewBox="0 0 32 32"
+      fill="none"
+      className={cn("text-primary", className)}
+      aria-hidden="true"
+    >
+      <circle cx="16" cy="16" r="14.5" stroke="currentColor" strokeWidth="1.4" />
+      <path d="M10 19.5C10 13.7 12.7 9.5 16 9.5s6 4.2 6 10" stroke="currentColor" strokeWidth="1.8" strokeLinecap="round" />
+      <circle cx="16" cy="20" r="1.4" fill="currentColor" />
+    </svg>
+  );
+}
+
 export const Panel = forwardRef<HTMLElement, { children: ReactNode; className?: string }>(
   ({ children, className }, ref) => (
     <section ref={ref} className={cn("card-surface p-4", className)}>

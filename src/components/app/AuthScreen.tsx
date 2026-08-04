@@ -2,6 +2,8 @@ import { useState } from "react";
 
 import { useFinance } from "@/lib/finance/FinanceContext";
 
+import { AvalMark } from "./ui";
+
 export function AuthScreen() {
   const { login, register } = useFinance();
   const [mode, setMode] = useState<"login" | "register">("login");
@@ -49,8 +51,8 @@ export function AuthScreen() {
         onSubmit={handleSubmit}
         className="card-surface flex w-full max-w-[400px] flex-col gap-6 p-7"
       >
-        <div className="hero-gradient flex h-14 w-14 items-center justify-center rounded-2xl text-xl font-bold text-primary-foreground shadow-primary">
-          AV
+        <div className="flex h-14 w-14 items-center justify-center rounded-2xl bg-secondary ring-1 ring-primary/25">
+          <AvalMark size={28} />
         </div>
         <div className="flex flex-col gap-1.5">
           <p className="text-xs font-semibold uppercase tracking-wide text-primary">

@@ -3,6 +3,8 @@ import { LayoutGrid, ArrowLeftRight, Star, Sparkles, Settings } from "lucide-rea
 import { cn } from "@/lib/utils";
 import type { ViewKey } from "@/lib/finance/types";
 
+import { AvalMark } from "./ui";
+
 export const NAV_ITEMS: { key: ViewKey; label: string; Icon: typeof LayoutGrid }[] = [
   { key: "assistant", label: "Início", Icon: Sparkles },
   { key: "dashboard", label: "Painel", Icon: LayoutGrid },
@@ -23,8 +25,8 @@ export function SideNav({
   return (
     <aside className="sticky top-0 flex h-dvh w-[248px] shrink-0 flex-col gap-1 border-r border-border/70 bg-card/60 px-4 py-6 backdrop-blur-xl">
       <div className="mb-6 flex items-center gap-3 px-2">
-        <div className="hero-gradient flex h-11 w-11 items-center justify-center rounded-[1.1rem] text-sm font-bold text-primary-foreground shadow-primary">
-          AV
+        <div className="flex h-11 w-11 items-center justify-center rounded-[1.1rem] bg-card ring-1 ring-primary/25">
+          <AvalMark size={22} />
         </div>
         <div className="min-w-0">
           <p className="truncate font-display text-base text-foreground">Aval</p>

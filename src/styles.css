@@ -1,8 +1,11 @@
 @import "tailwindcss" source(none);
 @source "../src";
 @import "tw-animate-css";
-@import "@fontsource/instrument-serif";
-@import "@fontsource-variable/plus-jakarta-sans";
+@import "@fontsource/lora";
+@import "@fontsource/poppins/400.css";
+@import "@fontsource/poppins/500.css";
+@import "@fontsource/poppins/600.css";
+@import "@fontsource/poppins/700.css";
 
 @custom-variant dark (&:is(.dark *));
 
@@ -42,13 +45,13 @@
   --color-ring: var(--ring);
   --color-surface: var(--surface);
 
-  --font-display: "Instrument Serif", Georgia, serif;
-  --font-sans: "Plus Jakarta Sans Variable", ui-sans-serif, system-ui, sans-serif;
+  --font-display: "Lora", Georgia, serif;
+  --font-sans: "Poppins", ui-sans-serif, system-ui, sans-serif;
 
   --shadow-soft: 0 8px 24px -18px rgb(0 0 0 / 0.8);
   --shadow-card: 0 18px 42px -28px rgb(0 0 0 / 0.95);
   --shadow-float: 0 24px 48px -22px rgb(0 0 0 / 0.95);
-  --shadow-primary: 0 16px 34px -20px rgb(201 168 106 / 0.75);
+  --shadow-primary: 0 16px 34px -20px rgb(200 173 122 / 0.75);
   --ease-out-soft: cubic-bezier(0.22, 1, 0.36, 1);
 }
 
@@ -56,31 +59,31 @@
   --radius: 1.25rem;
 
   color-scheme: dark;
-  --background: #0a1a15;
-  --surface: #10281f;
-  --foreground: #f4f1ea;
-  --card: #123028;
-  --card-foreground: #f2f4ef;
-  --popover: #123028;
-  --popover-foreground: #f2f4ef;
-  --primary: #c9a86a;
-  --primary-foreground: #0a0b0d;
-  --primary-soft: rgb(201 168 106 / 0.14);
-  --secondary: rgb(255 255 255 / 0.05);
-  --secondary-foreground: #f2f4ef;
-  --muted: rgb(255 255 255 / 0.06);
-  --muted-foreground: rgb(242 244 239 / 0.58);
-  --accent: rgb(201 168 106 / 0.16);
-  --accent-foreground: #c9a86a;
+  --background: #061a14;
+  --surface: #0d2b22;
+  --foreground: #ede8dd;
+  --card: #0d2b22;
+  --card-foreground: #ede8dd;
+  --popover: #15392e;
+  --popover-foreground: #ede8dd;
+  --primary: #c8ad7a;
+  --primary-foreground: #061a14;
+  --primary-soft: rgb(200 173 122 / 0.14);
+  --secondary: #15392e;
+  --secondary-foreground: #ede8dd;
+  --muted: rgb(237 232 221 / 0.06);
+  --muted-foreground: #a7b3a6;
+  --accent: rgb(200 173 122 / 0.16);
+  --accent-foreground: #c8ad7a;
   --destructive: #c9705a;
-  --destructive-foreground: #0a0b0d;
+  --destructive-foreground: #061a14;
   --success: #7fa88a;
   --success-foreground: #08130e;
   --warning: #d9a54e;
   --warning-foreground: #171006;
-  --border: rgb(255 255 255 / 0.1);
-  --input: rgb(255 255 255 / 0.14);
-  --ring: #c9a86a;
+  --border: rgb(237 232 221 / 0.1);
+  --input: rgb(237 232 221 / 0.14);
+  --ring: #c8ad7a;
 }
 
 .dark {
@@ -132,9 +135,9 @@
 
 @utility app-backdrop {
   background:
-    repeating-linear-gradient(90deg, rgb(201 168 106 / 0.055) 0, rgb(201 168 106 / 0.055) 1px, transparent 1px, transparent 64px),
-    radial-gradient(circle at 100% -10%, rgb(201 168 106 / 0.18), transparent 30%),
-    linear-gradient(180deg, #17392e 0%, #10281f 52%, #0a1a15 100%);
+    repeating-linear-gradient(90deg, rgb(200 173 122 / 0.055) 0, rgb(200 173 122 / 0.055) 1px, transparent 1px, transparent 64px),
+    radial-gradient(circle at 100% -10%, rgb(200 173 122 / 0.18), transparent 30%),
+    linear-gradient(180deg, #0d2b22 0%, #0a221b 52%, #061a14 100%);
 }
 
 @utility card-surface {
@@ -145,14 +148,14 @@
 }
 
 @utility hero-gradient {
-  background: radial-gradient(circle at 32% 26%, #f6ecd4, #dcc38c 22%, #c9a86a 44%, #8a6a2f 78%, #63481c);
+  background: radial-gradient(circle at 32% 26%, #f3e8d2, #dbc190 22%, #c8ad7a 44%, #8a6f42 78%, #5f4b26);
 }
 
 @utility finance-hero {
   background:
-    radial-gradient(circle at 100% 0%, rgb(201 168 106 / 0.16), transparent 38%),
-    linear-gradient(160deg, #1f4a3a 0%, #123026 62%);
-  border: 1px solid rgb(201 168 106 / 0.3);
+    radial-gradient(circle at 100% 0%, rgb(200 173 122 / 0.16), transparent 38%),
+    linear-gradient(160deg, #15392e 0%, #0d2b22 62%);
+  border: 1px solid rgb(200 173 122 / 0.3);
   box-shadow: 0 26px 50px -26px rgb(0 0 0 / 0.9);
 }
 
