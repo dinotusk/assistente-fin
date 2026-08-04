@@ -3,7 +3,7 @@ import { Bell, ShieldCheck, Sparkles } from "lucide-react";
 
 import { useFinance } from "@/lib/finance/FinanceContext";
 
-import { AvalMark } from "./ui";
+import { AvalMark, GoogleMark } from "./ui";
 
 const PITCH_ITEMS = [
   {
@@ -29,7 +29,7 @@ function inviteCodeFromUrl(): string {
 }
 
 export function AuthScreen() {
-  const { login, register } = useFinance();
+  const { login, register, loginWithGoogle } = useFinance();
   const initialInvite = inviteCodeFromUrl();
   const [mode, setMode] = useState<"login" | "register">(initialInvite ? "register" : "login");
   const [name, setName] = useState("");
@@ -38,6 +38,18 @@ export function AuthScreen() {
   const [inviteCode, setInviteCode] = useState(initialInvite);
   const [feedback, setFeedback] = useState("");
   const [loading, setLoading] = useState(false);
+  const [googleLoading, setGoogleLoading] = useState(false);
+
+  async function handleGoogle() {
+    setFeedback("");
+    setGoogleLoading(true);
+    try {
+      await loginWithGoogle();
+    } catch (error) {
+      setFeedback(error instanceof Error ? error.message : "Nao foi possivel continuar com o Google agora.");
+      setGoogleLoading(false);
+    }
+  }
 
   async function handleSubmit(event: React.FormEvent) {
     event.preventDefault();
@@ -146,6 +158,27 @@ export function AuthScreen() {
           </button>
         </div>
 
+        <button
+          type="button"
+          onClick={handleGoogle}
+          disabled={googleLoading || loading}
+          className="press focus-ring inline-flex h-12 items-center justify-center gap-2.5 rounded-xl border border-input bg-secondary text-sm font-semibold text-foreground hover:bg-muted disabled:opacity-60"
+        >
+          <GoogleMark size={18} />
+          {googleLoading ? "Abrindo o Google..." : "Continuar com Google"}
+        </button>
+        {mode === "register" && inviteCode.trim() && (
+          <p className="-mt-1 text-center text-[11px] text-muted-foreground">
+            Convites funcionam apenas com cadastro por e-mail por enquanto.
+          </p>
+        )}
+
+        <div className="flex items-center gap-3 text-[11px] font-semibold uppercase tracking-wide text-muted-foreground">
+          <span className="h-px flex-1 bg-border" />
+          ou com e-mail
+          <span className="h-px flex-1 bg-border" />
+        </div>
+
         {mode === "register" && (
           <label className="flex flex-col gap-2">
             <span className="text-xs font-semibold uppercase tracking-[0.04em] text-muted-foreground">
@@ -210,7 +243,7 @@ export function AuthScreen() {
 
         <button
           type="submit"
-          disabled={loading}
+          disabled={loading || googleLoading}
           className="hero-gradient press focus-ring h-12 rounded-xl text-base font-semibold text-primary-foreground shadow-primary disabled:opacity-60"
         >
           {loading ? "Aguarde..." : mode === "login" ? "Entrar" : "Criar conta"}

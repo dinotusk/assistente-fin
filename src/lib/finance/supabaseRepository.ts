@@ -193,8 +193,27 @@ export async function createHouseholdInvite(): Promise<string> {
   return String(data);
 }
 
+export async function loginWithGoogle(): Promise<void> {
+  const { error } = await supabase.auth.signInWithOAuth({
+    provider: "google",
+    options: {
+      redirectTo:
+        typeof window === "undefined"
+          ? "https://assistente-fin.lovable.app/entrar"
+          : `${window.location.origin}/entrar`,
+    },
+  });
+  throwIfError(error);
+}
+
 export async function loadRemoteFinance(user: User): Promise<LoadedFinance> {
-  const metadataName = String(user.user_metadata?.display_name || user.email || "Usuario");
+  const metadataName = String(
+    user.user_metadata?.display_name ||
+      user.user_metadata?.full_name ||
+      user.user_metadata?.name ||
+      user.email ||
+      "Usuario",
+  );
   await bootstrapWorkspace(metadataName);
 
   const { data: appUser, error: userError } = await supabase

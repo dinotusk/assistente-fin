@@ -25,6 +25,7 @@ import {
   createHouseholdInvite,
   getAuthenticatedUser,
   loadRemoteFinance,
+  loginWithGoogle as loginWithGoogleSupabase,
   loginWithSupabase,
   logoutFromSupabase,
   registerWithSupabase,
@@ -51,6 +52,7 @@ interface FinanceContextValue {
   envelopes: EnvelopeRule[];
   login: (name: string, email: string, password: string) => Promise<ActiveUser>;
   register: (name: string, email: string, password: string, inviteCode?: string) => Promise<ActiveUser>;
+  loginWithGoogle: () => Promise<void>;
   logout: () => void;
   createInvite: () => Promise<string>;
   setActiveMonth: (key: string) => void;
@@ -190,6 +192,8 @@ export function FinanceProvider({ children }: { children: ReactNode }) {
   );
 
   const createInvite = useCallback((): Promise<string> => createHouseholdInvite(), []);
+
+  const loginWithGoogle = useCallback((): Promise<void> => loginWithGoogleSupabase(), []);
 
   const logout = useCallback(() => {
     void writeQueueRef.current.finally(async () => {
@@ -480,6 +484,7 @@ export function FinanceProvider({ children }: { children: ReactNode }) {
     envelopes,
     login,
     register,
+    loginWithGoogle,
     logout,
     createInvite,
     setActiveMonth,
