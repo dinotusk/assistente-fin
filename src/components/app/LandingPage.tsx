@@ -358,47 +358,53 @@ function PhoneMock() {
         </article>
       </div>
 
-      <div className="absolute left-1/2 top-4 z-10 h-[520px] w-[314px] -translate-x-1/2 sm:w-[330px] lg:left-[53%] lg:h-[560px] lg:w-[340px]">
-        <article className="animate-float flex h-full w-full flex-col overflow-hidden rounded-[2.4rem] border border-primary/20 bg-[#0b2a20]/92 p-5 text-left shadow-float backdrop-blur-xl">
-          <div className="absolute left-1/2 top-0 h-5 w-20 -translate-x-1/2 rounded-b-2xl bg-background" />
-          <div className="flex items-center justify-between">
-            <AvalMark size={34} />
-            <Sparkles className="h-4 w-4 text-primary" />
-          </div>
+      <div className="absolute left-1/2 top-4 z-10 h-[536px] w-[316px] -translate-x-1/2 sm:w-[334px] lg:left-[53%] lg:h-[580px] lg:w-[348px]">
+        <div className="absolute -left-1 top-24 h-16 w-1 rounded-l-full bg-primary/35" />
+        <div className="absolute -left-1 top-48 h-12 w-1 rounded-l-full bg-primary/30" />
+        <div className="absolute -right-1 top-36 h-20 w-1 rounded-r-full bg-primary/35" />
+        <article className="animate-float h-full w-full rounded-[3.05rem] bg-linear-to-br from-[#e6d3a5]/75 via-[#5b4a2c]/45 to-[#0c2018] p-[3px] shadow-float">
+          <div className="relative flex h-full w-full flex-col overflow-hidden rounded-[2.85rem] border border-white/8 bg-[#0b2a20]/96 p-5 text-left backdrop-blur-xl">
+            <div className="absolute left-1/2 top-3 z-20 h-7 w-[92px] -translate-x-1/2 rounded-full bg-black shadow-[inset_0_1px_2px_rgb(255_255_255/0.08)]" />
+            <div className="pointer-events-none absolute inset-[7px] rounded-[2.45rem] ring-1 ring-white/7" />
+            <div className="mt-10 flex items-center justify-between">
+              <AvalMark size={34} />
+              <Sparkles className="h-4 w-4 text-primary" />
+            </div>
 
-          <div className="mt-8">
-            <p className="text-sm text-muted-foreground">Olá, Junior</p>
-            <h2 className="mt-2 max-w-[230px] font-display text-[2rem] leading-[0.98] text-foreground">
-              O que vamos organizar hoje?
-            </h2>
-          </div>
+            <div className="mt-8">
+              <p className="text-sm text-muted-foreground">Olá, Junior</p>
+              <h2 className="mt-2 max-w-[230px] font-display text-[2rem] leading-[0.98] text-foreground">
+                O que vamos organizar hoje?
+              </h2>
+            </div>
 
-          <div className="no-scrollbar mt-6 flex gap-2 overflow-x-auto">
-            <button className="focus-ring shrink-0 rounded-full border border-primary bg-primary-soft px-3 py-2 text-[10px] font-bold text-primary">
-              Como está meu mês?
-            </button>
-            <button className="focus-ring shrink-0 rounded-full border border-border px-3 py-2 text-[10px] font-bold text-muted-foreground">
-              Onde posso economizar?
-            </button>
-            <button className="focus-ring shrink-0 rounded-full border border-border px-3 py-2 text-[10px] font-bold text-muted-foreground">
-              Ver próximos vencimentos
-            </button>
-          </div>
-
-          <div className="mt-4 rounded-[1.25rem] bg-foreground p-4 text-background shadow-soft">
-            <p className="font-display text-lg leading-snug">Seu orçamento está R$ 70 acima do previsto.</p>
-          </div>
-
-          <div className="mt-auto rounded-[1.2rem] border border-border bg-background/45 p-3">
-            <div className="flex items-center gap-2">
-              <span className="min-w-0 flex-1 text-[12px] font-medium text-muted-foreground">Pergunte à Aval</span>
-              <button
-                type="button"
-                aria-label="Enviar pergunta"
-                className="focus-ring flex h-9 w-9 items-center justify-center rounded-xl bg-primary text-primary-foreground"
-              >
-                ↑
+            <div className="no-scrollbar mt-6 flex gap-2 overflow-x-auto">
+              <button className="focus-ring shrink-0 rounded-full border border-primary bg-primary-soft px-3 py-2 text-[10px] font-bold text-primary">
+                Como está meu mês?
               </button>
+              <button className="focus-ring shrink-0 rounded-full border border-border px-3 py-2 text-[10px] font-bold text-muted-foreground">
+                Onde posso economizar?
+              </button>
+              <button className="focus-ring shrink-0 rounded-full border border-border px-3 py-2 text-[10px] font-bold text-muted-foreground">
+                Ver próximos vencimentos
+              </button>
+            </div>
+
+            <div className="mt-4 rounded-[1.25rem] bg-foreground p-4 text-background shadow-soft">
+              <p className="font-display text-lg leading-snug">Seu orçamento está R$ 70 acima do previsto.</p>
+            </div>
+
+            <div className="mt-auto rounded-[1.2rem] border border-border bg-background/45 p-3">
+              <div className="flex items-center gap-2">
+                <span className="min-w-0 flex-1 text-[12px] font-medium text-muted-foreground">Pergunte à Aval</span>
+                <button
+                  type="button"
+                  aria-label="Enviar pergunta"
+                  className="focus-ring flex h-9 w-9 items-center justify-center rounded-xl bg-primary text-primary-foreground"
+                >
+                  ↑
+                </button>
+              </div>
             </div>
           </div>
         </article>
