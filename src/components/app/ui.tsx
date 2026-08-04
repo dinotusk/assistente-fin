@@ -63,19 +63,50 @@ export function Sparkline({ values, className }: { values: number[]; className?:
   );
 }
 
-export const Panel = forwardRef<HTMLElement, { children: ReactNode; className?: string }>(
-  ({ children, className }, ref) => (
-    <section ref={ref} className={cn("card-surface p-4", className)}>
-      {children}
-    </section>
-  ),
-);
+type PanelTone = "surface" | "flat" | "elevated";
+type PanelAccent = "none" | "primary" | "success" | "warning" | "destructive";
+
+const panelToneClass: Record<PanelTone, string> = {
+  surface: "card-surface",
+  flat: "panel-flat",
+  elevated: "panel-elevated",
+};
+
+const panelAccentClass: Record<PanelAccent, string> = {
+  none: "",
+  primary: "border-t-2 border-t-primary/55",
+  success: "border-t-2 border-t-success/55",
+  warning: "border-t-2 border-t-warning/55",
+  destructive: "border-t-2 border-t-destructive/55",
+};
+
+export const Panel = forwardRef<
+  HTMLElement,
+  { children: ReactNode; className?: string; tone?: PanelTone; accent?: PanelAccent }
+>(({ children, className, tone = "surface", accent = "none" }, ref) => (
+  <section ref={ref} className={cn(panelToneClass[tone], panelAccentClass[accent], "p-4", className)}>
+    {children}
+  </section>
+));
 Panel.displayName = "Panel";
 
-export function PanelHead({ title, hint, action }: { title: string; hint?: ReactNode; action?: ReactNode }) {
+export function PanelHead({
+  title,
+  hint,
+  action,
+  icon: Icon,
+}: {
+  title: string;
+  hint?: ReactNode;
+  action?: ReactNode;
+  icon?: React.ComponentType<{ className?: string; strokeWidth?: number }>;
+}) {
   return (
     <div className="mb-3 flex items-center justify-between gap-2">
-      <h2 className="text-[13px] font-bold uppercase tracking-[0.06em] text-foreground/62">{title}</h2>
+      <h2 className="flex items-center gap-1.5 text-[13px] font-bold uppercase tracking-[0.06em] text-foreground/62">
+        {Icon && <Icon className="h-3.5 w-3.5 text-primary/70" strokeWidth={2.4} />}
+        {title}
+      </h2>
       {action ?? (hint ? <span className="shrink-0 text-xs font-medium text-muted-foreground">{hint}</span> : null)}
     </div>
   );

@@ -147,6 +147,23 @@
   box-shadow: var(--shadow-card);
 }
 
+/* Borderless variant: separated by background + soft shadow instead of a border (sep-background-color-separation) */
+@utility panel-flat {
+  background: var(--color-secondary);
+  border-radius: var(--radius-xl);
+  box-shadow: var(--shadow-soft);
+}
+
+/* Elevated variant: for the single most important panel per screen — deeper shadow + faint gold edge */
+@utility panel-elevated {
+  background:
+    radial-gradient(circle at 100% 0%, rgb(200 173 122 / 0.1), transparent 45%),
+    var(--color-card);
+  border: 1px solid rgb(200 173 122 / 0.16);
+  border-radius: var(--radius-xl);
+  box-shadow: var(--shadow-float);
+}
+
 @utility hero-gradient {
   background: radial-gradient(circle at 32% 26%, #f3e8d2, #dbc190 22%, #c8ad7a 44%, #8a6f42 78%, #5f4b26);
 }
@@ -157,6 +174,11 @@
     linear-gradient(160deg, #15392e 0%, #0d2b22 62%);
   border: 1px solid rgb(200 173 122 / 0.3);
   box-shadow: 0 26px 50px -26px rgb(0 0 0 / 0.9);
+}
+
+/* Faint diagonal texture for hero-type surfaces — reads as considered, not empty */
+@utility hero-texture {
+  background-image: repeating-linear-gradient(115deg, rgb(237 232 221 / 0.05) 0, rgb(237 232 221 / 0.05) 1px, transparent 1px, transparent 22px);
 }
 
 /* --- Reusable interaction utilities (visual only) --- */

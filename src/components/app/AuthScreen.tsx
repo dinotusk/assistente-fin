@@ -68,22 +68,24 @@ export function AuthScreen() {
     <div className="app-backdrop flex min-h-dvh items-center justify-center px-5 py-10">
       <div className="flex w-full max-w-[920px] flex-col items-center gap-8 lg:flex-row lg:items-stretch lg:gap-14">
         <div className="flex max-w-[420px] flex-col justify-center gap-6 text-center lg:text-left">
-          <div className="mx-auto flex h-14 w-14 items-center justify-center rounded-2xl bg-secondary ring-1 ring-primary/25 lg:mx-0">
+          <div className="relative mx-auto flex h-14 w-14 items-center justify-center rounded-2xl bg-secondary ring-1 ring-primary/25 lg:mx-0">
+            <div className="pointer-events-none absolute -inset-3 -z-10 rounded-full bg-primary/12 blur-2xl" />
             <AvalMark size={28} />
           </div>
           <div>
             <p className="text-xs font-semibold uppercase tracking-wide text-primary">Aval</p>
-            <h1 className="mt-1.5 font-display text-[2rem] leading-[1.15] text-foreground">
+            <h1 className="mt-1.5 font-display text-[2rem] leading-[1.15] tracking-tight text-foreground">
               Seu dinheiro, <span className="text-primary">com mais clareza.</span>
             </h1>
             <p className="mt-2 text-sm leading-relaxed text-muted-foreground">
               O assistente financeiro com IA que acompanha sua casa, planeja com você e avisa antes de apertar.
             </p>
           </div>
-          <div className="flex flex-col gap-3">
+          <div className="relative flex flex-col gap-4">
+            <div className="pointer-events-none absolute bottom-4 left-[17px] top-4 hidden w-px bg-linear-to-b from-primary/35 via-primary/12 to-transparent lg:block" />
             {PITCH_ITEMS.map(({ icon: Icon, title, desc }) => (
-              <div key={title} className="flex items-start gap-3 text-left">
-                <span className="flex h-9 w-9 shrink-0 items-center justify-center rounded-xl bg-primary-soft text-primary">
+              <div key={title} className="relative flex items-start gap-3 text-left">
+                <span className="relative flex h-9 w-9 shrink-0 items-center justify-center rounded-xl bg-primary-soft text-primary ring-1 ring-primary/15">
                   <Icon className="h-4 w-4" />
                 </span>
                 <div>
@@ -97,8 +99,10 @@ export function AuthScreen() {
 
         <form
           onSubmit={handleSubmit}
-          className="card-surface flex w-full max-w-[400px] flex-col gap-6 p-7"
+          className="card-surface hero-texture relative w-full max-w-[400px] overflow-hidden p-7"
         >
+          <div className="pointer-events-none absolute -right-16 -top-20 h-52 w-52 rounded-full bg-primary/10 blur-3xl" />
+          <div className="relative flex flex-col gap-6">
           <div className="flex flex-col gap-1.5">
             <h2 className="font-display text-3xl text-foreground">
               {mode === "login" ? "Entre na sua casa" : "Crie sua conta"}
@@ -188,6 +192,7 @@ export function AuthScreen() {
           {loading ? "Aguarde..." : mode === "login" ? "Entrar" : "Criar conta"}
         </button>
         {feedback && <small className="text-center text-sm text-destructive">{feedback}</small>}
+          </div>
         </form>
       </div>
     </div>

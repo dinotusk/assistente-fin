@@ -293,7 +293,7 @@ export function MonthDialog({ open, onOpenChange }: { open: boolean; onOpenChang
           <TextInput value={label} onChange={(e) => setLabel(e.target.value)} required />
         </Field>
 
-        <div className="flex items-center justify-between gap-3 rounded-2xl border border-border bg-secondary p-3.5">
+        <div className="flex items-center justify-between gap-3 rounded-2xl bg-secondary p-3.5">
           <div className="min-w-0">
             <strong className="block text-sm font-bold text-foreground">Mês planejado</strong>
             <span className="block text-[12px] leading-snug text-muted-foreground">
@@ -461,7 +461,7 @@ export function CategoriesDialog({ open, onOpenChange }: { open: boolean; onOpen
           {rules.map((rule) => (
             <div
               key={rule.establishment}
-              className="flex items-center justify-between gap-3 rounded-2xl border border-border bg-secondary p-3.5"
+              className="flex items-center justify-between gap-3 rounded-2xl bg-secondary p-3.5"
             >
               <div className="min-w-0">
                 <strong className="block truncate text-sm font-bold text-foreground">{rule.establishment}</strong>
@@ -610,7 +610,7 @@ export function BankImportDialog({ open, onOpenChange }: { open: boolean; onOpen
             {skippedCount > 0 ? ` · ${skippedCount} ignorado(s) por já existir(em)` : ""}.
           </p>
           {candidates.map((item) => (
-            <div key={item.id} className="rounded-2xl border border-border bg-secondary p-3.5">
+            <div key={item.id} className="rounded-2xl bg-secondary p-3.5">
               <div className="flex items-start justify-between gap-2">
                 <div className="min-w-0">
                   <strong className="block truncate text-sm font-bold text-foreground">{item.description}</strong>
@@ -721,7 +721,7 @@ export function VigiasDialog({ open, onOpenChange }: { open: boolean; onOpenChan
       </p>
       <div className="mt-4 flex flex-col gap-2">
         {vigias.map((vigia) => (
-          <div key={vigia.id} className="rounded-2xl border border-border bg-secondary p-3.5">
+          <div key={vigia.id} className="rounded-2xl bg-secondary p-3.5">
             <div className="flex items-center justify-between gap-3">
               <div className="min-w-0">
                 <strong className="block truncate text-sm font-bold text-foreground">{vigia.name}</strong>

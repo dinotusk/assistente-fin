@@ -1,7 +1,7 @@
 import { useMemo, useState } from "react";
 import { ArrowDownLeft, ArrowUpRight, Copy, Pencil, Plus, Receipt, Trash2, Search } from "lucide-react";
 
-import { categoryIcons } from "@/lib/finance/constants";
+import { categoryColors, categoryIcons } from "@/lib/finance/constants";
 import { expenseMatchesView, formatDate, normalizeText, ownerLabelForPeople, sum } from "@/lib/finance/calc";
 import { useFinance, useMoney } from "@/lib/finance/FinanceContext";
 import type { Expense } from "@/lib/finance/types";
@@ -87,7 +87,7 @@ export function TransactionsView({ onEdit, onAdd }: { onEdit: (id: string) => vo
       </div>
 
       <div className="grid grid-cols-2 gap-2.5">
-        <div className="card-surface flex items-center gap-2.5 p-3">
+        <div className="card-surface flex items-center gap-2.5 border-l-2 border-l-success/50 p-3">
           <span className="flex h-[30px] w-[30px] shrink-0 items-center justify-center rounded-full bg-success/16 text-success">
             <ArrowDownLeft className="h-4 w-4" strokeWidth={2.25} />
           </span>
@@ -96,7 +96,7 @@ export function TransactionsView({ onEdit, onAdd }: { onEdit: (id: string) => vo
             <strong className="tnum block text-[15px] font-bold text-foreground">{money(incomeTotal)}</strong>
           </div>
         </div>
-        <div className="card-surface flex items-center gap-2.5 p-3">
+        <div className="card-surface flex items-center gap-2.5 border-l-2 border-l-destructive/50 p-3">
           <span className="flex h-[30px] w-[30px] shrink-0 items-center justify-center rounded-full bg-destructive/16 text-destructive">
             <ArrowUpRight className="h-4 w-4" strokeWidth={2.25} />
           </span>
@@ -132,7 +132,12 @@ export function TransactionsView({ onEdit, onAdd }: { onEdit: (id: string) => vo
         )
       ) : (
         rows.map((item) => (
-          <div key={item.id} className="card-surface hover-lift p-3.5">
+          <div key={item.id} className="card-surface hover-lift relative overflow-hidden py-3.5 pl-4 pr-3.5">
+            <span
+              className="absolute inset-y-0 left-0 w-1"
+              style={{ background: categoryColors[item.category] || "var(--color-primary)" }}
+              aria-hidden="true"
+            />
             <div className="flex items-start gap-3">
               <span className="flex h-11 w-11 shrink-0 items-center justify-center rounded-2xl bg-secondary text-lg">
                 {categoryIcons[item.category] || categoryIcons.Outros}

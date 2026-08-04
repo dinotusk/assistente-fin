@@ -1,4 +1,4 @@
-import { Pencil, Plus, Target, Trash2 } from "lucide-react";
+import { ListChecks, Pencil, Plus, Target, Trash2 } from "lucide-react";
 
 import { calc, priorityMatchesView } from "@/lib/finance/calc";
 import { useFinance, useMoney } from "@/lib/finance/FinanceContext";
@@ -23,6 +23,7 @@ export function PrioritiesView({ onEdit, onAdd }: { onEdit: (id: string) => void
       <Panel>
         <PanelHead
           title="Prioridades do mês"
+          icon={Target}
           action={
             <button
               type="button"
@@ -52,8 +53,11 @@ export function PrioritiesView({ onEdit, onAdd }: { onEdit: (id: string) => void
               </button>
             </div>
           )}
-          {priorities.map((item) => (
-            <div key={item.id} className="rounded-2xl border border-border bg-secondary p-3.5 transition-colors hover:border-primary/25">
+          {priorities.map((item) => {
+            const rankAccent =
+              item.rank === 1 ? "border-l-primary/60" : item.rank === 2 ? "border-l-warning/55" : "border-l-muted-foreground/25";
+            return (
+            <div key={item.id} className={`hover-lift rounded-2xl border-l-2 ${rankAccent} bg-secondary p-3.5`}>
               <div className="flex items-start justify-between gap-2">
                 <strong className="min-w-0 truncate text-sm font-bold text-foreground">{item.name}</strong>
                 <strong className="tnum shrink-0 text-sm font-bold text-foreground">{money(item.amount)}</strong>
@@ -83,12 +87,13 @@ export function PrioritiesView({ onEdit, onAdd }: { onEdit: (id: string) => void
                 </div>
               </div>
             </div>
-          ))}
+            );
+          })}
         </div>
       </Panel>
 
-      <Panel>
-        <PanelHead title="Plano sugerido" hint={`Saldo livre: ${money(free)}`} />
+      <Panel tone="flat">
+        <PanelHead title="Plano sugerido" hint={`Saldo livre: ${money(free)}`} icon={ListChecks} />
         <div className="flex flex-col gap-2.5">
           {pending.length === 0 ? (
             <p className="text-sm text-muted-foreground">Nenhuma prioridade pendente.</p>
@@ -99,7 +104,7 @@ export function PrioritiesView({ onEdit, onAdd }: { onEdit: (id: string) => void
               return (
                 <div
                   key={item.id}
-                  className={`rounded-2xl border p-3.5 ${canPay ? "border-success/30 bg-success/8" : "border-warning/30 bg-warning/8"}`}
+                  className={`rounded-2xl border-l-2 p-3.5 ${canPay ? "border-l-success/55 bg-success/8" : "border-l-warning/55 bg-warning/8"}`}
                 >
                   <strong className="block text-sm font-bold text-foreground">
                     {canPay ? "Pode pagar agora" : "Melhor adiar"}: {item.name}

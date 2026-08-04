@@ -12,6 +12,7 @@ import {
   Sparkles,
   TrendingUp,
   TriangleAlert,
+  Wallet,
   X,
 } from "lucide-react";
 
@@ -38,7 +39,7 @@ import type { Expense } from "@/lib/finance/types";
 import { evaluateNewExpense, evaluateVigias, listVigias, markFired, type VigiaAlert } from "@/lib/finance/vigias";
 
 import { Field, SelectInput, TextArea, TextInput } from "./forms";
-import { BudgetRing, Panel, PanelHead, Sparkline } from "./ui";
+import { AvalMark, BudgetRing, Panel, PanelHead, Sparkline } from "./ui";
 
 interface Message {
   sender?: string;
@@ -346,9 +347,10 @@ export function AssistantView({ onAddExpense }: AssistantViewProps) {
 
       <div className="flex flex-col">
         {messages.length === 0 ? (
-          <section className="card-surface relative overflow-hidden rounded-3xl p-5">
+          <section className="card-surface hero-texture relative overflow-hidden rounded-3xl p-5">
+            <div className="pointer-events-none absolute -right-14 -top-20 h-52 w-52 rounded-full bg-primary/12 blur-3xl" />
             <div className="relative z-10 max-w-[70%]">
-              <h1 className="font-display text-[1.7rem] leading-[1.15] text-foreground">
+              <h1 className="font-display text-[1.7rem] leading-[1.15] tracking-tight text-foreground">
                 Seu dinheiro,
                 <br />
                 <span className="text-primary">com mais clareza.</span>
@@ -359,7 +361,7 @@ export function AssistantView({ onAddExpense }: AssistantViewProps) {
                 onClick={() => attentionRef.current?.scrollIntoView({ behavior: "smooth", block: "start" })}
                 className="press mt-4 flex items-start gap-3 text-left"
               >
-                <span className="flex h-10 w-10 shrink-0 items-center justify-center rounded-full border border-primary/30 bg-primary-soft text-primary">
+                <span className="flex h-10 w-10 shrink-0 items-center justify-center rounded-full border border-primary/30 bg-primary-soft text-primary shadow-primary">
                   <Sparkles className="h-4 w-4" />
                 </span>
                 <span>
@@ -378,7 +380,7 @@ export function AssistantView({ onAddExpense }: AssistantViewProps) {
             </div>
           </section>
         ) : (
-          <div className="flex flex-col gap-4">
+          <div className="flex flex-col gap-3.5">
             {messages.map((m, i) =>
               m.role === "user" ? (
                 <div
@@ -388,11 +390,18 @@ export function AssistantView({ onAddExpense }: AssistantViewProps) {
                   {m.text}
                 </div>
               ) : (
-                <div key={i}>
-                  {m.sender && (
-                    <span className="mb-1 block text-[11px] font-bold text-primary">{m.sender}</span>
-                  )}
-                  <p className="whitespace-pre-line text-[15px] leading-[1.6] text-foreground">{m.text}</p>
+                <div key={i} className="flex items-start gap-2.5">
+                  <span className="mt-0.5 flex h-7 w-7 shrink-0 items-center justify-center rounded-full bg-secondary ring-1 ring-primary/20">
+                    <AvalMark size={14} />
+                  </span>
+                  <div
+                    className={`min-w-0 flex-1 rounded-2xl px-3.5 py-2.5 ${
+                      m.sender ? "border-l-2 border-l-warning/60 bg-warning/8" : "bg-white/[0.03]"
+                    }`}
+                  >
+                    {m.sender && <span className="mb-1 block text-[11px] font-bold text-primary">{m.sender}</span>}
+                    <p className="whitespace-pre-line text-[15px] leading-[1.6] text-foreground">{m.text}</p>
+                  </div>
                 </div>
               ),
             )}
@@ -400,7 +409,7 @@ export function AssistantView({ onAddExpense }: AssistantViewProps) {
         )}
 
         <div className="mt-4 grid grid-cols-2 gap-3">
-          <div className="card-surface p-4">
+          <div className="card-surface relative overflow-hidden border-t-2 border-t-primary/50 p-4">
             <span className="flex h-8 w-8 items-center justify-center rounded-xl bg-primary-soft text-primary">
               <TrendingUp className="h-4 w-4" />
             </span>
@@ -408,7 +417,7 @@ export function AssistantView({ onAddExpense }: AssistantViewProps) {
             <span className="text-[13px] text-muted-foreground">gastos</span>
             <Sparkline values={spendingTrend} className="mt-2" />
           </div>
-          <div className="card-surface p-4">
+          <div className="panel-flat p-4">
             <span className="flex h-8 w-8 items-center justify-center rounded-xl bg-primary-soft text-primary">
               <CalendarClock className="h-4 w-4" />
             </span>
@@ -434,7 +443,9 @@ export function AssistantView({ onAddExpense }: AssistantViewProps) {
               return (
                 <div
                   key={item.title}
-                  className="flex items-start gap-3 rounded-2xl border border-border bg-secondary/60 p-3.5"
+                  className={`flex items-start gap-3 rounded-2xl p-3.5 ${
+                    attention ? "border-l-2 border-l-warning/60 bg-warning/8" : "bg-white/[0.03]"
+                  }`}
                 >
                   <span
                     className={`flex h-[34px] w-[34px] shrink-0 items-center justify-center rounded-xl ${
@@ -514,9 +525,9 @@ export function AssistantView({ onAddExpense }: AssistantViewProps) {
         </div>
       </form>
 
-      <Panel ref={simulatorRef} className="p-0">
+      <Panel ref={simulatorRef} tone="elevated" className="p-0">
         <div className="p-4 pb-3">
-          <PanelHead title="Simulador de compra" hint="decisão antes do gasto" />
+          <PanelHead title="Simulador de compra" hint="decisão antes do gasto" icon={Calculator} />
         </div>
         <div className="grid gap-3 px-4 pb-4">
           <Field label="O que quer comprar?">
@@ -565,6 +576,7 @@ export function AssistantView({ onAddExpense }: AssistantViewProps) {
       <Panel>
         <PanelHead
           title="Regra dos envelopes"
+          icon={Wallet}
           action={
             <button
               type="button"
