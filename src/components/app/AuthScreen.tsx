@@ -23,12 +23,19 @@ const PITCH_ITEMS = [
   },
 ];
 
+function inviteCodeFromUrl(): string {
+  if (typeof window === "undefined") return "";
+  return new URLSearchParams(window.location.search).get("convite") || "";
+}
+
 export function AuthScreen() {
   const { login, register } = useFinance();
-  const [mode, setMode] = useState<"login" | "register">("login");
+  const initialInvite = inviteCodeFromUrl();
+  const [mode, setMode] = useState<"login" | "register">(initialInvite ? "register" : "login");
   const [name, setName] = useState("");
   const [email, setEmail] = useState("");
   const [password, setPassword] = useState("");
+  const [inviteCode, setInviteCode] = useState(initialInvite);
   const [feedback, setFeedback] = useState("");
   const [loading, setLoading] = useState(false);
 
@@ -53,7 +60,7 @@ export function AuthScreen() {
     try {
       const normalizedEmail = email.trim().toLowerCase();
       if (mode === "register") {
-        await register(name.trim(), normalizedEmail, password);
+        await register(name.trim(), normalizedEmail, password, inviteCode.trim() || undefined);
       } else {
         await login(name.trim() || normalizedEmail, normalizedEmail, password);
       }
@@ -151,6 +158,23 @@ export function AuthScreen() {
               placeholder="Como deseja ser chamado"
               className="h-12 rounded-xl border border-input bg-secondary px-4 text-base text-foreground outline-none transition-all duration-200 placeholder:text-muted-foreground/70 focus:border-primary focus:bg-card focus:ring-4 focus:ring-primary/12"
             />
+          </label>
+        )}
+
+        {mode === "register" && (
+          <label className="flex flex-col gap-2">
+            <span className="text-xs font-semibold uppercase tracking-[0.04em] text-muted-foreground">
+              Código de convite (opcional)
+            </span>
+            <input
+              value={inviteCode}
+              onChange={(event) => setInviteCode(event.target.value.toUpperCase())}
+              placeholder="Cole o código de quem te convidou"
+              className="h-12 rounded-xl border border-input bg-secondary px-4 text-base uppercase tracking-widest text-foreground outline-none transition-all duration-200 placeholder:text-muted-foreground/70 placeholder:normal-case placeholder:tracking-normal focus:border-primary focus:bg-card focus:ring-4 focus:ring-primary/12"
+            />
+            <span className="text-[12px] text-muted-foreground">
+              Com um código, você entra direto na casa de quem te convidou e já vê as despesas dela.
+            </span>
           </label>
         )}
 

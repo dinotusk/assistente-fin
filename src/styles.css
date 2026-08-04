@@ -225,6 +225,19 @@
   animation: view-in 0.4s var(--ease-out-soft) both;
 }
 
+/* Slow vertical drift for ambient background accents (marketing surfaces) */
+@keyframes float-slow {
+  0%, 100% {
+    transform: translateY(0);
+  }
+  50% {
+    transform: translateY(-16px);
+  }
+}
+@utility animate-float {
+  animation: float-slow 7s var(--ease-out-soft) infinite;
+}
+
 /* Skeleton shimmer for loading states */
 @keyframes skeleton-shimmer {
   0% {

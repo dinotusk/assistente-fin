@@ -23,7 +23,7 @@ const SECTIONS = [
     title: "3. Serviços oferecidos",
     body: [
       "O Aval permite registrar receitas e despesas, organizar por categoria e por pessoa, definir prioridades do mês, importar extratos bancários (OFX/CSV) e conversar com um assistente que resume e explica seus dados.",
-      "O Aval é uma ferramenta de organização pessoal. Ele não é uma instituição financeira, não movimenta dinheiro, não processa pagamentos e não tem acesso às suas contas bancárias reais — os dados são inseridos ou importados por você.",
+      "O Aval é uma ferramenta de organização pessoal. Ele não é uma instituição financeira, não movimenta dinheiro, não processa pagamentos e não tem acesso às suas contas bancárias reais. Os dados são inseridos ou importados por você.",
     ],
   },
   {
@@ -37,7 +37,7 @@ const SECTIONS = [
     title: "5. Uso de inteligência artificial",
     body: [
       "O assistente do Aval usa modelos de IA para interpretar suas mensagens e gerar respostas e resumos sobre seus dados financeiros.",
-      "As respostas do assistente são geradas automaticamente e podem conter imprecisões. Elas não constituem aconselhamento financeiro, contábil, jurídico ou de investimento — decisões financeiras são sempre suas.",
+      "As respostas do assistente são geradas automaticamente e podem conter imprecisões. Elas não constituem aconselhamento financeiro, contábil, jurídico ou de investimento. Decisões financeiras são sempre suas.",
       "Trechos do texto que você envia ao assistente podem ser processados por um provedor de IA de terceiros para gerar a resposta. Valores monetários não são usados para treinar modelos de terceiros além do necessário para responder à sua pergunta.",
     ],
   },

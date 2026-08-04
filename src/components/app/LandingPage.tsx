@@ -11,8 +11,47 @@ import {
   Users,
   Utensils,
 } from "lucide-react";
+import { useEffect, useRef, useState, type ReactNode } from "react";
+
+import { cn } from "@/lib/utils";
 
 import { AvalMark } from "./ui";
+
+/** Fades a section in once it scrolls into view. Respects prefers-reduced-motion globally via styles.css. */
+function Reveal({ children, className, delay = 0 }: { children: ReactNode; className?: string; delay?: number }) {
+  const ref = useRef<HTMLDivElement>(null);
+  const [visible, setVisible] = useState(false);
+
+  useEffect(() => {
+    const node = ref.current;
+    if (!node) return;
+    const observer = new IntersectionObserver(
+      ([entry]) => {
+        if (entry.isIntersecting) {
+          setVisible(true);
+          observer.disconnect();
+        }
+      },
+      { threshold: 0.15 },
+    );
+    observer.observe(node);
+    return () => observer.disconnect();
+  }, []);
+
+  return (
+    <div
+      ref={ref}
+      style={{ transitionDelay: `${delay}ms` }}
+      className={cn(
+        "transition-all duration-700 ease-out",
+        visible ? "translate-y-0 opacity-100" : "translate-y-6 opacity-0",
+        className,
+      )}
+    >
+      {children}
+    </div>
+  );
+}
 
 const NAV_LINKS = [
   { href: "#recursos", label: "Recursos" },
@@ -49,7 +88,7 @@ const FEATURES = [
   {
     icon: Eye,
     title: "Modo privado",
-    desc: "Oculte os valores da tela com um toque — útil na frente de quem não precisa ver.",
+    desc: "Oculte os valores da tela com um toque, útil na frente de quem não precisa ver.",
   },
 ];
 
@@ -67,12 +106,12 @@ const STEPS = [
   {
     n: "3",
     title: "Receba avisos antes de apertar",
-    desc: "Vigias observam seus dados e avisam na conversa quando algo importa — sem você precisar perguntar.",
+    desc: "Vigias observam seus dados e avisam na conversa quando algo importa, sem você precisar perguntar.",
   },
 ];
 
 const SECURITY_POINTS = [
-  "Seus dados ficam em um banco protegido por regras de acesso por usuário — só você e quem convidar veem sua casa.",
+  "Seus dados ficam em um banco protegido por regras de acesso por usuário. Só você e quem convidar veem sua casa.",
   "Sincronização entre aparelhos, sem depender de planilha compartilhada ou capturas de tela.",
   "Sem anúncios e sem venda de dados: o Aval existe para organizar sua casa, não para te vender coisas.",
   "Exporte um backup completo em JSON quando quiser, sem pedir permissão a ninguém.",
@@ -109,7 +148,12 @@ export function LandingPage() {
 
       <main id="top">
         {/* Hero */}
-        <section className="mx-auto flex max-w-6xl flex-col items-center gap-10 px-5 pb-20 pt-14 text-center lg:pt-20">
+        <section className="relative mx-auto flex max-w-6xl flex-col items-center gap-10 overflow-hidden px-5 pb-20 pt-14 text-center lg:pt-20">
+          <div className="animate-float pointer-events-none absolute -top-24 left-1/2 -z-10 h-72 w-72 -translate-x-[70%] rounded-full bg-primary/14 blur-3xl" />
+          <div
+            className="animate-float pointer-events-none absolute -top-10 left-1/2 -z-10 h-96 w-96 translate-x-[20%] rounded-full bg-primary/8 blur-3xl"
+            style={{ animationDelay: "-3.5s" }}
+          />
           <span className="inline-flex items-center gap-1.5 rounded-full bg-primary-soft px-3.5 py-1.5 text-xs font-semibold text-primary ring-1 ring-primary/20">
             <Sparkles className="h-3.5 w-3.5" /> Assistente financeiro para a sua casa
           </span>
@@ -117,7 +161,7 @@ export function LandingPage() {
             Uma IA que cuida do dinheiro da sua casa, <span className="text-primary">enquanto vocês cuidam da vida.</span>
           </h1>
           <p className="max-w-xl text-base leading-relaxed text-muted-foreground sm:text-lg">
-            O Aval acompanha seus gastos, entende padrões e conta o que está acontecendo com o orçamento da casa — antes
+            O Aval acompanha seus gastos, entende padrões e conta o que está acontecendo com o orçamento da casa antes
             de você precisar perguntar.
           </p>
           <div className="flex flex-col gap-3 sm:flex-row">
@@ -140,47 +184,51 @@ export function LandingPage() {
 
         {/* Recursos */}
         <section id="recursos" className="mx-auto max-w-6xl px-5 py-20">
-          <div className="mx-auto max-w-xl text-center">
+          <Reveal className="mx-auto max-w-xl text-center">
             <h2 className="font-display text-3xl text-foreground sm:text-4xl">Tudo que a casa precisa, num só lugar</h2>
             <p className="mt-3 text-sm leading-relaxed text-muted-foreground sm:text-base">
-              Sem planilha, sem grupo de WhatsApp pra fechar conta — o Aval organiza e avisa por vocês.
+              Sem planilha, sem grupo de WhatsApp pra fechar conta. O Aval organiza e avisa por vocês.
             </p>
-          </div>
+          </Reveal>
           <div className="mt-12 grid gap-4 sm:grid-cols-2 lg:grid-cols-3">
-            {FEATURES.map(({ icon: Icon, title, desc }) => (
-              <div key={title} className="card-surface hover-lift p-6 text-left">
+            {FEATURES.map(({ icon: Icon, title, desc }, index) => (
+              <Reveal key={title} delay={index * 70} className="card-surface hover-lift p-6 text-left">
                 <span className="flex h-11 w-11 items-center justify-center rounded-2xl bg-primary-soft text-primary ring-1 ring-primary/15">
                   <Icon className="h-5 w-5" strokeWidth={2} />
                 </span>
                 <h3 className="mt-4 text-base font-bold text-foreground">{title}</h3>
                 <p className="mt-1.5 text-sm leading-relaxed text-muted-foreground">{desc}</p>
-              </div>
+              </Reveal>
             ))}
           </div>
         </section>
 
         {/* Como funciona */}
         <section id="como-funciona" className="mx-auto max-w-6xl px-5 py-20">
-          <div className="mx-auto max-w-xl text-center">
+          <Reveal className="mx-auto max-w-xl text-center">
             <h2 className="font-display text-3xl text-foreground sm:text-4xl">Como funciona</h2>
-          </div>
+          </Reveal>
           <div className="relative mt-12 grid gap-6 sm:grid-cols-3">
             <div className="pointer-events-none absolute left-0 right-0 top-6 hidden h-px bg-linear-to-r from-transparent via-border to-transparent sm:block" />
-            {STEPS.map((step) => (
-              <div key={step.n} className="relative flex flex-col items-center text-center sm:items-start sm:text-left">
+            {STEPS.map((step, index) => (
+              <Reveal
+                key={step.n}
+                delay={index * 90}
+                className="relative flex flex-col items-center text-center sm:items-start sm:text-left"
+              >
                 <span className="hero-gradient relative flex h-12 w-12 items-center justify-center rounded-full font-display text-lg font-bold text-primary-foreground shadow-primary">
                   {step.n}
                 </span>
                 <h3 className="mt-4 text-base font-bold text-foreground">{step.title}</h3>
                 <p className="mt-1.5 text-sm leading-relaxed text-muted-foreground">{step.desc}</p>
-              </div>
+              </Reveal>
             ))}
           </div>
         </section>
 
         {/* Segurança */}
         <section id="seguranca" className="mx-auto max-w-6xl px-5 py-20">
-          <div className="finance-hero hero-texture relative overflow-hidden rounded-3xl p-8 sm:p-12">
+          <Reveal className="finance-hero hero-texture relative overflow-hidden rounded-3xl p-8 sm:p-12">
             <div className="pointer-events-none absolute -right-20 -top-24 h-64 w-64 rounded-full bg-primary/10 blur-3xl" />
             <div className="relative grid gap-10 lg:grid-cols-[0.9fr_1.1fr] lg:items-center">
               <div>
@@ -202,12 +250,12 @@ export function LandingPage() {
                 ))}
               </ul>
             </div>
-          </div>
+          </Reveal>
         </section>
 
         {/* CTA final */}
         <section className="mx-auto max-w-6xl px-5 pb-24">
-          <div className="card-surface flex flex-col items-center gap-5 p-10 text-center sm:p-14">
+          <Reveal className="card-surface flex flex-col items-center gap-5 p-10 text-center sm:p-14">
             <AvalMark size={32} />
             <h2 className="font-display text-3xl text-foreground sm:text-4xl">Comece agora, é grátis.</h2>
             <p className="max-w-md text-sm leading-relaxed text-muted-foreground sm:text-base">
@@ -219,7 +267,7 @@ export function LandingPage() {
             >
               Criar conta grátis
             </Link>
-          </div>
+          </Reveal>
         </section>
       </main>
 

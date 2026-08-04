@@ -1,5 +1,5 @@
 import { useEffect, useState } from "react";
-import { Trash2, X } from "lucide-react";
+import { Check, Copy, Loader2, Trash2, X } from "lucide-react";
 
 import {
   Drawer,
@@ -297,7 +297,7 @@ export function MonthDialog({ open, onOpenChange }: { open: boolean; onOpenChang
           <div className="min-w-0">
             <strong className="block text-sm font-bold text-foreground">Mês planejado</strong>
             <span className="block text-[12px] leading-snug text-muted-foreground">
-              Marque se este mês ainda não começou — os valores viram uma previsão até você desmarcar.
+              Marque se este mês ainda não começou. Os valores viram uma previsão até você desmarcar.
             </span>
           </div>
           <button
@@ -450,7 +450,7 @@ export function CategoriesDialog({ open, onOpenChange }: { open: boolean; onOpen
     <SheetShell open={open} onOpenChange={onOpenChange} title="Categorias aprendidas">
       <p className="text-sm text-muted-foreground">
         Toda vez que você corrige a categoria de um gasto, o Aval memoriza a regra e passa a aplicá-la
-        automaticamente para o mesmo estabelecimento — inclusive em lançamentos futuros pelo chat ou importados.
+        automaticamente para o mesmo estabelecimento, inclusive em lançamentos futuros pelo chat ou importados.
       </p>
       {rules.length === 0 ? (
         <p className="mt-4 rounded-2xl border border-dashed border-border p-4 text-center text-sm text-muted-foreground">
@@ -479,6 +479,97 @@ export function CategoriesDialog({ open, onOpenChange }: { open: boolean; onOpen
           ))}
         </div>
       )}
+      <div className="sticky bottom-0 -mx-5 mt-5 border-t border-border/70 bg-card/95 px-5 py-3 backdrop-blur">
+        <button
+          type="button"
+          onClick={() => onOpenChange(false)}
+          className="press focus-ring h-12 w-full rounded-xl border border-input bg-secondary font-semibold text-foreground hover:bg-muted"
+        >
+          Fechar
+        </button>
+      </div>
+    </SheetShell>
+  );
+}
+
+/* ---------------- Invite ---------------- */
+export function InviteDialog({ open, onOpenChange }: { open: boolean; onOpenChange: (v: boolean) => void }) {
+  const { createInvite } = useFinance();
+  const [code, setCode] = useState<string | null>(null);
+  const [loading, setLoading] = useState(false);
+  const [error, setError] = useState<string | null>(null);
+  const [copied, setCopied] = useState<"code" | "link" | null>(null);
+
+  useEffect(() => {
+    if (!open) return;
+    setError(null);
+    setCode(null);
+    setLoading(true);
+    createInvite()
+      .then((value) => setCode(value))
+      .catch((err) => setError(err instanceof Error ? err.message : "Não foi possível gerar o convite."))
+      .finally(() => setLoading(false));
+  }, [open, createInvite]);
+
+  const link = code && typeof window !== "undefined" ? `${window.location.origin}/entrar?convite=${code}` : "";
+
+  async function copy(value: string, kind: "code" | "link") {
+    try {
+      await navigator.clipboard.writeText(value);
+      setCopied(kind);
+      setTimeout(() => setCopied(null), 2000);
+    } catch {
+      // Clipboard permission denied — code stays visible on screen either way.
+    }
+  }
+
+  return (
+    <SheetShell open={open} onOpenChange={onOpenChange} title="Convidar para a casa">
+      <p className="text-sm text-muted-foreground">
+        Compartilhe este código com quem vai entrar na sua casa. Ao criar a conta com ele, a pessoa já vê as mesmas
+        despesas, prioridades e metas, sem duplicar nada.
+      </p>
+
+      {loading && (
+        <div className="mt-6 flex items-center justify-center py-8">
+          <Loader2 className="h-6 w-6 animate-spin text-primary" aria-label="Gerando convite" />
+        </div>
+      )}
+
+      {error && !loading && (
+        <p className="mt-4 rounded-2xl border border-destructive/30 bg-destructive/10 p-4 text-sm text-destructive">
+          {error}
+        </p>
+      )}
+
+      {code && !loading && (
+        <div className="mt-5 flex flex-col gap-3">
+          <div className="panel-flat flex flex-col items-center gap-1 p-5 text-center">
+            <span className="text-xs font-semibold uppercase tracking-wide text-muted-foreground">
+              Código do convite
+            </span>
+            <strong className="font-display text-3xl tracking-[0.15em] text-primary">{code}</strong>
+          </div>
+          <button
+            type="button"
+            onClick={() => copy(code, "code")}
+            className="press focus-ring inline-flex h-12 items-center justify-center gap-2 rounded-xl border border-input bg-secondary text-sm font-semibold text-foreground hover:bg-muted"
+          >
+            {copied === "code" ? <Check className="h-4 w-4" /> : <Copy className="h-4 w-4" />}
+            {copied === "code" ? "Copiado!" : "Copiar código"}
+          </button>
+          <button
+            type="button"
+            onClick={() => copy(link, "link")}
+            className="hero-gradient press focus-ring inline-flex h-12 items-center justify-center gap-2 rounded-xl text-sm font-semibold text-primary-foreground shadow-primary"
+          >
+            {copied === "link" ? <Check className="h-4 w-4" /> : <Copy className="h-4 w-4" />}
+            {copied === "link" ? "Copiado!" : "Copiar link de convite"}
+          </button>
+          <p className="text-center text-[11px] text-muted-foreground">Válido por 14 dias ou até ser usado.</p>
+        </div>
+      )}
+
       <div className="sticky bottom-0 -mx-5 mt-5 border-t border-border/70 bg-card/95 px-5 py-3 backdrop-blur">
         <button
           type="button"

@@ -22,6 +22,7 @@ import {
 import { lookupLearnedCategory } from "./learnedCategories";
 import { createSeedState, uid } from "./seed";
 import {
+  createHouseholdInvite,
   getAuthenticatedUser,
   loadRemoteFinance,
   loginWithSupabase,
@@ -49,8 +50,9 @@ interface FinanceContextValue {
   month: MonthData;
   envelopes: EnvelopeRule[];
   login: (name: string, email: string, password: string) => Promise<ActiveUser>;
-  register: (name: string, email: string, password: string) => Promise<ActiveUser>;
+  register: (name: string, email: string, password: string, inviteCode?: string) => Promise<ActiveUser>;
   logout: () => void;
+  createInvite: () => Promise<string>;
   setActiveMonth: (key: string) => void;
   setActivePerson: (view: string) => void;
   createNextMonth: () => string;
@@ -180,12 +182,14 @@ export function FinanceProvider({ children }: { children: ReactNode }) {
   );
 
   const register = useCallback(
-    async (name: string, email: string, password: string): Promise<ActiveUser> => {
-      await registerWithSupabase({ name, email, password });
+    async (name: string, email: string, password: string, inviteCode?: string): Promise<ActiveUser> => {
+      await registerWithSupabase({ name, email, password }, inviteCode);
       return hydrateAuthenticatedUser();
     },
     [hydrateAuthenticatedUser],
   );
+
+  const createInvite = useCallback((): Promise<string> => createHouseholdInvite(), []);
 
   const logout = useCallback(() => {
     void writeQueueRef.current.finally(async () => {
@@ -477,6 +481,7 @@ export function FinanceProvider({ children }: { children: ReactNode }) {
     login,
     register,
     logout,
+    createInvite,
     setActiveMonth,
     setActivePerson,
     createNextMonth,

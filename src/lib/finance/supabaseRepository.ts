@@ -120,7 +120,7 @@ function currentMonthKey(): string {
   return new Date().toISOString().slice(0, 7);
 }
 
-export async function registerWithSupabase(input: AuthInput): Promise<void> {
+export async function registerWithSupabase(input: AuthInput, inviteCode?: string): Promise<void> {
   const { data, error } = await supabase.auth.signUp({
     email: input.email,
     password: input.password,
@@ -139,7 +139,12 @@ export async function registerWithSupabase(input: AuthInput): Promise<void> {
     throw new Error("Cadastro criado. Confirme o e-mail e depois entre no aplicativo.");
   }
 
-  await bootstrapWorkspace(input.name);
+  // Redeeming an invite joins the inviter's household instead of bootstrapping a new one.
+  if (inviteCode?.trim()) {
+    await redeemInvite(inviteCode, input.name);
+  } else {
+    await bootstrapWorkspace(input.name);
+  }
 }
 
 export async function loginWithSupabase(input: AuthInput): Promise<void> {
@@ -168,6 +173,22 @@ async function bootstrapWorkspace(displayName: string): Promise<string> {
     user_display_name: displayName.trim(),
     new_household_name: "Minha casa",
   });
+  throwIfError(error);
+  return String(data);
+}
+
+async function redeemInvite(code: string, displayName: string): Promise<string> {
+  const { data, error } = await supabase.rpc("redeem_household_invite", {
+    p_code: code.trim(),
+    p_display_name: displayName.trim(),
+  });
+  throwIfError(error);
+  return String(data);
+}
+
+/** Generates (or reuses) an active invite code for the caller's own household. Admin/owner only. */
+export async function createHouseholdInvite(): Promise<string> {
+  const { data, error } = await supabase.rpc("create_household_invite");
   throwIfError(error);
   return String(data);
 }

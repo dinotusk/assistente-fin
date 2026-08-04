@@ -144,7 +144,7 @@ export function evaluateNewExpense(vigias: Vigia[], state: FinanceState, expense
   return {
     vigia,
     severity: "atencao",
-    message: `${expense.name} custou ${money(expense.amount)} — mais que o dobro da média de ${categoryPhrase(expense.category)} (${money(average)}).`,
+    message: `${expense.name} custou ${money(expense.amount)}, mais que o dobro da média de ${categoryPhrase(expense.category)} (${money(average)}).`,
   };
 }
 
@@ -180,7 +180,7 @@ function evaluateRule(vigia: Vigia, ctx: RuleContext): VigiaAlert | null {
           message:
             overdue.length === 1
               ? `${top.name} venceu em ${formatDate(top.dueDate || top.date)} e ainda está em aberto.`
-              : `${overdue.length} contas atrasadas — a maior é ${top.name} (${money(top.amount)}).`,
+              : `${overdue.length} contas atrasadas. A maior é ${top.name} (${money(top.amount)}).`,
         };
       }
       if (dueSoon.length) {
