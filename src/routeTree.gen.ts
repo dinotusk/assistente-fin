@@ -9,9 +9,21 @@
 // Additionally, you should also exclude this file from your linter and/or formatter to prevent it from being checked or modified.
 
 import { Route as rootRouteImport } from './routes/__root'
+import { Route as TermosRouteImport } from './routes/termos'
+import { Route as EntrarRouteImport } from './routes/entrar'
 import { Route as IndexRouteImport } from './routes/index'
 import { Route as ApiGeminiChatRouteImport } from './routes/api/gemini-chat'
 
+const TermosRoute = TermosRouteImport.update({
+  id: '/termos',
+  path: '/termos',
+  getParentRoute: () => rootRouteImport,
+} as any)
+const EntrarRoute = EntrarRouteImport.update({
+  id: '/entrar',
+  path: '/entrar',
+  getParentRoute: () => rootRouteImport,
+} as any)
 const IndexRoute = IndexRouteImport.update({
   id: '/',
   path: '/',
@@ -25,32 +37,54 @@ const ApiGeminiChatRoute = ApiGeminiChatRouteImport.update({
 
 export interface FileRoutesByFullPath {
   '/': typeof IndexRoute
+  '/entrar': typeof EntrarRoute
+  '/termos': typeof TermosRoute
   '/api/gemini-chat': typeof ApiGeminiChatRoute
 }
 export interface FileRoutesByTo {
   '/': typeof IndexRoute
+  '/entrar': typeof EntrarRoute
+  '/termos': typeof TermosRoute
   '/api/gemini-chat': typeof ApiGeminiChatRoute
 }
 export interface FileRoutesById {
   __root__: typeof rootRouteImport
   '/': typeof IndexRoute
+  '/entrar': typeof EntrarRoute
+  '/termos': typeof TermosRoute
   '/api/gemini-chat': typeof ApiGeminiChatRoute
 }
 export interface FileRouteTypes {
   fileRoutesByFullPath: FileRoutesByFullPath
-  fullPaths: '/' | '/api/gemini-chat'
+  fullPaths: '/' | '/entrar' | '/termos' | '/api/gemini-chat'
   fileRoutesByTo: FileRoutesByTo
-  to: '/' | '/api/gemini-chat'
-  id: '__root__' | '/' | '/api/gemini-chat'
+  to: '/' | '/entrar' | '/termos' | '/api/gemini-chat'
+  id: '__root__' | '/' | '/entrar' | '/termos' | '/api/gemini-chat'
   fileRoutesById: FileRoutesById
 }
 export interface RootRouteChildren {
   IndexRoute: typeof IndexRoute
+  EntrarRoute: typeof EntrarRoute
+  TermosRoute: typeof TermosRoute
   ApiGeminiChatRoute: typeof ApiGeminiChatRoute
 }
 
 declare module '@tanstack/react-router' {
   interface FileRoutesByPath {
+    '/termos': {
+      id: '/termos'
+      path: '/termos'
+      fullPath: '/termos'
+      preLoaderRoute: typeof TermosRouteImport
+      parentRoute: typeof rootRouteImport
+    }
+    '/entrar': {
+      id: '/entrar'
+      path: '/entrar'
+      fullPath: '/entrar'
+      preLoaderRoute: typeof EntrarRouteImport
+      parentRoute: typeof rootRouteImport
+    }
     '/': {
       id: '/'
       path: '/'
@@ -70,6 +104,8 @@ declare module '@tanstack/react-router' {
 
 const rootRouteChildren: RootRouteChildren = {
   IndexRoute: IndexRoute,
+  EntrarRoute: EntrarRoute,
+  TermosRoute: TermosRoute,
   ApiGeminiChatRoute: ApiGeminiChatRoute,
 }
 export const routeTree = rootRouteImport

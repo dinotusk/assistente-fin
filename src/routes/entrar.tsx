@@ -1,12 +1,11 @@
-import { createFileRoute } from "@tanstack/react-router";
+import { createFileRoute, Navigate } from "@tanstack/react-router";
 import { Loader2, TriangleAlert } from "lucide-react";
 
-import { AppHome } from "@/components/app/AppHome";
-import { LandingPage } from "@/components/app/LandingPage";
+import { AuthScreen } from "@/components/app/AuthScreen";
 import { FinanceProvider, useFinance } from "@/lib/finance/FinanceContext";
 
-export const Route = createFileRoute("/")({
-  component: Index,
+export const Route = createFileRoute("/entrar")({
+  component: Entrar,
 });
 
 function Gate() {
@@ -40,10 +39,10 @@ function Gate() {
     );
   }
 
-  return activeUser ? <AppHome /> : <LandingPage />;
+  return activeUser ? <Navigate to="/" /> : <AuthScreen />;
 }
 
-function Index() {
+function Entrar() {
   return (
     <FinanceProvider>
       <Gate />
