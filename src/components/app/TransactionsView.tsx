@@ -139,8 +139,14 @@ export function TransactionsView({ onEdit, onAdd }: { onEdit: (id: string) => vo
               aria-hidden="true"
             />
             <div className="flex items-start gap-3">
-              <span className="flex h-11 w-11 shrink-0 items-center justify-center rounded-2xl bg-secondary text-lg">
-                {categoryIcons[item.category] || categoryIcons.Outros}
+              <span
+                className="flex h-11 w-11 shrink-0 items-center justify-center rounded-2xl bg-secondary"
+                style={{ color: categoryColors[item.category] || "var(--color-primary)" }}
+              >
+                {(() => {
+                  const Icon = categoryIcons[item.category] || categoryIcons.Outros;
+                  return <Icon className="h-5 w-5" strokeWidth={2} />;
+                })()}
               </span>
               <div className="min-w-0 flex-1">
                 <div className="flex items-start justify-between gap-2">

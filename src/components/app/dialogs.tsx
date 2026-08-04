@@ -615,7 +615,7 @@ export function BankImportDialog({ open, onOpenChange }: { open: boolean; onOpen
                 <div className="min-w-0">
                   <strong className="block truncate text-sm font-bold text-foreground">{item.description}</strong>
                   <span className="text-[11px] text-muted-foreground">
-                    {item.date} · {item.type === "income" ? "Entrada" : "Saída"} · {categoryLabel(item.category).replace(/^\S+\s/, "")}
+                    {item.date} · {item.type === "income" ? "Entrada" : "Saída"} · {categoryLabel(item.category)}
                   </span>
                 </div>
                 <strong className="tnum shrink-0 text-sm font-bold text-foreground">

@@ -1,6 +1,23 @@
 // Domain constants — categories, colors, icons, payment methods, view keys.
 // Preserves the exact category set and financial view semantics of the original app.
 
+import {
+  Car,
+  CreditCard,
+  GraduationCap,
+  HeartPulse,
+  Home,
+  Landmark,
+  type LucideIcon,
+  Package,
+  Receipt,
+  Repeat,
+  Sparkles,
+  Ticket,
+  TrendingUp,
+  Utensils,
+} from "lucide-react";
+
 export const STORAGE_KEY = "assistente-financeiro-casa-v3";
 export const PROFILES_KEY = "assistente-financeiro-perfis-v1";
 export const ACTIVE_PROFILE_KEY = "assistente-financeiro-perfil-ativo-v1";
@@ -41,20 +58,21 @@ export const categories = [
 
 export const paymentMethods = ["Pix", "Débito", "Crédito", "Dinheiro", "Boleto", "Transferência"];
 
-export const categoryIcons: Record<string, string> = {
-  Alimentação: "🍽️",
-  Transporte: "🚗",
-  Casa: "🏠",
-  "Gasto fixo": "📅",
-  Saúde: "💊",
-  Lazer: "🎟️",
-  Educação: "📚",
-  Cartões: "💳",
-  Dívida: "📌",
-  Empréstimo: "💸",
-  Investimento: "📈",
-  Livre: "✨",
-  Outros: "📦",
+/** Lucide icon per category — matches the app's outline icon style (replaces the old emoji set). */
+export const categoryIcons: Record<string, LucideIcon> = {
+  Alimentação: Utensils,
+  Transporte: Car,
+  Casa: Home,
+  "Gasto fixo": Repeat,
+  Saúde: HeartPulse,
+  Lazer: Ticket,
+  Educação: GraduationCap,
+  Cartões: CreditCard,
+  Dívida: Receipt,
+  Empréstimo: Landmark,
+  Investimento: TrendingUp,
+  Livre: Sparkles,
+  Outros: Package,
 };
 
 // Refined palette tuned for the green fintech theme (professional, harmonious).

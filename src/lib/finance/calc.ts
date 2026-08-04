@@ -6,7 +6,6 @@ import {
   VIEW_SPOUSE,
   RESPONSAVEL_CASAL,
   categories,
-  categoryIcons,
 } from "./constants";
 import type { Expense, FinanceState, MonthData, Priority } from "./types";
 
@@ -33,7 +32,7 @@ export function formatDate(value?: string): string {
 }
 
 export function categoryLabel(category: string): string {
-  return `${categoryIcons[category] || categoryIcons.Outros} ${category}`;
+  return category;
 }
 
 export function sum(items: { amount?: number }[]): number {
