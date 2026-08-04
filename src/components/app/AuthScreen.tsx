@@ -1,8 +1,27 @@
 import { useState } from "react";
+import { Bell, ShieldCheck, Sparkles } from "lucide-react";
 
 import { useFinance } from "@/lib/finance/FinanceContext";
 
 import { AvalMark } from "./ui";
+
+const PITCH_ITEMS = [
+  {
+    icon: Sparkles,
+    title: "Assistente com IA",
+    desc: "Converse em texto livre: registre gastos, pergunte o que quiser e receba uma leitura clara do seu mês.",
+  },
+  {
+    icon: Bell,
+    title: "Vigias que avisam sozinhos",
+    desc: "Regras que observam seus dados e falam na conversa antes de você precisar perguntar.",
+  },
+  {
+    icon: ShieldCheck,
+    title: "Seus dados, sua casa",
+    desc: "Sincronizado entre seus aparelhos, visível só para quem você convidar.",
+  },
+];
 
 export function AuthScreen() {
   const { login, register } = useFinance();
@@ -47,24 +66,47 @@ export function AuthScreen() {
 
   return (
     <div className="app-backdrop flex min-h-dvh items-center justify-center px-5 py-10">
-      <form
-        onSubmit={handleSubmit}
-        className="card-surface flex w-full max-w-[400px] flex-col gap-6 p-7"
-      >
-        <div className="flex h-14 w-14 items-center justify-center rounded-2xl bg-secondary ring-1 ring-primary/25">
-          <AvalMark size={28} />
+      <div className="flex w-full max-w-[920px] flex-col items-center gap-8 lg:flex-row lg:items-stretch lg:gap-14">
+        <div className="flex max-w-[420px] flex-col justify-center gap-6 text-center lg:text-left">
+          <div className="mx-auto flex h-14 w-14 items-center justify-center rounded-2xl bg-secondary ring-1 ring-primary/25 lg:mx-0">
+            <AvalMark size={28} />
+          </div>
+          <div>
+            <p className="text-xs font-semibold uppercase tracking-wide text-primary">Aval</p>
+            <h1 className="mt-1.5 font-display text-[2rem] leading-[1.15] text-foreground">
+              Seu dinheiro, <span className="text-primary">com mais clareza.</span>
+            </h1>
+            <p className="mt-2 text-sm leading-relaxed text-muted-foreground">
+              O assistente financeiro com IA que acompanha sua casa, planeja com você e avisa antes de apertar.
+            </p>
+          </div>
+          <div className="flex flex-col gap-3">
+            {PITCH_ITEMS.map(({ icon: Icon, title, desc }) => (
+              <div key={title} className="flex items-start gap-3 text-left">
+                <span className="flex h-9 w-9 shrink-0 items-center justify-center rounded-xl bg-primary-soft text-primary">
+                  <Icon className="h-4 w-4" />
+                </span>
+                <div>
+                  <strong className="block text-sm font-bold text-foreground">{title}</strong>
+                  <span className="text-[13px] leading-relaxed text-muted-foreground">{desc}</span>
+                </div>
+              </div>
+            ))}
+          </div>
         </div>
-        <div className="flex flex-col gap-1.5">
-          <p className="text-xs font-semibold uppercase tracking-wide text-primary">
-            Aval
-          </p>
-          <h1 className="font-display text-3xl text-foreground">
-            {mode === "login" ? "Entre na sua casa" : "Crie sua conta"}
-          </h1>
-          <p className="text-sm leading-relaxed text-muted-foreground">
-            Seus dados ficam protegidos e sincronizados entre seus dispositivos.
-          </p>
-        </div>
+
+        <form
+          onSubmit={handleSubmit}
+          className="card-surface flex w-full max-w-[400px] flex-col gap-6 p-7"
+        >
+          <div className="flex flex-col gap-1.5">
+            <h2 className="font-display text-3xl text-foreground">
+              {mode === "login" ? "Entre na sua casa" : "Crie sua conta"}
+            </h2>
+            <p className="text-sm leading-relaxed text-muted-foreground">
+              Seus dados ficam protegidos e sincronizados entre seus dispositivos.
+            </p>
+          </div>
 
         <div className="grid grid-cols-2 rounded-xl bg-secondary p-1">
           <button
@@ -146,7 +188,8 @@ export function AuthScreen() {
           {loading ? "Aguarde..." : mode === "login" ? "Entrar" : "Criar conta"}
         </button>
         {feedback && <small className="text-center text-sm text-destructive">{feedback}</small>}
-      </form>
+        </form>
+      </div>
     </div>
   );
 }
