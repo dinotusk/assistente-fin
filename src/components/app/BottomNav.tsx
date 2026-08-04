@@ -1,11 +1,11 @@
-import { LayoutGrid, List, Plus, Sparkles, Target } from "lucide-react";
+import { House, ArrowLeftRight, Plus, Target, LayoutGrid } from "lucide-react";
 
 import { cn } from "@/lib/utils";
 import type { ViewKey } from "@/lib/finance/types";
 
 const items: { key: ViewKey; label: string; Icon: typeof LayoutGrid }[] = [
-  { key: "assistant", label: "Assistente", Icon: Sparkles },
-  { key: "transactions", label: "Extrato", Icon: List },
+  { key: "assistant", label: "Início", Icon: House },
+  { key: "transactions", label: "Gastos", Icon: ArrowLeftRight },
   { key: "priorities", label: "Metas", Icon: Target },
   { key: "dashboard", label: "Painel", Icon: LayoutGrid },
 ];
@@ -22,7 +22,7 @@ export function BottomNav({ view, onChange, onAdd }: BottomNavProps) {
       aria-label="Navegação principal"
       className="pointer-events-none fixed inset-x-0 bottom-0 z-30 flex justify-center px-3 pb-[max(1rem,env(safe-area-inset-bottom))]"
     >
-      <div className="pointer-events-auto grid w-full max-w-[416px] grid-cols-5 items-end rounded-[1.45rem] border border-white/10 bg-[#0d0e11]/90 px-2 pb-2 pt-2.5 shadow-float backdrop-blur-[22px]">
+      <div className="pointer-events-auto grid w-full max-w-[416px] grid-cols-5 items-end rounded-[1.45rem] border border-primary/15 bg-popover/95 px-2 pb-2 pt-2.5 shadow-float backdrop-blur-[22px]">
         <NavButton item={items[0]} active={view === items[0].key} onChange={onChange} />
         <NavButton item={items[1]} active={view === items[1].key} onChange={onChange} />
 

@@ -18,7 +18,7 @@ import { DonutChart } from "./charts/DonutChart";
 import { CategoryBars } from "./charts/CategoryBars";
 import { MonthlyBars } from "./charts/MonthlyBars";
 import { TrendChart } from "./charts/TrendChart";
-import { Panel, PanelHead, Sparkline } from "./ui";
+import { BudgetRing, Panel, PanelHead, Sparkline } from "./ui";
 
 export function DashboardView({ onOpenAssistant }: { onOpenAssistant: () => void }) {
   const { state, month, setActiveMonth } = useFinance();
@@ -208,30 +208,6 @@ export function DashboardView({ onOpenAssistant }: { onOpenAssistant: () => void
         <TrendChart entries={chartEntries} activeKey={state.activeMonth} onSelect={setActiveMonth} />
       </Panel>
     </div>
-  );
-}
-
-function BudgetRing({ percent, overBudget }: { percent: number; overBudget: boolean }) {
-  const size = 88;
-  const stroke = 10;
-  const radius = (size - stroke) / 2;
-  const circ = 2 * Math.PI * radius;
-  const dash = (percent / 100) * circ;
-  return (
-    <svg width={size} height={size} viewBox={`0 0 ${size} ${size}`} className="-rotate-90">
-      <circle cx={size / 2} cy={size / 2} r={radius} fill="none" stroke="var(--color-muted)" strokeWidth={stroke - 4} />
-      <circle cx={size / 2} cy={size / 2} r={radius - 10} fill="none" stroke="var(--color-muted)" strokeWidth={stroke - 6} opacity={0.6} />
-      <circle
-        cx={size / 2}
-        cy={size / 2}
-        r={radius}
-        fill="none"
-        stroke={overBudget ? "var(--color-destructive)" : "var(--color-primary)"}
-        strokeWidth={stroke - 4}
-        strokeDasharray={`${dash} ${circ - dash}`}
-        strokeLinecap="round"
-      />
-    </svg>
   );
 }
 

@@ -20,6 +20,29 @@ export function AvalMark({ size = 28, className }: { size?: number; className?: 
   );
 }
 
+export function BudgetRing({ percent, overBudget, size = 88 }: { percent: number; overBudget: boolean; size?: number }) {
+  const stroke = 10;
+  const radius = (size - stroke) / 2;
+  const circ = 2 * Math.PI * radius;
+  const dash = (percent / 100) * circ;
+  return (
+    <svg width={size} height={size} viewBox={`0 0 ${size} ${size}`} className="-rotate-90">
+      <circle cx={size / 2} cy={size / 2} r={radius} fill="none" stroke="var(--color-muted)" strokeWidth={stroke - 4} />
+      <circle cx={size / 2} cy={size / 2} r={radius - 10} fill="none" stroke="var(--color-muted)" strokeWidth={stroke - 6} opacity={0.6} />
+      <circle
+        cx={size / 2}
+        cy={size / 2}
+        r={radius}
+        fill="none"
+        stroke={overBudget ? "var(--color-destructive)" : "var(--color-primary)"}
+        strokeWidth={stroke - 4}
+        strokeDasharray={`${dash} ${circ - dash}`}
+        strokeLinecap="round"
+      />
+    </svg>
+  );
+}
+
 export function Sparkline({ values, className }: { values: number[]; className?: string }) {
   if (values.length < 2) return null;
   const w = 120;

@@ -1,5 +1,6 @@
 import { useEffect, useRef, useState } from "react";
 import {
+  ArrowRight,
   Calculator,
   CalendarClock,
   CheckCircle2,
@@ -8,6 +9,7 @@ import {
   Plus,
   RotateCcw,
   Send,
+  Sparkles,
   TrendingUp,
   TriangleAlert,
   X,
@@ -18,6 +20,7 @@ import {
   categoryLabel,
   chartMonthEntries,
   expensesForView,
+  budgetForView,
   getLargestCategoryGrowth,
   maskMoneyInText,
   normalizeText,
@@ -35,7 +38,7 @@ import type { Expense } from "@/lib/finance/types";
 import { evaluateNewExpense, evaluateVigias, listVigias, markFired, type VigiaAlert } from "@/lib/finance/vigias";
 
 import { Field, SelectInput, TextArea, TextInput } from "./forms";
-import { AvalMark, Panel, PanelHead, Sparkline } from "./ui";
+import { BudgetRing, Panel, PanelHead, Sparkline } from "./ui";
 
 interface Message {
   sender?: string;
@@ -53,7 +56,6 @@ function alertsToMessages(alerts: VigiaAlert[]): Message[] {
 
 export function AssistantView({ onAddExpense }: AssistantViewProps) {
   const {
-    activeUser,
     state,
     month,
     envelopes,
@@ -72,6 +74,9 @@ export function AssistantView({ onAddExpense }: AssistantViewProps) {
     .filter((e) => e.status === "A pagar")
     .sort((a, b) => b.amount - a.amount)[0];
 
+  const budget = budgetForView(month, view);
+  const usedPct = budget > 0 ? Math.min(100, (numbers.total / budget) * 100) : 0;
+  const overBudget = numbers.free < 0;
   const spendingTrend = chartMonthEntries(state, 6).map(([, data]) => sum(expensesForView(data, view)));
   const today = new Date().toISOString().slice(0, 10);
   const nextDue = expenses
@@ -82,7 +87,6 @@ export function AssistantView({ onAddExpense }: AssistantViewProps) {
     : null;
 
   const weeklyAllowance = numbers.daysLeft > 0 ? Math.max(0, (numbers.free / numbers.daysLeft) * 7) : 0;
-  const firstName = activeUser?.name?.trim().split(/\s+/)[0] || "você";
 
   const [messages, setMessages] = useState<Message[]>([]);
   const [input, setInput] = useState("");
@@ -91,6 +95,7 @@ export function AssistantView({ onAddExpense }: AssistantViewProps) {
   const [purchaseValue, setPurchaseValue] = useState("");
   const [editingEnvelopes, setEditingEnvelopes] = useState(false);
   const scrollEndRef = useRef<HTMLDivElement | null>(null);
+  const attentionRef = useRef<HTMLDivElement | null>(null);
   const simulatorRef = useRef<HTMLDivElement | null>(null);
   const purchaseNameRef = useRef<HTMLInputElement | null>(null);
 
@@ -341,15 +346,37 @@ export function AssistantView({ onAddExpense }: AssistantViewProps) {
 
       <div className="flex flex-col">
         {messages.length === 0 ? (
-          <div className="flex flex-col items-center px-4 py-10 text-center">
-            <AvalMark size={56} />
-            <h1 className="mt-5 font-display text-[1.8rem] leading-tight text-foreground">
-              Olá, {firstName}
-            </h1>
-            <p className="mt-1 max-w-[22ch] font-display text-xl leading-tight text-muted-foreground">
-              Como eu posso te ajudar hoje?
-            </p>
-          </div>
+          <section className="card-surface relative overflow-hidden rounded-3xl p-5">
+            <div className="relative z-10 max-w-[70%]">
+              <h1 className="font-display text-[1.7rem] leading-[1.15] text-foreground">
+                Seu dinheiro,
+                <br />
+                <span className="text-primary">com mais clareza.</span>
+              </h1>
+              <div className="mt-3 h-px w-10 bg-primary/50" />
+              <button
+                type="button"
+                onClick={() => attentionRef.current?.scrollIntoView({ behavior: "smooth", block: "start" })}
+                className="press mt-4 flex items-start gap-3 text-left"
+              >
+                <span className="flex h-10 w-10 shrink-0 items-center justify-center rounded-full border border-primary/30 bg-primary-soft text-primary">
+                  <Sparkles className="h-4 w-4" />
+                </span>
+                <span>
+                  <span className="block text-sm text-muted-foreground">
+                    Você está <strong className="font-bold text-primary">{money(Math.abs(numbers.free))}</strong>{" "}
+                    {overBudget ? "acima" : "dentro"} do orçamento
+                  </span>
+                  <span className="mt-1 inline-flex items-center gap-1 text-sm font-bold text-primary">
+                    Ver ajustes <ArrowRight className="h-3.5 w-3.5" />
+                  </span>
+                </span>
+              </button>
+            </div>
+            <div className="absolute -right-4 top-1/2 -translate-y-1/2">
+              <BudgetRing percent={usedPct} overBudget={overBudget} />
+            </div>
+          </section>
         ) : (
           <div className="flex flex-col gap-4">
             {messages.map((m, i) =>
@@ -401,7 +428,7 @@ export function AssistantView({ onAddExpense }: AssistantViewProps) {
         </div>
 
         {attentionItems.length > 0 && (
-          <div className="mt-4 flex flex-col gap-2">
+          <div ref={attentionRef} className="mt-4 flex flex-col gap-2">
             {attentionItems.map((item) => {
               const attention = item.title.startsWith("Atenção");
               return (

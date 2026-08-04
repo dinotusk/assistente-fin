@@ -1,4 +1,4 @@
-import { LayoutGrid, ArrowLeftRight, Star, Sparkles, Settings } from "lucide-react";
+import { LayoutGrid, ArrowLeftRight, Star, House, Settings } from "lucide-react";
 
 import { cn } from "@/lib/utils";
 import type { ViewKey } from "@/lib/finance/types";
@@ -6,7 +6,7 @@ import type { ViewKey } from "@/lib/finance/types";
 import { AvalMark } from "./ui";
 
 export const NAV_ITEMS: { key: ViewKey; label: string; Icon: typeof LayoutGrid }[] = [
-  { key: "assistant", label: "Início", Icon: Sparkles },
+  { key: "assistant", label: "Início", Icon: House },
   { key: "dashboard", label: "Painel", Icon: LayoutGrid },
   { key: "transactions", label: "Gastos", Icon: ArrowLeftRight },
   { key: "priorities", label: "Metas", Icon: Star },
