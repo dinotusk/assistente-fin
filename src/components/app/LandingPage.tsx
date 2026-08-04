@@ -367,7 +367,7 @@ function PhoneMock() {
           </div>
 
           <div className="mt-8">
-            <p className="text-sm text-muted-foreground">Olá, Oziel</p>
+            <p className="text-sm text-muted-foreground">Olá, Junior</p>
             <h2 className="mt-2 max-w-[230px] font-display text-[2rem] leading-[0.98] text-foreground">
               O que vamos organizar hoje?
             </h2>
