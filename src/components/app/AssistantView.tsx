@@ -1,12 +1,14 @@
 import { useEffect, useRef, useState } from "react";
 import {
   Calculator,
+  CalendarClock,
   CheckCircle2,
   Clock3,
   Pencil,
   Plus,
   RotateCcw,
   Send,
+  TrendingUp,
   TriangleAlert,
   X,
 } from "lucide-react";
@@ -14,6 +16,7 @@ import {
 import {
   calc,
   categoryLabel,
+  chartMonthEntries,
   expensesForView,
   getLargestCategoryGrowth,
   maskMoneyInText,
@@ -32,7 +35,7 @@ import type { Expense } from "@/lib/finance/types";
 import { evaluateNewExpense, evaluateVigias, listVigias, markFired, type VigiaAlert } from "@/lib/finance/vigias";
 
 import { Field, SelectInput, TextArea, TextInput } from "./forms";
-import { AvalMark, Panel, PanelHead } from "./ui";
+import { AvalMark, Panel, PanelHead, Sparkline } from "./ui";
 
 interface Message {
   sender?: string;
@@ -68,6 +71,15 @@ export function AssistantView({ onAddExpense }: AssistantViewProps) {
   const biggestPending = expenses
     .filter((e) => e.status === "A pagar")
     .sort((a, b) => b.amount - a.amount)[0];
+
+  const spendingTrend = chartMonthEntries(state, 6).map(([, data]) => sum(expensesForView(data, view)));
+  const today = new Date().toISOString().slice(0, 10);
+  const nextDue = expenses
+    .filter((item) => item.status === "A pagar")
+    .sort((a, b) => (a.dueDate || a.date).localeCompare(b.dueDate || b.date))[0];
+  const daysToNextDue = nextDue
+    ? Math.max(0, Math.ceil((new Date(nextDue.dueDate || nextDue.date).getTime() - new Date(today).getTime()) / 86400000))
+    : null;
 
   const weeklyAllowance = numbers.daysLeft > 0 ? Math.max(0, (numbers.free / numbers.daysLeft) * 7) : 0;
   const firstName = activeUser?.name?.trim().split(/\s+/)[0] || "você";
@@ -359,6 +371,34 @@ export function AssistantView({ onAddExpense }: AssistantViewProps) {
             )}
           </div>
         )}
+
+        <div className="mt-4 grid grid-cols-2 gap-3">
+          <div className="card-surface p-4">
+            <span className="flex h-8 w-8 items-center justify-center rounded-xl bg-primary-soft text-primary">
+              <TrendingUp className="h-4 w-4" />
+            </span>
+            <strong className="tnum mt-2.5 block font-display text-2xl text-foreground">{money(numbers.total)}</strong>
+            <span className="text-[13px] text-muted-foreground">gastos</span>
+            <Sparkline values={spendingTrend} className="mt-2" />
+          </div>
+          <div className="card-surface p-4">
+            <span className="flex h-8 w-8 items-center justify-center rounded-xl bg-primary-soft text-primary">
+              <CalendarClock className="h-4 w-4" />
+            </span>
+            <strong className="tnum mt-2.5 block font-display text-2xl text-foreground">
+              {daysToNextDue === null ? "—" : `${daysToNextDue} dia${daysToNextDue === 1 ? "" : "s"}`}
+            </strong>
+            <span className="truncate text-[13px] text-muted-foreground">
+              {nextDue ? `para ${nextDue.name.toLocaleLowerCase("pt-BR")}` : "nada por vir"}
+            </span>
+            <div className="mt-3 h-1.5 overflow-hidden rounded-full bg-muted">
+              <div
+                className="h-full rounded-full bg-primary"
+                style={{ width: `${daysToNextDue === null ? 0 : Math.max(6, 100 - daysToNextDue * 12)}%` }}
+              />
+            </div>
+          </div>
+        </div>
 
         {attentionItems.length > 0 && (
           <div className="mt-4 flex flex-col gap-2">

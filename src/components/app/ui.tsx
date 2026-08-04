@@ -20,6 +20,26 @@ export function AvalMark({ size = 28, className }: { size?: number; className?: 
   );
 }
 
+export function Sparkline({ values, className }: { values: number[]; className?: string }) {
+  if (values.length < 2) return null;
+  const w = 120;
+  const h = 32;
+  const max = Math.max(...values, 1);
+  const min = Math.min(...values, 0);
+  const range = max - min || 1;
+  const points = values.map((value, index) => {
+    const x = (index / (values.length - 1)) * w;
+    const y = h - ((value - min) / range) * h;
+    return `${x.toFixed(1)},${y.toFixed(1)}`;
+  });
+  return (
+    <svg width={w} height={h} viewBox={`0 0 ${w} ${h}`} className={className} preserveAspectRatio="none">
+      <polyline points={points.join(" ")} fill="none" stroke="var(--color-primary)" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" />
+      <circle cx={w} cy={points[points.length - 1].split(",")[1]} r="2.5" fill="var(--color-primary)" />
+    </svg>
+  );
+}
+
 export const Panel = forwardRef<HTMLElement, { children: ReactNode; className?: string }>(
   ({ children, className }, ref) => (
     <section ref={ref} className={cn("card-surface p-4", className)}>
