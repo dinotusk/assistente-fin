@@ -19,6 +19,7 @@ import {
   VIEW_ME,
   VIEW_SPOUSE,
 } from "./constants";
+import { lookupLearnedCategory } from "./learnedCategories";
 import { createSeedState, uid } from "./seed";
 import {
   getAuthenticatedUser,
@@ -581,7 +582,7 @@ function extractExpensesFromRows(rows: unknown[][], monthKey: string): Expense[]
       expenses.push({
         id: uid(),
         name,
-        category: normalizeCategory(String(dataRow[categoryIndex] || "")),
+        category: normalizeCategory(String(dataRow[categoryIndex] || ""), name),
         amount,
         status: String(dataRow[statusIndex] || "").toLowerCase().includes("pag")
           && !String(dataRow[statusIndex] || "").toLowerCase().includes("pago")
@@ -708,7 +709,7 @@ function extractFinanceFromRows(rows: unknown[][], monthKey: string): ParsedShee
       expenses.push({
         id: uid(),
         name,
-        category: normalizeCategory(String(dataRow[categoryIndex] || "")),
+        category: normalizeCategory(String(dataRow[categoryIndex] || ""), name),
         amount,
         status: normalizeExpenseStatus(String(dataRow[statusIndex] || "")),
         owner: normalizeOwner(String(dataRow[ownerIndex] || ""), sectionOwner),
@@ -743,9 +744,12 @@ function parseSheetAmount(value: unknown): number {
   return Math.abs(Number(normalized || 0));
 }
 
-function normalizeCategory(value: string): string {
+function normalizeCategory(value: string, establishmentName = ""): string {
   const normalized = normalizeHeader(value);
-  return categories.find((category) => normalizeHeader(category) === normalized) || "Outros";
+  const matched = categories.find((category) => normalizeHeader(category) === normalized);
+  if (matched) return matched;
+  const learned = establishmentName ? lookupLearnedCategory(establishmentName) : null;
+  return learned || "Outros";
 }
 
 function normalizeOwner(value: string, fallback = "Minha casa"): string {
@@ -808,7 +812,7 @@ function expenseFromRecord(row: Record<string, unknown>, fallbackMonth: string):
   return {
     id: String(valueFromRecord(row, ["id", "id_gasto"]) || uid()),
     name,
-    category: normalizeCategory(stringFromRecord(row, ["categoria", "category", "tipo"])),
+    category: normalizeCategory(stringFromRecord(row, ["categoria", "category", "tipo"]), name),
     amount,
     status: normalizeExpenseStatus(stringFromRecord(row, ["status", "situacao", "situação"])),
     owner: normalizeOwner(stringFromRecord(row, ["responsavel", "responsável", "owner", "pessoa", "nome_usuario"])),

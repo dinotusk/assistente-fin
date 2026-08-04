@@ -24,6 +24,7 @@ import {
   viewLabelForPeople,
 } from "@/lib/finance/calc";
 import { answerLocally, askGemini, buildAiContext } from "@/lib/finance/ai";
+import { lookupLearnedCategory } from "@/lib/finance/learnedCategories";
 import { categories, paymentMethods, VIEW_ALL, VIEW_ME, VIEW_SPOUSE } from "@/lib/finance/constants";
 import { useFinance, useMoney } from "@/lib/finance/FinanceContext";
 import { uid } from "@/lib/finance/seed";
@@ -578,7 +579,7 @@ function parseExpenseCommand(text: string, monthKey: string, owner: string): Exp
     .replace(/\s+/g, " ")
     .trim();
   const name = rawName || "Gasto informado pelo chat";
-  const category = guessCategory(text);
+  const category = guessCategory(text, name);
   const paymentMethod = guessPaymentMethod(text);
 
   return {
@@ -646,7 +647,7 @@ function parseAssistantEntryCommand(text: string, monthKey: string, owner: strin
   return {
     id: uid(),
     name,
-    category: isIncome ? guessIncomeCategory(text) : guessCategory(text),
+    category: isIncome ? guessIncomeCategory(text) : guessCategory(text, name),
     amount,
     status: isIncome || normalized.includes("paguei") || normalized.includes("pago") ? "Pago" : "A pagar",
     type: isIncome ? "income" : "expense",
@@ -704,7 +705,9 @@ function offsetDate(days: number): string {
   return date.toISOString().slice(0, 10);
 }
 
-function guessCategory(text: string): string {
+function guessCategory(text: string, establishmentName = ""): string {
+  const learned = establishmentName ? lookupLearnedCategory(establishmentName) : null;
+  if (learned) return learned;
   const normalized = normalizeText(text);
   const rules: [string, string[]][] = [
     ["Alimentação", ["mercado", "comida", "lanche", "restaurante", "ifood", "alimento"]],

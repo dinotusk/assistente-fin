@@ -1,5 +1,5 @@
 import { useRef } from "react";
-import { Users, CalendarCog, Download, Upload, RotateCcw, LogOut, ChevronRight, Rocket } from "lucide-react";
+import { Users, CalendarCog, Download, Upload, RotateCcw, LogOut, ChevronRight, Rocket, Tag } from "lucide-react";
 
 import { useFinance } from "@/lib/finance/FinanceContext";
 
@@ -8,9 +8,11 @@ import { Panel, PanelHead } from "./ui";
 export function SettingsView({
   onEditPeople,
   onEditMonth,
+  onEditCategories,
 }: {
   onEditPeople: () => void;
   onEditMonth: () => void;
+  onEditCategories: () => void;
 }) {
   const { activeUser, state, exportData, importData, resetSeed, logout } = useFinance();
   const fileRef = useRef<HTMLInputElement>(null);
@@ -35,6 +37,7 @@ export function SettingsView({
       rows: [
         { icon: Users, title: "Perfis financeiros", desc: "Adicione, remova ou renomeie as visoes do orçamento.", action: onEditPeople },
         { icon: CalendarCog, title: "Mês atual", desc: "Ajuste renda, repasse e nome do mês selecionado.", action: onEditMonth },
+        { icon: Tag, title: "Categorias", desc: "Veja e remova as regras aprendidas por estabelecimento.", action: onEditCategories },
         { icon: Download, title: "Exportar backup", desc: "Baixe um arquivo JSON com todo o histórico.", action: exportData },
         { icon: Upload, title: "Importar dados", desc: "Carregue backup JSON ou planilha XLS/XLSX.", action: () => fileRef.current?.click() },
         { icon: RotateCcw, title: "Restaurar exemplo", desc: "Volta para os dados de demonstração.", action: resetSeed },

@@ -13,7 +13,7 @@ import { DashboardView } from "./DashboardView";
 import { PrioritiesView } from "./PrioritiesView";
 import { SettingsView } from "./SettingsView";
 import { TransactionsView } from "./TransactionsView";
-import { ExpenseDialog, MonthDialog, PeopleDialog, PriorityDialog } from "./dialogs";
+import { CategoriesDialog, ExpenseDialog, MonthDialog, PeopleDialog, PriorityDialog } from "./dialogs";
 import { Segmented } from "./ui";
 
 const titles: Record<ViewKey, string> = {
@@ -44,6 +44,7 @@ export function AppHome() {
   const [priorityDialog, setPriorityDialog] = useState<{ open: boolean; id: string | null }>({ open: false, id: null });
   const [monthOpen, setMonthOpen] = useState(false);
   const [peopleOpen, setPeopleOpen] = useState(false);
+  const [categoriesOpen, setCategoriesOpen] = useState(false);
   const [profileMenuOpen, setProfileMenuOpen] = useState(false);
   const importRef = useRef<HTMLInputElement>(null);
   const initials = getInitials(activeUser?.name || "Aval");
@@ -145,7 +146,13 @@ export function AppHome() {
         />
       )}
       {view === "assistant" && <AssistantView onAddExpense={() => setExpenseDialog({ open: true, id: null })} />}
-      {view === "settings" && <SettingsView onEditPeople={() => setPeopleOpen(true)} onEditMonth={() => setMonthOpen(true)} />}
+      {view === "settings" && (
+        <SettingsView
+          onEditPeople={() => setPeopleOpen(true)}
+          onEditMonth={() => setMonthOpen(true)}
+          onEditCategories={() => setCategoriesOpen(true)}
+        />
+      )}
     </div>
   );
 
@@ -167,6 +174,7 @@ export function AppHome() {
       />
       <MonthDialog open={monthOpen} onOpenChange={setMonthOpen} />
       <PeopleDialog open={peopleOpen} onOpenChange={setPeopleOpen} />
+      <CategoriesDialog open={categoriesOpen} onOpenChange={setCategoriesOpen} />
     </>
   );
 

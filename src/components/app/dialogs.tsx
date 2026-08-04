@@ -10,6 +10,7 @@ import {
 import { categories, paymentMethods } from "@/lib/finance/constants";
 import { categoryLabel, currentUserName, resolveViewOwner, spouseName } from "@/lib/finance/calc";
 import { useFinance } from "@/lib/finance/FinanceContext";
+import { forgetCategory, learnCategory, listLearnedCategories, type LearnedCategoryRule } from "@/lib/finance/learnedCategories";
 import { uid } from "@/lib/finance/seed";
 import type { Expense, Priority } from "@/lib/finance/types";
 
@@ -82,6 +83,9 @@ export function ExpenseDialog({
     if (!form.name.trim()) return;
     if (form.amount < 0) return;
     const payload: Expense = { ...form, name: form.name.trim(), note: form.note.trim() };
+    if (editing && editing.category !== payload.category) {
+      learnCategory(payload.name, payload.category);
+    }
     saveExpense(payload, editing?.id);
     onOpenChange(false);
   }
@@ -414,6 +418,65 @@ export function PeopleDialog({ open, onOpenChange }: { open: boolean; onOpenChan
         </button>
         <Actions onCancel={() => onOpenChange(false)} />
       </form>
+    </SheetShell>
+  );
+}
+
+/* ---------------- Learned categories ---------------- */
+export function CategoriesDialog({ open, onOpenChange }: { open: boolean; onOpenChange: (v: boolean) => void }) {
+  const [rules, setRules] = useState<LearnedCategoryRule[]>([]);
+
+  useEffect(() => {
+    if (open) setRules(listLearnedCategories());
+  }, [open]);
+
+  function remove(establishment: string) {
+    forgetCategory(establishment);
+    setRules(listLearnedCategories());
+  }
+
+  return (
+    <SheetShell open={open} onOpenChange={onOpenChange} title="Categorias aprendidas">
+      <p className="text-sm text-muted-foreground">
+        Toda vez que você corrige a categoria de um gasto, o Aval memoriza a regra e passa a aplicá-la
+        automaticamente para o mesmo estabelecimento — inclusive em lançamentos futuros pelo chat ou importados.
+      </p>
+      {rules.length === 0 ? (
+        <p className="mt-4 rounded-2xl border border-dashed border-border p-4 text-center text-sm text-muted-foreground">
+          Nenhuma regra aprendida ainda.
+        </p>
+      ) : (
+        <div className="mt-4 flex flex-col gap-2">
+          {rules.map((rule) => (
+            <div
+              key={rule.establishment}
+              className="flex items-center justify-between gap-3 rounded-2xl border border-border bg-secondary p-3.5"
+            >
+              <div className="min-w-0">
+                <strong className="block truncate text-sm font-bold text-foreground">{rule.establishment}</strong>
+                <span className="text-[12px] text-muted-foreground">{categoryLabel(rule.category)}</span>
+              </div>
+              <button
+                type="button"
+                onClick={() => remove(rule.establishment)}
+                aria-label={`Esquecer regra de ${rule.establishment}`}
+                className="flex h-9 w-9 shrink-0 items-center justify-center rounded-xl bg-destructive/10 text-destructive"
+              >
+                <Trash2 className="h-4 w-4" />
+              </button>
+            </div>
+          ))}
+        </div>
+      )}
+      <div className="sticky bottom-0 -mx-5 mt-5 border-t border-border/70 bg-card/95 px-5 py-3 backdrop-blur">
+        <button
+          type="button"
+          onClick={() => onOpenChange(false)}
+          className="press focus-ring h-12 w-full rounded-xl border border-input bg-secondary font-semibold text-foreground hover:bg-muted"
+        >
+          Fechar
+        </button>
+      </div>
     </SheetShell>
   );
 }
