@@ -134,7 +134,7 @@ export function AppHome() {
 
   const content = (
     <div key={view} className="animate-view">
-      {view === "dashboard" && <DashboardView />}
+      {view === "dashboard" && <DashboardView onOpenAssistant={() => setView("assistant")} />}
       {view === "transactions" && (
         <TransactionsView
           onEdit={(id) => setExpenseDialog({ open: true, id })}

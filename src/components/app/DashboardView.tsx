@@ -1,3 +1,5 @@
+import { Sparkles, TrendingUp, CalendarClock, Brain, ArrowRight } from "lucide-react";
+
 import { useFinance, useMoney } from "@/lib/finance/FinanceContext";
 import {
   calc,
@@ -18,7 +20,7 @@ import { MonthlyBars } from "./charts/MonthlyBars";
 import { TrendChart } from "./charts/TrendChart";
 import { Panel, PanelHead } from "./ui";
 
-export function DashboardView() {
+export function DashboardView({ onOpenAssistant }: { onOpenAssistant: () => void }) {
   const { state, month, setActiveMonth } = useFinance();
   const money = useMoney();
   const view = state.activePerson;
@@ -34,43 +36,106 @@ export function DashboardView() {
   }));
   const timeline = timelineMonthEntries(state);
 
+  const usedPct = budget > 0 ? Math.min(100, (numbers.total / budget) * 100) : 0;
+  const overBudget = numbers.free < 0;
+  const today = new Date().toISOString().slice(0, 10);
+  const nextDue = expensesForView(month, view)
+    .filter((item) => item.status === "A pagar")
+    .sort((a, b) => (a.dueDate || a.date).localeCompare(b.dueDate || b.date))[0];
+  const daysToNextDue = nextDue
+    ? Math.max(0, Math.ceil((new Date(nextDue.dueDate || nextDue.date).getTime() - new Date(today).getTime()) / 86400000))
+    : null;
+  const adjustmentsCount =
+    expensesForView(month, view).filter((item) => item.status === "A pagar" && (item.dueDate || item.date) <= today).length +
+    (overBudget ? 1 : 0);
+
   return (
     <div className="flex flex-col gap-4">
-      {/* Hero balance card */}
-      <section className="finance-hero relative overflow-hidden rounded-3xl p-5 text-foreground">
-        <div className="flex items-center justify-between gap-2">
-          <span className="text-sm font-medium opacity-90">
-            {month.planned ? "Planejamento do mês" : view === VIEW_SPOUSE ? "Repasse do mês" : "Orçamento do mês"}
-          </span>
-          <div className="flex shrink-0 items-center gap-1.5">
-            {month.planned && (
-              <span className="rounded-full bg-primary px-3 py-1 text-xs font-bold text-primary-foreground">Previsão</span>
-            )}
-            <span className="rounded-full bg-white/15 px-3 py-1 text-xs font-semibold">{viewLabelForPeople(view, state.people)}</span>
-          </div>
+      {/* Hero: headline + budget reading + progress ring */}
+      <section className="card-surface relative overflow-hidden rounded-3xl p-5">
+        <div className="relative z-10 max-w-[70%]">
+          <h1 className="font-display text-[1.7rem] leading-[1.15] text-foreground">
+            Seu dinheiro,
+            <br />
+            <span className="text-primary">com mais clareza.</span>
+          </h1>
+          <div className="mt-3 h-px w-10 bg-primary/50" />
+          <button
+            type="button"
+            onClick={onOpenAssistant}
+            className="press mt-4 flex items-start gap-3 text-left"
+          >
+            <span className="flex h-10 w-10 shrink-0 items-center justify-center rounded-full border border-primary/30 bg-primary-soft text-primary">
+              <Sparkles className="h-4 w-4" />
+            </span>
+            <span>
+              <span className="block text-sm text-muted-foreground">
+                Você está <strong className="font-bold text-primary">{money(Math.abs(numbers.free))}</strong>{" "}
+                {overBudget ? "acima" : "dentro"} do orçamento
+              </span>
+              <span className="mt-1 inline-flex items-center gap-1 text-sm font-bold text-primary">
+                Ver ajustes <ArrowRight className="h-3.5 w-3.5" />
+              </span>
+            </span>
+          </button>
         </div>
-        <strong className="tnum mt-2 block font-display text-4xl">{money(budget)}</strong>
-        <div className="mt-4 grid grid-cols-3 gap-2">
-          {[
-            { label: "Gasto", value: numbers.total },
-            { label: month.planned ? "Previsto" : "Falta pagar", value: numbers.pending },
-            { label: balance.shortLabel, value: balance.amount },
-          ].map((item) => (
-            <div key={item.label} className="rounded-2xl bg-white/12 px-3 py-2.5">
-              <span className="block text-[11px] font-medium opacity-85">{item.label}</span>
-              <strong className="tnum block text-sm font-bold">{money(item.value)}</strong>
-            </div>
-          ))}
+        <div className="absolute -right-4 top-1/2 -translate-y-1/2">
+          <BudgetRing percent={usedPct} overBudget={overBudget} />
         </div>
       </section>
 
-      {/* Metrics */}
+      {/* Gastos (sparkline) + próxima conta */}
       <div className="grid grid-cols-2 gap-3">
-        <MetricCard label="Total gasto" value={money(numbers.total)} hint={numbers.topCategory ? `Maior: ${categoryLabel(numbers.topCategory.category)}` : "Sem categoria"} />
-        <MetricCard label="Economia" value={money(numbers.saving)} hint={`${Math.round(numbers.paidRate * 100)}% resolvido`} />
-        <MetricCard label={balance.label} value={money(balance.amount)} hint={balance.hint(numbers.daysLeft)} />
-        <MetricCard label="Falta pagar" value={money(numbers.pending)} hint="Contas A pagar" />
+        <div className="card-surface p-4">
+          <span className="flex h-8 w-8 items-center justify-center rounded-xl bg-primary-soft text-primary">
+            <TrendingUp className="h-4 w-4" />
+          </span>
+          <strong className="tnum mt-2.5 block font-display text-2xl text-foreground">{money(numbers.total)}</strong>
+          <span className="text-[13px] text-muted-foreground">gastos</span>
+          <Sparkline values={chartEntries.map((entry) => entry.total)} className="mt-2" />
+        </div>
+        <div className="card-surface p-4">
+          <span className="flex h-8 w-8 items-center justify-center rounded-xl bg-primary-soft text-primary">
+            <CalendarClock className="h-4 w-4" />
+          </span>
+          <strong className="tnum mt-2.5 block font-display text-2xl text-foreground">
+            {daysToNextDue === null ? "—" : `${daysToNextDue} dia${daysToNextDue === 1 ? "" : "s"}`}
+          </strong>
+          <span className="truncate text-[13px] text-muted-foreground">
+            {nextDue ? `para ${nextDue.name.toLocaleLowerCase("pt-BR")}` : "nada por vir"}
+          </span>
+          <div className="mt-3 h-1.5 overflow-hidden rounded-full bg-muted">
+            <div
+              className="h-full rounded-full bg-primary"
+              style={{ width: `${daysToNextDue === null ? 0 : Math.max(6, 100 - daysToNextDue * 12)}%` }}
+            />
+          </div>
+        </div>
       </div>
+
+      {/* Sugestão da Aval */}
+      {adjustmentsCount > 0 && (
+        <button
+          type="button"
+          onClick={onOpenAssistant}
+          className="press card-surface relative flex items-center gap-3 overflow-hidden p-4 text-left"
+        >
+          <span className="flex h-10 w-10 shrink-0 items-center justify-center rounded-full bg-primary-soft text-primary">
+            <Brain className="h-5 w-5" />
+          </span>
+          <span className="min-w-0 flex-1">
+            <span className="block text-sm text-foreground">
+              A Aval encontrou <strong className="font-bold text-primary">{adjustmentsCount} ajuste{adjustmentsCount === 1 ? "" : "s"}</strong> para o seu mês
+            </span>
+            <span className="mt-0.5 block text-[12px] text-muted-foreground">
+              Pequenas mudanças agora podem gerar mais tranquilidade depois.
+            </span>
+          </span>
+          <span className="hero-gradient flex h-9 shrink-0 items-center gap-1 rounded-full px-3.5 text-xs font-bold text-primary-foreground">
+            Ver plano <ArrowRight className="h-3.5 w-3.5" />
+          </span>
+        </button>
+      )}
 
       {/* Month history timeline */}
       <Panel>
@@ -146,13 +211,47 @@ export function DashboardView() {
   );
 }
 
-function MetricCard({ label, value, hint }: { label: string; value: string; hint: string }) {
+function BudgetRing({ percent, overBudget }: { percent: number; overBudget: boolean }) {
+  const size = 88;
+  const stroke = 10;
+  const radius = (size - stroke) / 2;
+  const circ = 2 * Math.PI * radius;
+  const dash = (percent / 100) * circ;
   return (
-    <div className="card-surface hover-lift p-3.5">
-      <span className="text-xs font-medium text-muted-foreground">{label}</span>
-      <strong className="tnum mt-1 block font-display text-xl text-foreground">{value}</strong>
-      <small className="mt-0.5 block truncate text-[11px] text-muted-foreground">{hint}</small>
-    </div>
+    <svg width={size} height={size} viewBox={`0 0 ${size} ${size}`} className="-rotate-90">
+      <circle cx={size / 2} cy={size / 2} r={radius} fill="none" stroke="var(--color-muted)" strokeWidth={stroke - 4} />
+      <circle cx={size / 2} cy={size / 2} r={radius - 10} fill="none" stroke="var(--color-muted)" strokeWidth={stroke - 6} opacity={0.6} />
+      <circle
+        cx={size / 2}
+        cy={size / 2}
+        r={radius}
+        fill="none"
+        stroke={overBudget ? "var(--color-destructive)" : "var(--color-primary)"}
+        strokeWidth={stroke - 4}
+        strokeDasharray={`${dash} ${circ - dash}`}
+        strokeLinecap="round"
+      />
+    </svg>
+  );
+}
+
+function Sparkline({ values, className }: { values: number[]; className?: string }) {
+  if (values.length < 2) return null;
+  const w = 120;
+  const h = 32;
+  const max = Math.max(...values, 1);
+  const min = Math.min(...values, 0);
+  const range = max - min || 1;
+  const points = values.map((value, index) => {
+    const x = (index / (values.length - 1)) * w;
+    const y = h - ((value - min) / range) * h;
+    return `${x.toFixed(1)},${y.toFixed(1)}`;
+  });
+  return (
+    <svg width={w} height={h} viewBox={`0 0 ${w} ${h}`} className={className} preserveAspectRatio="none">
+      <polyline points={points.join(" ")} fill="none" stroke="var(--color-primary)" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" />
+      <circle cx={w} cy={points[points.length - 1].split(",")[1]} r="2.5" fill="var(--color-primary)" />
+    </svg>
   );
 }
 
