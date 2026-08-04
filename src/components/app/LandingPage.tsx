@@ -304,10 +304,10 @@ function PhoneMock() {
   ];
 
   return (
-    <div className="relative mx-auto h-[560px] w-full max-w-[620px] lg:h-[600px]">
+    <div className="relative mx-auto h-[560px] w-full max-w-[720px] lg:h-[600px]">
       <div className="pointer-events-none absolute inset-6 rounded-full bg-primary/10 blur-3xl" />
 
-      <div className="absolute left-0 top-24 hidden w-[238px] rotate-[-4deg] sm:block">
+      <div className="absolute left-[-10px] top-[118px] hidden w-[270px] rotate-[-5deg] sm:block lg:left-[-20px]">
         <article className="animate-float rounded-[1.6rem] border border-primary/18 bg-card/72 p-5 text-left shadow-float backdrop-blur-xl">
           <p className="text-[11px] font-bold text-muted-foreground">Últimas movimentações</p>
           <div className="mt-3 flex flex-col divide-y divide-border/70">
@@ -329,7 +329,7 @@ function PhoneMock() {
         </article>
       </div>
 
-      <div className="absolute bottom-10 right-0 hidden w-[252px] rotate-[4deg] sm:block">
+      <div className="absolute bottom-6 right-[-8px] hidden w-[300px] rotate-[5deg] sm:block lg:right-[-22px]">
         <article
           className="animate-float rounded-[1.7rem] border border-primary/18 bg-card/70 p-5 text-left shadow-float backdrop-blur-xl"
           style={{ animationDelay: "-3.5s" }}
@@ -358,7 +358,7 @@ function PhoneMock() {
         </article>
       </div>
 
-      <div className="absolute left-1/2 top-4 z-10 h-[520px] w-[314px] -translate-x-1/2 sm:w-[330px] lg:h-[560px] lg:w-[340px]">
+      <div className="absolute left-1/2 top-4 z-10 h-[520px] w-[314px] -translate-x-1/2 sm:w-[330px] lg:left-[53%] lg:h-[560px] lg:w-[340px]">
         <article className="animate-float flex h-full w-full flex-col overflow-hidden rounded-[2.4rem] border border-primary/20 bg-[#0b2a20]/92 p-5 text-left shadow-float backdrop-blur-xl">
           <div className="absolute left-1/2 top-0 h-5 w-20 -translate-x-1/2 rounded-b-2xl bg-background" />
           <div className="flex items-center justify-between">
