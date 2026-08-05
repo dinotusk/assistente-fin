@@ -12,6 +12,7 @@ import {
 } from "./calc";
 import { VIEW_ME, VIEW_SPOUSE } from "./constants";
 import type { FinanceState } from "./types";
+import { supabase } from "../supabase/client";
 
 export function buildAiContext(state: FinanceState) {
   const monthData = state.months[state.activeMonth];
@@ -59,7 +60,10 @@ export function buildAiContext(state: FinanceState) {
 /** Offline heuristic answer — used when Gemini is unavailable. */
 const INTENT_KEYWORDS: Array<{ intent: string; words: string[] }> = [
   { intent: "responsavel", words: ["responsavel", "responsaveis", "casal", "cada um"] },
-  { intent: "pendente", words: ["falta", "faltam", "pagar", "pendente", "pendencia", "pendencias"] },
+  {
+    intent: "pendente",
+    words: ["falta", "faltam", "pagar", "pendente", "pendencia", "pendencias"],
+  },
   { intent: "prioridade", words: ["prioridade", "prioridades", "comprar", "posso", "consigo"] },
   { intent: "pessoa", words: ["pessoa", "quem", "gastou"] },
   { intent: "saldo", words: ["saldo", "sobrar", "sobra", "sobrou", "disponivel"] },
@@ -88,12 +92,13 @@ export function answerLocally(question: string, state: FinanceState): string {
     ].join(" | ");
   }
   if (intent === "pendente") {
-    const top = pending
-      .slice()
-      .sort((a, b) => b.amount - a.amount)
-      .slice(0, 3)
-      .map((item) => `${item.name} (${money(item.amount)})`)
-      .join(", ") || "nenhuma";
+    const top =
+      pending
+        .slice()
+        .sort((a, b) => b.amount - a.amount)
+        .slice(0, 3)
+        .map((item) => `${item.name} (${money(item.amount)})`)
+        .join(", ") || "nenhuma";
     return monthData.planned
       ? `Previsto até agora: ${money(numbers.pending)}. Os maiores itens planejados são: ${top}.`
       : `Ainda faltam ${money(numbers.pending)}. As maiores pendências são: ${top}.`;
@@ -110,7 +115,10 @@ export function answerLocally(question: string, state: FinanceState): string {
   }
   if (intent === "pessoa") {
     return state.people
-      .map((person) => `${person}: ${money(sum(monthData.expenses.filter((item) => item.owner === person)))}`)
+      .map(
+        (person) =>
+          `${person}: ${money(sum(monthData.expenses.filter((item) => item.owner === person)))}`,
+      )
       .join(" · ");
   }
   if (intent === "saldo") {
@@ -127,9 +135,13 @@ function sum(items: { amount?: number }[]): number {
 
 /** Call the secure Gemini backend; throws if unavailable so callers can fall back. */
 export async function askGemini(question: string, context: unknown): Promise<string> {
+  const { data: sessionData } = await supabase.auth.getSession();
+  const token = sessionData.session?.access_token;
+  if (!token) throw new Error("Sessao nao encontrada");
+
   const response = await fetch("/api/gemini-chat", {
     method: "POST",
-    headers: { "Content-Type": "application/json" },
+    headers: { "Content-Type": "application/json", Authorization: `Bearer ${token}` },
     body: JSON.stringify({ question, context }),
   });
   const data = await response.json().catch(() => ({}));
