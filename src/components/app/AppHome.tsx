@@ -1,5 +1,17 @@
 import { useEffect, useRef, useState, type ReactNode } from "react";
-import { Plus, CalendarPlus, ChevronDown, Download, Eye, EyeOff, LogOut, Settings, Upload, UserRound } from "lucide-react";
+import {
+  Plus,
+  CalendarPlus,
+  ChevronDown,
+  Download,
+  Eye,
+  EyeOff,
+  LogOut,
+  Settings,
+  Upload,
+  UserRound,
+} from "lucide-react";
+import { toast } from "sonner";
 
 import { formatMonthLabel } from "@/lib/finance/calc";
 import { VIEW_ALL, VIEW_ME, VIEW_SPOUSE } from "@/lib/finance/constants";
@@ -13,7 +25,17 @@ import { DashboardView } from "./DashboardView";
 import { PrioritiesView } from "./PrioritiesView";
 import { SettingsView } from "./SettingsView";
 import { TransactionsView } from "./TransactionsView";
-import { BankImportDialog, CategoriesDialog, ExpenseDialog, InviteDialog, JoinHouseholdDialog, MonthDialog, PeopleDialog, PriorityDialog, VigiasDialog } from "./dialogs";
+import {
+  BankImportDialog,
+  CategoriesDialog,
+  ExpenseDialog,
+  InviteDialog,
+  JoinHouseholdDialog,
+  MonthDialog,
+  PeopleDialog,
+  PriorityDialog,
+  VigiasDialog,
+} from "./dialogs";
 import { Segmented } from "./ui";
 
 const titles: Record<ViewKey, string> = {
@@ -37,11 +59,28 @@ function useIsDesktop() {
 }
 
 export function AppHome() {
-  const { activeUser, state, hideValues, toggleHideValues, setActivePerson, setActiveMonth, createNextMonth, exportData, importData, logout } = useFinance();
+  const {
+    activeUser,
+    state,
+    hideValues,
+    toggleHideValues,
+    setActivePerson,
+    setActiveMonth,
+    createNextMonth,
+    exportData,
+    importData,
+    logout,
+  } = useFinance();
   const isDesktop = useIsDesktop();
   const [view, setView] = useState<ViewKey>("assistant");
-  const [expenseDialog, setExpenseDialog] = useState<{ open: boolean; id: string | null }>({ open: false, id: null });
-  const [priorityDialog, setPriorityDialog] = useState<{ open: boolean; id: string | null }>({ open: false, id: null });
+  const [expenseDialog, setExpenseDialog] = useState<{ open: boolean; id: string | null }>({
+    open: false,
+    id: null,
+  });
+  const [priorityDialog, setPriorityDialog] = useState<{ open: boolean; id: string | null }>({
+    open: false,
+    id: null,
+  });
   const [monthOpen, setMonthOpen] = useState(false);
   const [peopleOpen, setPeopleOpen] = useState(false);
   const [categoriesOpen, setCategoriesOpen] = useState(false);
@@ -60,14 +99,15 @@ export function AppHome() {
       await importData(file);
       setProfileMenuOpen(false);
     } catch (error) {
-      alert(error instanceof Error ? error.message : "Nao consegui importar esse arquivo.");
+      toast.error(error instanceof Error ? error.message : "Nao consegui importar esse arquivo.");
     } finally {
       e.target.value = "";
     }
   }
 
   const showFab = view === "assistant" || view === "dashboard" || view === "transactions";
-  const activeMonthLabel = state.months[state.activeMonth]?.label || formatMonthLabel(state.activeMonth);
+  const activeMonthLabel =
+    state.months[state.activeMonth]?.label || formatMonthLabel(state.activeMonth);
   const firstName = activeUser?.name?.trim().split(/\s+/)[0] || "Você";
 
   const profileMenu = (
@@ -77,32 +117,75 @@ export function AppHome() {
           {initials}
         </div>
         <div className="min-w-0">
-          <strong className="block truncate text-sm font-bold text-foreground">{activeUser?.name || "Perfil"}</strong>
+          <strong className="block truncate text-sm font-bold text-foreground">
+            {activeUser?.name || "Perfil"}
+          </strong>
           <span className="text-xs text-muted-foreground">Conta sincronizada</span>
         </div>
       </div>
-      <HeaderMenuButton icon={<Settings className="h-4 w-4" />} label="Configuracoes" onClick={() => { setView("settings"); setProfileMenuOpen(false); }} />
-      <HeaderMenuButton icon={<UserRound className="h-4 w-4" />} label="Perfis financeiros" onClick={() => { setPeopleOpen(true); setProfileMenuOpen(false); }} />
-      <HeaderMenuButton icon={<CalendarPlus className="h-4 w-4" />} label="Editar mes" onClick={() => { setMonthOpen(true); setProfileMenuOpen(false); }} />
-      <HeaderMenuButton icon={<Download className="h-4 w-4" />} label="Exportar backup" onClick={() => { exportData(); setProfileMenuOpen(false); }} />
-      <HeaderMenuButton icon={<Upload className="h-4 w-4" />} label="Importar dados" onClick={() => importRef.current?.click()} />
-      <HeaderMenuButton icon={<LogOut className="h-4 w-4" />} label="Sair do perfil" danger onClick={() => { logout(); setProfileMenuOpen(false); }} />
+      <HeaderMenuButton
+        icon={<Settings className="h-4 w-4" />}
+        label="Configuracoes"
+        onClick={() => {
+          setView("settings");
+          setProfileMenuOpen(false);
+        }}
+      />
+      <HeaderMenuButton
+        icon={<UserRound className="h-4 w-4" />}
+        label="Perfis financeiros"
+        onClick={() => {
+          setPeopleOpen(true);
+          setProfileMenuOpen(false);
+        }}
+      />
+      <HeaderMenuButton
+        icon={<CalendarPlus className="h-4 w-4" />}
+        label="Editar mes"
+        onClick={() => {
+          setMonthOpen(true);
+          setProfileMenuOpen(false);
+        }}
+      />
+      <HeaderMenuButton
+        icon={<Download className="h-4 w-4" />}
+        label="Exportar backup"
+        onClick={() => {
+          exportData();
+          setProfileMenuOpen(false);
+        }}
+      />
+      <HeaderMenuButton
+        icon={<Upload className="h-4 w-4" />}
+        label="Importar dados"
+        onClick={() => importRef.current?.click()}
+      />
+      <HeaderMenuButton
+        icon={<LogOut className="h-4 w-4" />}
+        label="Sair do perfil"
+        danger
+        onClick={() => {
+          logout();
+          setProfileMenuOpen(false);
+        }}
+      />
     </div>
   );
 
-  const personSegmented = view !== "settings" ? (
-    <Segmented
-      value={state.activePerson}
-      onChange={(v) => setActivePerson(v)}
-      options={[
-        ...state.people.map((person, index) => ({
-          value: index === 0 ? VIEW_ME : index === 1 ? VIEW_SPOUSE : person,
-          label: person,
-        })),
-        { value: VIEW_ALL, label: "Tudo junto" },
-      ]}
-    />
-  ) : null;
+  const personSegmented =
+    view !== "settings" ? (
+      <Segmented
+        value={state.activePerson}
+        onChange={(v) => setActivePerson(v)}
+        options={[
+          ...state.people.map((person, index) => ({
+            value: index === 0 ? VIEW_ME : index === 1 ? VIEW_SPOUSE : person,
+            label: person,
+          })),
+          { value: VIEW_ALL, label: "Tudo junto" },
+        ]}
+      />
+    ) : null;
 
   const monthPicker = (
     <>
@@ -149,7 +232,9 @@ export function AppHome() {
           onAdd={() => setPriorityDialog({ open: true, id: null })}
         />
       )}
-      {view === "assistant" && <AssistantView onAddExpense={() => setExpenseDialog({ open: true, id: null })} />}
+      {view === "assistant" && (
+        <AssistantView onAddExpense={() => setExpenseDialog({ open: true, id: null })} />
+      )}
       {view === "settings" && (
         <SettingsView
           onEditPeople={() => setPeopleOpen(true)}
@@ -165,7 +250,13 @@ export function AppHome() {
   );
 
   const hiddenImport = (
-    <input ref={importRef} type="file" accept=".json,.xls,.xlsx,application/json" className="hidden" onChange={onImport} />
+    <input
+      ref={importRef}
+      type="file"
+      accept=".json,.xls,.xlsx,application/json"
+      className="hidden"
+      onChange={onImport}
+    />
   );
 
   const dialogs = (
@@ -196,7 +287,10 @@ export function AppHome() {
         {hiddenImport}
         <SideNav
           view={view}
-          onChange={(v) => { setView(v); setProfileMenuOpen(false); }}
+          onChange={(v) => {
+            setView(v);
+            setProfileMenuOpen(false);
+          }}
           footer={
             <div className="relative">
               <button
@@ -208,8 +302,12 @@ export function AppHome() {
                   {initials}
                 </div>
                 <div className="min-w-0 flex-1">
-                  <strong className="block truncate text-sm font-bold text-foreground">{activeUser?.name || "Perfil"}</strong>
-                  <span className="block truncate text-xs text-muted-foreground">Conta sincronizada</span>
+                  <strong className="block truncate text-sm font-bold text-foreground">
+                    {activeUser?.name || "Perfil"}
+                  </strong>
+                  <span className="block truncate text-xs text-muted-foreground">
+                    Conta sincronizada
+                  </span>
                 </div>
                 <ChevronDown className="h-4 w-4 shrink-0 text-muted-foreground" />
               </button>
@@ -224,7 +322,9 @@ export function AppHome() {
           <header className="sticky top-0 z-20 border-b border-border/70 bg-background/70 px-8 py-4 backdrop-blur-xl">
             <div className="mx-auto flex w-full max-w-[1100px] flex-wrap items-center gap-4">
               <div className="min-w-0 flex-1">
-                <p className="text-[11px] font-bold uppercase tracking-[0.16em] text-primary/70">{titles[view]}</p>
+                <p className="text-[11px] font-bold uppercase tracking-[0.16em] text-primary/70">
+                  {titles[view]}
+                </p>
                 <h1 className="truncate font-display text-3xl text-foreground">
                   {activeUser?.name || "Aval"}
                 </h1>
@@ -267,7 +367,9 @@ export function AppHome() {
         <header className="sticky top-0 z-20 border-b border-white/6 bg-background/88 px-5 pb-3 pt-[max(1rem,env(safe-area-inset-top))] backdrop-blur-[22px]">
           <div className="flex items-center justify-between gap-3">
             <div className="min-w-0">
-              <p className="text-[10px] font-bold uppercase tracking-[0.14em] text-muted-foreground">{activeMonthLabel}</p>
+              <p className="text-[10px] font-bold uppercase tracking-[0.14em] text-muted-foreground">
+                {activeMonthLabel}
+              </p>
               <h1 className="mt-1 truncate font-display text-[2rem] leading-none text-foreground">
                 {view === "assistant" ? `Olá, ${firstName}` : titles[view]}
               </h1>
@@ -323,7 +425,11 @@ function HideValuesToggle({ hidden, onClick }: { hidden: boolean; onClick: () =>
         hidden ? "text-primary" : "text-muted-foreground hover:text-foreground"
       }`}
     >
-      {hidden ? <EyeOff className="h-[18px] w-[18px]" strokeWidth={2} /> : <Eye className="h-[18px] w-[18px]" strokeWidth={2} />}
+      {hidden ? (
+        <EyeOff className="h-[18px] w-[18px]" strokeWidth={2} />
+      ) : (
+        <Eye className="h-[18px] w-[18px]" strokeWidth={2} />
+      )}
     </button>
   );
 }
@@ -354,7 +460,9 @@ function HeaderMenuButton({
         danger ? "text-destructive hover:bg-destructive/10" : "text-foreground hover:bg-secondary"
       }`}
     >
-      <span className={`flex h-8 w-8 shrink-0 items-center justify-center rounded-xl ${danger ? "bg-destructive/10" : "bg-primary-soft text-primary"}`}>
+      <span
+        className={`flex h-8 w-8 shrink-0 items-center justify-center rounded-xl ${danger ? "bg-destructive/10" : "bg-primary-soft text-primary"}`}
+      >
         {icon}
       </span>
       <span>{label}</span>
