@@ -1,11 +1,7 @@
 import { useEffect, useRef, useState } from "react";
 import {
-  ArrowRight,
   Calculator,
   CalendarClock,
-  CheckCircle2,
-  Clock3,
-  Pencil,
   Plus,
   RotateCcw,
   Send,
@@ -13,7 +9,6 @@ import {
   TrendingUp,
   TriangleAlert,
   Wallet,
-  X,
 } from "lucide-react";
 
 import {
@@ -32,13 +27,7 @@ import {
 } from "@/lib/finance/calc";
 import { answerLocally, askGemini, buildAiContext } from "@/lib/finance/ai";
 import { lookupLearnedCategory } from "@/lib/finance/learnedCategories";
-import {
-  categories,
-  paymentMethods,
-  VIEW_ALL,
-  VIEW_ME,
-  VIEW_SPOUSE,
-} from "@/lib/finance/constants";
+import { paymentMethods, VIEW_ALL, VIEW_ME, VIEW_SPOUSE } from "@/lib/finance/constants";
 import { useFinance, useMoney } from "@/lib/finance/FinanceContext";
 import { uid } from "@/lib/finance/seed";
 import type { Expense } from "@/lib/finance/types";
@@ -50,8 +39,8 @@ import {
   type VigiaAlert,
 } from "@/lib/finance/vigias";
 
-import { Field, SelectInput, TextArea, TextInput } from "./forms";
-import { AvalMark, BudgetRing, Panel, PanelHead, Sparkline } from "./ui";
+import { TextArea } from "./forms";
+import { AvalMark, BudgetRing, Sparkline } from "./ui";
 
 interface Message {
   sender?: string;
@@ -61,23 +50,21 @@ interface Message {
 
 interface AssistantViewProps {
   onAddExpense: () => void;
+  onOpenSimulator: () => void;
+  onOpenEnvelopes: () => void;
 }
 
 function alertsToMessages(alerts: VigiaAlert[]): Message[] {
   return alerts.map((alert) => ({ role: "ai", sender: alert.vigia.name, text: alert.message }));
 }
 
-export function AssistantView({ onAddExpense }: AssistantViewProps) {
-  const {
-    state,
-    month,
-    envelopes,
-    hideValues,
-    saveMonthSettings,
-    saveExpense,
-    savePriority,
-    saveEnvelopes,
-  } = useFinance();
+export function AssistantView({
+  onAddExpense,
+  onOpenSimulator,
+  onOpenEnvelopes,
+}: AssistantViewProps) {
+  const { state, month, envelopes, hideValues, saveMonthSettings, saveExpense, savePriority } =
+    useFinance();
   const money = useMoney();
   const view = state.activePerson;
   const numbers = calc(month, view, state.activeMonth);
@@ -113,13 +100,8 @@ export function AssistantView({ onAddExpense }: AssistantViewProps) {
   const [messages, setMessages] = useState<Message[]>([]);
   const [input, setInput] = useState("");
   const [busy, setBusy] = useState(false);
-  const [purchaseName, setPurchaseName] = useState("");
-  const [purchaseValue, setPurchaseValue] = useState("");
-  const [editingEnvelopes, setEditingEnvelopes] = useState(false);
   const scrollEndRef = useRef<HTMLDivElement | null>(null);
-  const attentionRef = useRef<HTMLDivElement | null>(null);
-  const simulatorRef = useRef<HTMLDivElement | null>(null);
-  const purchaseNameRef = useRef<HTMLInputElement | null>(null);
+  const inputRef = useRef<HTMLTextAreaElement | null>(null);
 
   useEffect(() => {
     scrollEndRef.current?.scrollIntoView({ behavior: "smooth", block: "end" });
@@ -149,56 +131,9 @@ export function AssistantView({ onAddExpense }: AssistantViewProps) {
     setMessages([]);
   }
 
-  function updateEnvelope(id: string, patch: Partial<(typeof envelopes)[number]>) {
-    saveEnvelopes(envelopes.map((item) => (item.id === id ? { ...item, ...patch } : item)));
-  }
-
-  function addEnvelope() {
-    saveEnvelopes([
-      ...envelopes,
-      { id: `env-${Date.now()}`, label: "Novo envelope", limit: 0, categories: ["Outros"] },
-    ]);
-    setEditingEnvelopes(true);
-  }
-
-  function deleteEnvelope(id: string) {
-    saveEnvelopes(envelopes.filter((item) => item.id !== id));
-  }
-
-  const purchaseAmount = parseCurrencyInput(purchaseValue);
-  const purchaseResult = getPurchaseResult(
-    purchaseName,
-    purchaseAmount,
-    numbers.free,
-    weeklyAllowance,
-    money,
-  );
-
-  function updatePurchaseValue(value: string) {
-    setPurchaseValue(value.replace(/[^\d,.]/g, ""));
-  }
-
-  function savePurchaseSimulation() {
-    const name = purchaseName.trim();
-    if (!name || purchaseAmount <= 0) return;
-    savePriority({
-      id: uid(),
-      name,
-      amount: purchaseAmount,
-      rank: purchaseResult.ok ? 2 : 3,
-      status: purchaseResult.ok ? "A pagar" : "Adiar",
-      responsavel: resolveViewOwner(view) || "Minha casa",
-      createdAt: new Date().toISOString(),
-    });
-    setMessages((m) => [
-      ...m,
-      {
-        role: "ai",
-        text: `Simulação salva em Metas: ${name} por ${money(purchaseAmount)}. Eu marquei como ${purchaseResult.ok ? "A pagar" : "Adiar"} para você decidir com calma.`,
-      },
-    ]);
-    setPurchaseName("");
-    setPurchaseValue("");
+  function focusChatInput() {
+    inputRef.current?.scrollIntoView({ behavior: "smooth", block: "center" });
+    window.setTimeout(() => inputRef.current?.focus(), 350);
   }
 
   async function ask(event: React.FormEvent) {
@@ -340,23 +275,20 @@ export function AssistantView({ onAddExpense }: AssistantViewProps) {
     return null;
   }
 
-  function openPurchaseSimulator() {
-    setPurchaseName((current) => current || "");
-    simulatorRef.current?.scrollIntoView({ behavior: "smooth", block: "start" });
-    window.setTimeout(() => purchaseNameRef.current?.focus(), 350);
-  }
+  // One clear answer for the hero, picked by what's most urgent right now —
+  // instead of showing every possible insight at once.
+  const primaryRecommendation = overBudget
+    ? `O orçamento passou ${money(Math.abs(numbers.free))}. Priorize cortar novas compras.`
+    : daysToNextDue !== null && daysToNextDue <= 3 && nextDue
+      ? `${nextDue.name} vence ${daysToNextDue === 0 ? "hoje" : `em ${daysToNextDue} dia${daysToNextDue === 1 ? "" : "s"}`}.`
+      : growth
+        ? `${categoryLabel(growth.category)} cresceu ${money(growth.diff)} contra o mês anterior.`
+        : `Você pode gastar cerca de ${money(weeklyAllowance)} nesta semana.`;
 
-  const insights = [
+  const secondaryInsights = [
     {
       title: "Resumo do mês",
       body: `${money(numbers.total)} em gastos, ${money(numbers.pending)} ainda pendente e ${money(numbers.free)} disponível.`,
-    },
-    {
-      title: numbers.free >= 0 ? "Ritmo do orçamento" : "Atenção ao orçamento",
-      body:
-        numbers.free >= 0
-          ? `Você pode gastar cerca de ${money(weeklyAllowance)} nesta semana.`
-          : `O orçamento passou ${money(Math.abs(numbers.free))}. Priorize cortar novas compras.`,
     },
     {
       title: "Maior impacto",
@@ -364,15 +296,7 @@ export function AssistantView({ onAddExpense }: AssistantViewProps) {
         ? `${categoryLabel(numbers.topCategory.category)} concentra ${money(numbers.topCategory.total)}.`
         : "Ainda não há categoria dominante neste mês.",
     },
-    {
-      title: "Mudança relevante",
-      body: growth
-        ? `${categoryLabel(growth.category)} cresceu ${money(growth.diff)} contra o mês anterior.`
-        : "Sem crescimento relevante para comparar.",
-    },
   ];
-
-  const attentionItems = insights.slice(0, 3);
 
   return (
     <div className="flex flex-col gap-4">
@@ -388,147 +312,90 @@ export function AssistantView({ onAddExpense }: AssistantViewProps) {
         </div>
       )}
 
-      <div className="flex flex-col">
-        {messages.length === 0 ? (
-          <section className="card-surface hero-texture relative overflow-hidden rounded-3xl p-5">
-            <div className="pointer-events-none absolute -right-14 -top-20 h-52 w-52 rounded-full bg-primary/12 blur-3xl" />
-            <div className="relative z-10 max-w-[70%]">
-              <h1 className="font-display text-[1.7rem] leading-[1.15] tracking-tight text-foreground">
-                Seu dinheiro,
-                <br />
-                <span className="text-primary">com mais clareza.</span>
-              </h1>
-              <div className="mt-3 h-px w-10 bg-primary/50" />
-              <button
-                type="button"
-                onClick={() =>
-                  attentionRef.current?.scrollIntoView({ behavior: "smooth", block: "start" })
-                }
-                className="press mt-4 flex items-start gap-3 text-left"
+      {messages.length === 0 ? (
+        <section className="panel-elevated hero-texture relative overflow-hidden rounded-3xl p-5 sm:p-6">
+          <div className="pointer-events-none absolute -right-14 -top-20 h-52 w-52 rounded-full bg-primary/12 blur-3xl" />
+          <div className="relative z-10 flex items-start justify-between gap-4">
+            <div className="min-w-0">
+              <span
+                className={`inline-flex items-center rounded-full px-2.5 py-1 text-[11px] font-bold uppercase tracking-wide ${
+                  overBudget
+                    ? "bg-destructive/15 text-destructive"
+                    : usedPct >= 80
+                      ? "bg-warning/15 text-warning"
+                      : "bg-primary-soft text-primary"
+                }`}
               >
-                <span className="flex h-10 w-10 shrink-0 items-center justify-center rounded-full border border-primary/30 bg-primary-soft text-primary shadow-primary">
-                  <Sparkles className="h-4 w-4" />
-                </span>
-                <span>
-                  <span className="block text-sm text-muted-foreground">
-                    Você está{" "}
-                    <strong className="font-bold text-primary">
-                      {money(Math.abs(numbers.free))}
-                    </strong>{" "}
-                    {overBudget ? "acima" : "dentro"} do orçamento
-                  </span>
-                  <span className="mt-1 inline-flex items-center gap-1 text-sm font-bold text-primary">
-                    Ver ajustes <ArrowRight className="h-3.5 w-3.5" />
-                  </span>
-                </span>
-              </button>
+                {overBudget
+                  ? "Orçamento estourado"
+                  : usedPct >= 80
+                    ? "Fique de olho"
+                    : "Mês tranquilo"}
+              </span>
+              <p className="mt-3 text-sm text-muted-foreground">
+                {overBudget ? "Você passou do previsto em" : "Livre até o fim do mês"}
+              </p>
+              <strong className="tnum mt-1 block font-display text-[2.5rem] leading-[1] tracking-tight text-foreground sm:text-[2.75rem]">
+                {money(Math.abs(numbers.free))}
+              </strong>
+              <p className="mt-3 max-w-[36ch] text-sm leading-relaxed text-foreground/80">
+                {primaryRecommendation}
+              </p>
             </div>
-            <div className="absolute -right-4 top-1/2 -translate-y-1/2">
-              <BudgetRing percent={usedPct} overBudget={overBudget} />
-            </div>
-          </section>
-        ) : (
-          <div className="flex flex-col gap-3.5">
-            {messages.map((m, i) =>
-              m.role === "user" ? (
-                <div
-                  key={i}
-                  className="self-end max-w-[84%] rounded-[1.1rem] bg-primary px-4 py-2.5 text-sm font-semibold text-primary-foreground shadow-primary"
-                >
-                  {m.text}
-                </div>
-              ) : (
-                <div key={i} className="flex items-start gap-2.5">
-                  <span className="mt-0.5 flex h-7 w-7 shrink-0 items-center justify-center rounded-full bg-secondary ring-1 ring-primary/20">
-                    <AvalMark size={14} />
-                  </span>
-                  <div
-                    className={`min-w-0 flex-1 rounded-2xl px-3.5 py-2.5 ${
-                      m.sender ? "border-l-2 border-l-warning/60 bg-warning/8" : "bg-white/[0.03]"
-                    }`}
-                  >
-                    {m.sender && (
-                      <span className="mb-1 block text-[11px] font-bold text-primary">
-                        {m.sender}
-                      </span>
-                    )}
-                    <p className="whitespace-pre-line text-[15px] leading-[1.6] text-foreground">
-                      {m.text}
-                    </p>
-                  </div>
-                </div>
-              ),
-            )}
+            <BudgetRing percent={usedPct} overBudget={overBudget} size={72} />
           </div>
-        )}
-
-        <div className="mt-4 grid grid-cols-2 gap-3">
-          <div className="card-surface relative overflow-hidden border-t-2 border-t-primary/50 p-4">
-            <span className="flex h-8 w-8 items-center justify-center rounded-xl bg-primary-soft text-primary">
-              <TrendingUp className="h-4 w-4" />
-            </span>
-            <strong className="tnum mt-2.5 block font-display text-2xl text-foreground">
-              {money(numbers.total)}
-            </strong>
-            <span className="text-[13px] text-muted-foreground">gastos</span>
-            <Sparkline values={spendingTrend} className="mt-2" />
+          <div className="relative z-10 mt-5 flex flex-wrap gap-2.5">
+            <button
+              type="button"
+              onClick={onAddExpense}
+              className="hero-gradient press focus-ring inline-flex h-11 items-center gap-2 rounded-full px-4 text-sm font-bold text-primary-foreground shadow-primary"
+            >
+              <Plus className="h-4 w-4" strokeWidth={2.5} /> Registrar gasto
+            </button>
+            <button
+              type="button"
+              onClick={focusChatInput}
+              className="press focus-ring inline-flex h-11 items-center gap-2 rounded-full border border-primary/25 bg-primary-soft px-4 text-sm font-bold text-primary"
+            >
+              <Sparkles className="h-4 w-4" /> Perguntar ao Aval
+            </button>
           </div>
-          <div className="panel-flat p-4">
-            <span className="flex h-8 w-8 items-center justify-center rounded-xl bg-primary-soft text-primary">
-              <CalendarClock className="h-4 w-4" />
-            </span>
-            <strong className="tnum mt-2.5 block font-display text-2xl text-foreground">
-              {daysToNextDue === null
-                ? "—"
-                : `${daysToNextDue} dia${daysToNextDue === 1 ? "" : "s"}`}
-            </strong>
-            <span className="truncate text-[13px] text-muted-foreground">
-              {nextDue ? `para ${nextDue.name.toLocaleLowerCase("pt-BR")}` : "nada por vir"}
-            </span>
-            <div className="mt-3 h-1.5 overflow-hidden rounded-full bg-muted">
+        </section>
+      ) : (
+        <div className="flex flex-col gap-3.5">
+          {messages.map((m, i) =>
+            m.role === "user" ? (
               <div
-                className="h-full rounded-full bg-primary"
-                style={{
-                  width: `${daysToNextDue === null ? 0 : Math.max(6, 100 - daysToNextDue * 12)}%`,
-                }}
-              />
-            </div>
-          </div>
-        </div>
-
-        {attentionItems.length > 0 && (
-          <div ref={attentionRef} className="mt-4 flex flex-col gap-2">
-            {attentionItems.map((item) => {
-              const attention = item.title.startsWith("Atenção");
-              return (
+                key={i}
+                className="self-end max-w-[84%] rounded-[1.1rem] bg-primary px-4 py-2.5 text-sm font-semibold text-primary-foreground shadow-primary"
+              >
+                {m.text}
+              </div>
+            ) : (
+              <div key={i} className="flex items-start gap-2.5">
+                <span className="mt-0.5 flex h-7 w-7 shrink-0 items-center justify-center rounded-full bg-secondary ring-1 ring-primary/20">
+                  <AvalMark size={14} />
+                </span>
                 <div
-                  key={item.title}
-                  className={`flex items-start gap-3 rounded-2xl p-3.5 ${
-                    attention ? "border-l-2 border-l-warning/60 bg-warning/8" : "bg-white/[0.03]"
+                  className={`min-w-0 flex-1 rounded-2xl px-3.5 py-2.5 ${
+                    m.sender ? "border-l-2 border-l-warning/60 bg-warning/8" : "bg-white/[0.03]"
                   }`}
                 >
-                  <span
-                    className={`flex h-[34px] w-[34px] shrink-0 items-center justify-center rounded-xl ${
-                      attention ? "bg-warning/18 text-warning" : "bg-primary-soft text-primary"
-                    }`}
-                  >
-                    <TriangleAlert className="h-4 w-4" strokeWidth={2.25} />
-                  </span>
-                  <div className="min-w-0">
-                    <strong className="block text-sm font-bold text-foreground">
-                      {item.title}
-                    </strong>
-                    <span className="text-[13px] leading-relaxed text-muted-foreground">
-                      {item.body}
+                  {m.sender && (
+                    <span className="mb-1 block text-[11px] font-bold text-primary">
+                      {m.sender}
                     </span>
-                  </div>
+                  )}
+                  <p className="whitespace-pre-line text-[15px] leading-[1.6] text-foreground">
+                    {m.text}
+                  </p>
                 </div>
-              );
-            })}
-          </div>
-        )}
-        <div ref={scrollEndRef} />
-      </div>
+              </div>
+            ),
+          )}
+          <div ref={scrollEndRef} />
+        </div>
+      )}
 
       <div className="no-scrollbar flex gap-2 overflow-x-auto">
         {["Análise do mês", "Falta pagar", "Meu limite", "Prioridades"].map((question) => (
@@ -545,6 +412,7 @@ export function AssistantView({ onAddExpense }: AssistantViewProps) {
 
       <form onSubmit={ask} className="card-surface rounded-[1.375rem] p-3">
         <TextArea
+          ref={inputRef}
           value={input}
           onChange={(e) => setInput(e.target.value)}
           onKeyDown={(e) => {
@@ -570,7 +438,7 @@ export function AssistantView({ onAddExpense }: AssistantViewProps) {
             </button>
             <button
               type="button"
-              onClick={openPurchaseSimulator}
+              onClick={onOpenSimulator}
               aria-label="Simular compra"
               title="Simular compra"
               className="press focus-ring flex h-9 w-9 items-center justify-center rounded-xl bg-secondary text-muted-foreground hover:text-foreground"
@@ -589,178 +457,89 @@ export function AssistantView({ onAddExpense }: AssistantViewProps) {
         </div>
       </form>
 
-      <Panel ref={simulatorRef} tone="elevated" className="p-0">
-        <div className="p-4 pb-3">
-          <PanelHead title="Simulador de compra" hint="decisão antes do gasto" icon={Calculator} />
+      <div className="grid grid-cols-2 gap-3">
+        <div className="panel-flat p-4">
+          <span className="flex h-8 w-8 items-center justify-center rounded-xl bg-primary-soft text-primary">
+            <TrendingUp className="h-4 w-4" />
+          </span>
+          <strong className="tnum mt-2.5 block font-display text-2xl text-foreground">
+            {money(numbers.total)}
+          </strong>
+          <span className="text-[13px] text-muted-foreground">gastos</span>
+          <Sparkline values={spendingTrend} className="mt-2" />
         </div>
-        <div className="grid gap-3 px-4 pb-4">
-          <Field label="O que quer comprar?">
-            <TextInput
-              ref={purchaseNameRef}
-              value={purchaseName}
-              onChange={(e) => setPurchaseName(e.target.value)}
-              placeholder="Ex.: mesa"
-            />
-          </Field>
-          <Field label="Valor">
-            <TextInput
-              value={purchaseValue}
-              onChange={(e) => updatePurchaseValue(e.target.value)}
-              onBeforeInput={(event) => {
-                const data = event.data || "";
-                if (data && !/^[\d,.]+$/.test(data)) event.preventDefault();
+        <div className="panel-flat p-4">
+          <span className="flex h-8 w-8 items-center justify-center rounded-xl bg-primary-soft text-primary">
+            <CalendarClock className="h-4 w-4" />
+          </span>
+          <strong className="tnum mt-2.5 block font-display text-2xl text-foreground">
+            {daysToNextDue === null ? "—" : `${daysToNextDue} dia${daysToNextDue === 1 ? "" : "s"}`}
+          </strong>
+          <span className="truncate text-[13px] text-muted-foreground">
+            {nextDue ? `para ${nextDue.name.toLocaleLowerCase("pt-BR")}` : "nada por vir"}
+          </span>
+          <div className="mt-3 h-1.5 overflow-hidden rounded-full bg-muted">
+            <div
+              className="h-full rounded-full bg-primary"
+              style={{
+                width: `${daysToNextDue === null ? 0 : Math.max(6, 100 - daysToNextDue * 12)}%`,
               }}
-              inputMode="decimal"
-              pattern="[0-9,.]*"
-              placeholder="Ex.: 1500"
             />
-          </Field>
-          <div
-            className={`rounded-[1.6rem] border p-4 ${purchaseResult.ok ? "border-success/30 bg-success/10" : "border-warning/30 bg-warning/10"}`}
-          >
-            <div className="flex items-start gap-3">
-              <span
-                className={`flex h-10 w-10 shrink-0 items-center justify-center rounded-2xl ${purchaseResult.ok ? "bg-success/15 text-success" : "bg-warning/20 text-warning"}`}
-              >
-                {purchaseResult.ok ? (
-                  <CheckCircle2 className="h-5 w-5" />
-                ) : (
-                  <Clock3 className="h-5 w-5" />
-                )}
+          </div>
+        </div>
+      </div>
+
+      {secondaryInsights.length > 0 && (
+        <div className="flex flex-col gap-2">
+          {secondaryInsights.map((item) => (
+            <div
+              key={item.title}
+              className="flex items-start gap-3 rounded-2xl bg-white/[0.03] p-3.5"
+            >
+              <span className="flex h-[34px] w-[34px] shrink-0 items-center justify-center rounded-xl bg-primary-soft text-primary">
+                <TriangleAlert className="h-4 w-4" strokeWidth={2.25} />
               </span>
-              <div>
-                <strong className="block text-sm font-bold text-foreground">
-                  {purchaseResult.title}
-                </strong>
-                <p className="mt-1 text-[13px] leading-relaxed text-muted-foreground">
-                  {purchaseResult.body}
-                </p>
+              <div className="min-w-0">
+                <strong className="block text-sm font-bold text-foreground">{item.title}</strong>
+                <span className="text-[13px] leading-relaxed text-muted-foreground">
+                  {item.body}
+                </span>
               </div>
             </div>
-          </div>
-          <button
-            type="button"
-            onClick={savePurchaseSimulation}
-            disabled={!purchaseName.trim() || purchaseAmount <= 0}
-            className="hero-gradient press focus-ring h-12 rounded-2xl text-sm font-bold text-primary-foreground shadow-primary disabled:cursor-not-allowed disabled:opacity-45"
-          >
-            Salvar simulação em Metas
-          </button>
+          ))}
         </div>
-      </Panel>
+      )}
 
-      <Panel>
-        <PanelHead
-          title="Regra dos envelopes"
-          icon={Wallet}
-          action={
-            <button
-              type="button"
-              onClick={() => setEditingEnvelopes((value) => !value)}
-              className="inline-flex h-8 items-center gap-1.5 rounded-full bg-primary-soft px-3 text-xs font-bold text-primary"
-            >
-              {editingEnvelopes ? (
-                <CheckCircle2 className="h-3.5 w-3.5" />
-              ) : (
-                <Pencil className="h-3.5 w-3.5" />
-              )}
-              {editingEnvelopes ? "Concluir" : "Editar"}
-            </button>
-          }
-        />
-        <div className="flex flex-col gap-3">
-          {envelopes.map((rule) => {
-            const spent = sum(expenses.filter((item) => rule.categories.includes(item.category)));
-            const pct = Math.min(100, rule.limit ? (spent / rule.limit) * 100 : 0);
-            const remaining = Math.max(0, rule.limit - spent);
-            return (
-              <div
-                key={rule.id}
-                className={
-                  editingEnvelopes ? "rounded-2xl border border-border bg-secondary/50 p-3" : ""
-                }
-              >
-                {editingEnvelopes ? (
-                  <div className="mb-3 grid gap-3">
-                    <div className="grid grid-cols-[1fr_auto] gap-2">
-                      <TextInput
-                        value={rule.label}
-                        onChange={(event) => updateEnvelope(rule.id, { label: event.target.value })}
-                        placeholder="Nome do envelope"
-                      />
-                      <button
-                        type="button"
-                        onClick={() => deleteEnvelope(rule.id)}
-                        className="flex h-12 w-12 items-center justify-center rounded-xl bg-destructive/10 text-destructive"
-                        aria-label="Excluir envelope"
-                      >
-                        <X className="h-4 w-4" />
-                      </button>
-                    </div>
-                    <div className="grid grid-cols-2 gap-2">
-                      <Field label="Limite">
-                        <TextInput
-                          type="number"
-                          min="0"
-                          step="0.01"
-                          value={rule.limit}
-                          onChange={(event) =>
-                            updateEnvelope(rule.id, { limit: Number(event.target.value || 0) })
-                          }
-                        />
-                      </Field>
-                      <Field label="Categoria">
-                        <SelectInput
-                          value={rule.categories[0] || "Outros"}
-                          onChange={(event) =>
-                            updateEnvelope(rule.id, { categories: [event.target.value] })
-                          }
-                        >
-                          {categories.map((category) => (
-                            <option key={category} value={category}>
-                              {category}
-                            </option>
-                          ))}
-                        </SelectInput>
-                      </Field>
-                    </div>
-                  </div>
-                ) : null}
-                <div className="mb-1.5 flex items-center justify-between gap-3">
-                  <span className="text-sm font-bold text-foreground">
-                    {rule.label || "Sem nome"}
-                  </span>
-                  <span className="tnum text-xs font-semibold text-muted-foreground">
-                    {money(remaining)} livre
-                  </span>
-                </div>
-                <div className="h-2.5 overflow-hidden rounded-full bg-secondary ring-1 ring-border/70">
-                  <div
-                    className={`h-full rounded-full ${pct >= 90 ? "bg-destructive" : pct >= 75 ? "bg-warning" : "bg-primary"}`}
-                    style={{ width: `${pct}%` }}
-                  />
-                </div>
-                <div className="mt-1 flex justify-between text-[11px] text-muted-foreground">
-                  <span>
-                    {money(spent)} usado · {Math.round(pct)}%
-                  </span>
-                  <span>limite {money(rule.limit)}</span>
-                </div>
-              </div>
-            );
-          })}
-          {editingEnvelopes ? (
-            <button
-              type="button"
-              onClick={addEnvelope}
-              className="flex h-12 items-center justify-center gap-2 rounded-2xl border border-dashed border-primary/35 bg-primary-soft/70 text-sm font-bold text-primary"
-            >
-              <Plus className="h-4 w-4" />
-              Adicionar envelope
-            </button>
-          ) : null}
-        </div>
-      </Panel>
+      <div className="grid grid-cols-2 gap-2.5">
+        <button
+          type="button"
+          onClick={onOpenSimulator}
+          className="press focus-ring flex flex-col items-start gap-2 rounded-2xl bg-white/[0.03] p-3.5 text-left hover:bg-white/[0.05]"
+        >
+          <span className="flex h-9 w-9 items-center justify-center rounded-xl bg-primary-soft text-primary">
+            <Calculator className="h-4 w-4" />
+          </span>
+          <span>
+            <strong className="block text-sm font-bold text-foreground">Simular compra</strong>
+            <span className="block text-[12px] text-muted-foreground">antes de decidir</span>
+          </span>
+        </button>
+        <button
+          type="button"
+          onClick={onOpenEnvelopes}
+          className="press focus-ring flex flex-col items-start gap-2 rounded-2xl bg-white/[0.03] p-3.5 text-left hover:bg-white/[0.05]"
+        >
+          <span className="flex h-9 w-9 items-center justify-center rounded-xl bg-primary-soft text-primary">
+            <Wallet className="h-4 w-4" />
+          </span>
+          <span>
+            <strong className="block text-sm font-bold text-foreground">Envelopes</strong>
+            <span className="block text-[12px] text-muted-foreground">
+              {envelopes.length} {envelopes.length === 1 ? "categoria" : "categorias"}
+            </span>
+          </span>
+        </button>
+      </div>
     </div>
   );
 }
@@ -962,42 +741,6 @@ function guessPaymentMethod(text: string): string {
   if (/\b(cartao|credito)\b/.test(normalized)) return "Crédito";
   if (/\b(debito)\b/.test(normalized)) return "Débito";
   return paymentMethods.find((method) => normalized.includes(normalizeText(method))) || "Pix";
-}
-
-function getPurchaseResult(
-  name: string,
-  amount: number,
-  free: number,
-  weeklyAllowance: number,
-  formatMoney: (value: number) => string,
-) {
-  if (!name.trim() || amount <= 0) {
-    return {
-      ok: true,
-      title: "Digite uma compra para simular",
-      body: "Eu comparo o valor com o saldo disponível e com o limite saudável da semana.",
-    };
-  }
-  const remaining = free - amount;
-  if (remaining < 0) {
-    return {
-      ok: false,
-      title: "Melhor não comprar agora",
-      body: `Essa compra deixaria o mês negativo em ${formatMoney(Math.abs(remaining))}. O ideal é adiar ou trocar por uma opção menor.`,
-    };
-  }
-  if (amount > weeklyAllowance && weeklyAllowance > 0) {
-    return {
-      ok: false,
-      title: "Compra possível, mas pesada",
-      body: `Você ainda ficaria com ${formatMoney(remaining)}, mas passaria do limite saudável da semana. Vale negociar ou planejar para o próximo mês.`,
-    };
-  }
-  return {
-    ok: true,
-    title: "Compra segura para este mês",
-    body: `Se comprar ${name.trim()} hoje, ainda sobra ${formatMoney(remaining)} no orçamento selecionado.`,
-  };
 }
 
 function parseCurrencyInput(value: string): number {

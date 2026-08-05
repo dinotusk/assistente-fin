@@ -1,11 +1,19 @@
 import { useEffect, useState } from "react";
-import { Check, Copy, Loader2, Trash2, X } from "lucide-react";
+import { Check, CheckCircle2, Clock3, Copy, Loader2, Pencil, Plus, Trash2, X } from "lucide-react";
 
 import { Drawer, DrawerContent, DrawerHeader, DrawerTitle } from "@/components/ui/drawer";
 import { Switch } from "@/components/ui/switch";
 import { categories, paymentMethods } from "@/lib/finance/constants";
-import { categoryLabel, currentUserName, resolveViewOwner, spouseName } from "@/lib/finance/calc";
-import { useFinance } from "@/lib/finance/FinanceContext";
+import {
+  calc,
+  categoryLabel,
+  currentUserName,
+  expensesForView,
+  resolveViewOwner,
+  spouseName,
+  sum,
+} from "@/lib/finance/calc";
+import { useFinance, useMoney } from "@/lib/finance/FinanceContext";
 import {
   forgetCategory,
   learnCategory,
@@ -1109,6 +1117,301 @@ export function VigiasDialog({
         </button>
       )}
 
+      <div className="sticky bottom-0 -mx-5 mt-5 border-t border-border/70 bg-card/95 px-5 py-3 backdrop-blur">
+        <button
+          type="button"
+          onClick={() => onOpenChange(false)}
+          className="press focus-ring h-12 w-full rounded-xl border border-input bg-secondary font-semibold text-foreground hover:bg-muted"
+        >
+          Fechar
+        </button>
+      </div>
+    </SheetShell>
+  );
+}
+
+/* ---------------- Purchase simulator ---------------- */
+function parseCurrencyInput(value: string): number {
+  const clean = value.replace(/[^\d,.]/g, "");
+  if (!clean) return 0;
+  const hasComma = clean.includes(",");
+  const normalized = hasComma ? clean.replace(/\./g, "").replace(",", ".") : clean;
+  return Number(normalized || 0);
+}
+
+function getPurchaseResult(
+  name: string,
+  amount: number,
+  free: number,
+  weeklyAllowance: number,
+  formatMoney: (value: number) => string,
+) {
+  if (!name.trim() || amount <= 0) {
+    return {
+      ok: true,
+      title: "Digite uma compra para simular",
+      body: "Eu comparo o valor com o saldo disponível e com o limite saudável da semana.",
+    };
+  }
+  const remaining = free - amount;
+  if (remaining < 0) {
+    return {
+      ok: false,
+      title: "Melhor não comprar agora",
+      body: `Essa compra deixaria o mês negativo em ${formatMoney(Math.abs(remaining))}. O ideal é adiar ou trocar por uma opção menor.`,
+    };
+  }
+  if (amount > weeklyAllowance && weeklyAllowance > 0) {
+    return {
+      ok: false,
+      title: "Compra possível, mas pesada",
+      body: `Você ainda ficaria com ${formatMoney(remaining)}, mas passaria do limite saudável da semana. Vale negociar ou planejar para o próximo mês.`,
+    };
+  }
+  return {
+    ok: true,
+    title: "Compra segura para este mês",
+    body: `Se comprar ${name.trim()} hoje, ainda sobra ${formatMoney(remaining)} no orçamento selecionado.`,
+  };
+}
+
+export function PurchaseSimulatorDialog({
+  open,
+  onOpenChange,
+}: {
+  open: boolean;
+  onOpenChange: (v: boolean) => void;
+}) {
+  const { month, state, savePriority } = useFinance();
+  const money = useMoney();
+  const view = state.activePerson;
+  const numbers = calc(month, view, state.activeMonth);
+  const weeklyAllowance =
+    numbers.daysLeft > 0 ? Math.max(0, (numbers.free / numbers.daysLeft) * 7) : 0;
+
+  const [name, setName] = useState("");
+  const [value, setValue] = useState("");
+
+  useEffect(() => {
+    if (!open) return;
+    setName("");
+    setValue("");
+  }, [open]);
+
+  const amount = parseCurrencyInput(value);
+  const result = getPurchaseResult(name, amount, numbers.free, weeklyAllowance, money);
+
+  function save() {
+    const trimmed = name.trim();
+    if (!trimmed || amount <= 0) return;
+    savePriority({
+      id: uid(),
+      name: trimmed,
+      amount,
+      rank: result.ok ? 2 : 3,
+      status: result.ok ? "A pagar" : "Adiar",
+      responsavel: resolveViewOwner(view) || "Minha casa",
+      createdAt: new Date().toISOString(),
+    });
+    onOpenChange(false);
+  }
+
+  return (
+    <SheetShell open={open} onOpenChange={onOpenChange} title="Simulador de compra">
+      <div className="grid gap-3">
+        <p className="text-sm text-muted-foreground">
+          Veja se uma compra cabe no orçamento antes de fazê-la — comparo com o saldo livre e com o
+          limite saudável da semana.
+        </p>
+        <Field label="O que quer comprar?">
+          <TextInput
+            value={name}
+            onChange={(e) => setName(e.target.value)}
+            placeholder="Ex.: mesa"
+            autoFocus
+          />
+        </Field>
+        <Field label="Valor">
+          <TextInput
+            value={value}
+            onChange={(e) => setValue(e.target.value.replace(/[^\d,.]/g, ""))}
+            onBeforeInput={(event: React.FormEvent<HTMLInputElement> & { data?: string }) => {
+              const data = event.data || "";
+              if (data && !/^[\d,.]+$/.test(data)) event.preventDefault();
+            }}
+            inputMode="decimal"
+            pattern="[0-9,.]*"
+            placeholder="Ex.: 1500"
+          />
+        </Field>
+        <div
+          className={`rounded-[1.6rem] border p-4 ${result.ok ? "border-success/30 bg-success/10" : "border-warning/30 bg-warning/10"}`}
+        >
+          <div className="flex items-start gap-3">
+            <span
+              className={`flex h-10 w-10 shrink-0 items-center justify-center rounded-2xl ${result.ok ? "bg-success/15 text-success" : "bg-warning/20 text-warning"}`}
+            >
+              {result.ok ? <CheckCircle2 className="h-5 w-5" /> : <Clock3 className="h-5 w-5" />}
+            </span>
+            <div>
+              <strong className="block text-sm font-bold text-foreground">{result.title}</strong>
+              <p className="mt-1 text-[13px] leading-relaxed text-muted-foreground">
+                {result.body}
+              </p>
+            </div>
+          </div>
+        </div>
+        <button
+          type="button"
+          onClick={save}
+          disabled={!name.trim() || amount <= 0}
+          className="hero-gradient press focus-ring h-12 rounded-2xl text-sm font-bold text-primary-foreground shadow-primary disabled:cursor-not-allowed disabled:opacity-45"
+        >
+          Salvar simulação em Metas
+        </button>
+      </div>
+    </SheetShell>
+  );
+}
+
+/* ---------------- Envelopes ---------------- */
+export function EnvelopesDialog({
+  open,
+  onOpenChange,
+}: {
+  open: boolean;
+  onOpenChange: (v: boolean) => void;
+}) {
+  const { month, state, envelopes, saveEnvelopes } = useFinance();
+  const money = useMoney();
+  const expenses = expensesForView(month, state.activePerson);
+  const [editing, setEditing] = useState(false);
+
+  useEffect(() => {
+    if (!open) setEditing(false);
+  }, [open]);
+
+  function updateEnvelope(id: string, patch: Partial<(typeof envelopes)[number]>) {
+    saveEnvelopes(envelopes.map((item) => (item.id === id ? { ...item, ...patch } : item)));
+  }
+
+  function addEnvelope() {
+    saveEnvelopes([
+      ...envelopes,
+      { id: `env-${Date.now()}`, label: "Novo envelope", limit: 0, categories: ["Outros"] },
+    ]);
+    setEditing(true);
+  }
+
+  function deleteEnvelope(id: string) {
+    saveEnvelopes(envelopes.filter((item) => item.id !== id));
+  }
+
+  return (
+    <SheetShell open={open} onOpenChange={onOpenChange} title="Regra dos envelopes">
+      <div className="flex flex-col gap-3">
+        <div className="flex items-center justify-between gap-3">
+          <p className="text-sm text-muted-foreground">
+            Limites por categoria, pra saber quanto ainda cabe em cada uma.
+          </p>
+          <button
+            type="button"
+            onClick={() => setEditing((value) => !value)}
+            className="inline-flex h-8 shrink-0 items-center gap-1.5 rounded-full bg-primary-soft px-3 text-xs font-bold text-primary"
+          >
+            {editing ? <Check className="h-3.5 w-3.5" /> : <Pencil className="h-3.5 w-3.5" />}
+            {editing ? "Concluir" : "Editar"}
+          </button>
+        </div>
+        {envelopes.map((rule) => {
+          const spent = sum(expenses.filter((item) => rule.categories.includes(item.category)));
+          const pct = Math.min(100, rule.limit ? (spent / rule.limit) * 100 : 0);
+          const remaining = Math.max(0, rule.limit - spent);
+          return (
+            <div
+              key={rule.id}
+              className={editing ? "rounded-2xl border border-border bg-secondary/50 p-3" : ""}
+            >
+              {editing ? (
+                <div className="mb-3 grid gap-3">
+                  <div className="grid grid-cols-[1fr_auto] gap-2">
+                    <TextInput
+                      value={rule.label}
+                      onChange={(event) => updateEnvelope(rule.id, { label: event.target.value })}
+                      placeholder="Nome do envelope"
+                    />
+                    <button
+                      type="button"
+                      onClick={() => deleteEnvelope(rule.id)}
+                      className="flex h-12 w-12 items-center justify-center rounded-xl bg-destructive/10 text-destructive"
+                      aria-label="Excluir envelope"
+                    >
+                      <X className="h-4 w-4" />
+                    </button>
+                  </div>
+                  <div className="grid grid-cols-2 gap-2">
+                    <Field label="Limite">
+                      <TextInput
+                        type="number"
+                        min="0"
+                        step="0.01"
+                        value={rule.limit}
+                        onChange={(event) =>
+                          updateEnvelope(rule.id, { limit: Number(event.target.value || 0) })
+                        }
+                      />
+                    </Field>
+                    <Field label="Categoria">
+                      <SelectInput
+                        value={rule.categories[0] || "Outros"}
+                        onChange={(event) =>
+                          updateEnvelope(rule.id, { categories: [event.target.value] })
+                        }
+                      >
+                        {categories.map((category) => (
+                          <option key={category} value={category}>
+                            {category}
+                          </option>
+                        ))}
+                      </SelectInput>
+                    </Field>
+                  </div>
+                </div>
+              ) : null}
+              <div className="mb-1.5 flex items-center justify-between gap-3">
+                <span className="text-sm font-bold text-foreground">
+                  {rule.label || "Sem nome"}
+                </span>
+                <span className="tnum text-xs font-semibold text-muted-foreground">
+                  {money(remaining)} livre
+                </span>
+              </div>
+              <div className="h-2.5 overflow-hidden rounded-full bg-secondary ring-1 ring-border/70">
+                <div
+                  className={`h-full rounded-full ${pct >= 90 ? "bg-destructive" : pct >= 75 ? "bg-warning" : "bg-primary"}`}
+                  style={{ width: `${pct}%` }}
+                />
+              </div>
+              <div className="mt-1 flex justify-between text-[11px] text-muted-foreground">
+                <span>
+                  {money(spent)} usado · {Math.round(pct)}%
+                </span>
+                <span>limite {money(rule.limit)}</span>
+              </div>
+            </div>
+          );
+        })}
+        {editing ? (
+          <button
+            type="button"
+            onClick={addEnvelope}
+            className="flex h-12 items-center justify-center gap-2 rounded-2xl border border-dashed border-primary/35 bg-primary-soft/70 text-sm font-bold text-primary"
+          >
+            <Plus className="h-4 w-4" />
+            Adicionar envelope
+          </button>
+        ) : null}
+      </div>
       <div className="sticky bottom-0 -mx-5 mt-5 border-t border-border/70 bg-card/95 px-5 py-3 backdrop-blur">
         <button
           type="button"

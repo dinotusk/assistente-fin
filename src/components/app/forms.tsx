@@ -23,12 +23,13 @@ export const TextInput = forwardRef<HTMLInputElement, React.InputHTMLAttributes<
 );
 TextInput.displayName = "TextInput";
 
-export function TextArea({
-  className,
-  ...props
-}: React.TextareaHTMLAttributes<HTMLTextAreaElement>) {
-  return <textarea {...props} className={cn(inputClass, "h-auto py-3", className)} />;
-}
+export const TextArea = forwardRef<
+  HTMLTextAreaElement,
+  React.TextareaHTMLAttributes<HTMLTextAreaElement>
+>(({ className, ...props }, ref) => (
+  <textarea {...props} ref={ref} className={cn(inputClass, "h-auto py-3", className)} />
+));
+TextArea.displayName = "TextArea";
 
 const chevronBg =
   "bg-[url('data:image/svg+xml;utf8,<svg xmlns=%22http://www.w3.org/2000/svg%22 width=%2216%22 height=%2216%22 viewBox=%220 0 24 24%22 fill=%22none%22 stroke=%22%236b7a70%22 stroke-width=%222.2%22 stroke-linecap=%22round%22 stroke-linejoin=%22round%22><path d=%22m6 9 6 6 6-6%22/></svg>')]";

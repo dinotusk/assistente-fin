@@ -28,12 +28,14 @@ import { TransactionsView } from "./TransactionsView";
 import {
   BankImportDialog,
   CategoriesDialog,
+  EnvelopesDialog,
   ExpenseDialog,
   InviteDialog,
   JoinHouseholdDialog,
   MonthDialog,
   PeopleDialog,
   PriorityDialog,
+  PurchaseSimulatorDialog,
   VigiasDialog,
 } from "./dialogs";
 import { Segmented } from "./ui";
@@ -88,6 +90,8 @@ export function AppHome() {
   const [vigiasOpen, setVigiasOpen] = useState(false);
   const [inviteOpen, setInviteOpen] = useState(false);
   const [joinHouseholdOpen, setJoinHouseholdOpen] = useState(false);
+  const [simulatorOpen, setSimulatorOpen] = useState(false);
+  const [envelopesOpen, setEnvelopesOpen] = useState(false);
   const [profileMenuOpen, setProfileMenuOpen] = useState(false);
   const importRef = useRef<HTMLInputElement>(null);
   const initials = getInitials(activeUser?.name || "Aval");
@@ -233,7 +237,11 @@ export function AppHome() {
         />
       )}
       {view === "assistant" && (
-        <AssistantView onAddExpense={() => setExpenseDialog({ open: true, id: null })} />
+        <AssistantView
+          onAddExpense={() => setExpenseDialog({ open: true, id: null })}
+          onOpenSimulator={() => setSimulatorOpen(true)}
+          onOpenEnvelopes={() => setEnvelopesOpen(true)}
+        />
       )}
       {view === "settings" && (
         <SettingsView
@@ -278,6 +286,8 @@ export function AppHome() {
       <VigiasDialog open={vigiasOpen} onOpenChange={setVigiasOpen} />
       <InviteDialog open={inviteOpen} onOpenChange={setInviteOpen} />
       <JoinHouseholdDialog open={joinHouseholdOpen} onOpenChange={setJoinHouseholdOpen} />
+      <PurchaseSimulatorDialog open={simulatorOpen} onOpenChange={setSimulatorOpen} />
+      <EnvelopesDialog open={envelopesOpen} onOpenChange={setEnvelopesOpen} />
     </>
   );
 
