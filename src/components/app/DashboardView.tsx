@@ -59,8 +59,14 @@ export function DashboardView() {
           </strong>
           <span className="mt-1.5 block text-[13px] text-muted-foreground">
             {money(numbers.total)} gastos ·{" "}
-            <span className={overBudget ? "font-semibold text-destructive" : "font-semibold text-success"}>
-              {overBudget ? `${money(Math.abs(numbers.free))} acima` : `${money(numbers.free)} livre`}
+            <span
+              className={
+                overBudget ? "font-semibold text-destructive" : "font-semibold text-success"
+              }
+            >
+              {overBudget
+                ? `${money(Math.abs(numbers.free))} acima`
+                : `${money(numbers.free)} livre`}
             </span>
           </span>
         </div>
@@ -81,7 +87,9 @@ export function DashboardView() {
                 type="button"
                 onClick={() => setActiveMonth(key)}
                 className={`press focus-ring hover-lift flex min-w-[130px] flex-col gap-0.5 rounded-2xl border p-3 text-left ${
-                  active ? "border-primary bg-primary-soft" : "border-border bg-secondary hover:border-primary/25"
+                  active
+                    ? "border-primary bg-primary-soft"
+                    : "border-border bg-secondary hover:border-primary/25"
                 }`}
               >
                 <span className="text-xs font-medium text-muted-foreground">{data.label}</span>
@@ -101,7 +109,11 @@ export function DashboardView() {
       </Panel>
 
       <Panel tone="flat">
-        <PanelHead title="Por categoria" hint={`${byCategory.length} categorias`} icon={BarChart3} />
+        <PanelHead
+          title="Por categoria"
+          hint={`${byCategory.length} categorias`}
+          icon={BarChart3}
+        />
         <CategoryBars data={byCategory} />
       </Panel>
 
@@ -121,15 +133,23 @@ export function DashboardView() {
                 <div className="flex items-center gap-2.5">
                   <span
                     className={`flex h-9 w-9 shrink-0 items-center justify-center rounded-full font-display text-sm font-bold ${
-                      active ? "bg-primary text-primary-foreground shadow-primary" : "bg-card text-primary"
+                      active
+                        ? "bg-primary text-primary-foreground shadow-primary"
+                        : "bg-card text-primary"
                     }`}
                   >
                     {initials(name)}
                   </span>
-                  <strong className="min-w-0 truncate text-sm font-bold text-foreground">{name}</strong>
+                  <strong className="min-w-0 truncate text-sm font-bold text-foreground">
+                    {name}
+                  </strong>
                 </div>
-                <span className="tnum mt-2.5 block font-display text-xl leading-none text-primary">{money(sum(mine))}</span>
-                <small className="mt-1 block text-[11px] text-muted-foreground">Falta pagar {money(pending)}</small>
+                <span className="tnum mt-2.5 block font-display text-xl leading-none text-primary">
+                  {money(sum(mine))}
+                </span>
+                <small className="mt-1 block text-[11px] text-muted-foreground">
+                  Falta pagar {money(pending)}
+                </small>
               </div>
             );
           })}
@@ -138,12 +158,20 @@ export function DashboardView() {
 
       <Panel tone="flat">
         <PanelHead title="Comparação mensal" hint="histórico" icon={CalendarRange} />
-        <MonthlyBars entries={chartEntries} activeKey={state.activeMonth} onSelect={setActiveMonth} />
+        <MonthlyBars
+          entries={chartEntries}
+          activeKey={state.activeMonth}
+          onSelect={setActiveMonth}
+        />
       </Panel>
 
       <Panel tone="elevated" accent="primary">
         <PanelHead title="Evolução dos gastos" hint="total por mês" icon={TrendingUp} />
-        <TrendChart entries={chartEntries} activeKey={state.activeMonth} onSelect={setActiveMonth} />
+        <TrendChart
+          entries={chartEntries}
+          activeKey={state.activeMonth}
+          onSelect={setActiveMonth}
+        />
       </Panel>
     </div>
   );

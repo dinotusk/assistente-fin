@@ -14,9 +14,9 @@ const SECTIONS = [
   {
     title: "2. Definições",
     body: [
-      "\"Aval\" é o aplicativo e os serviços associados de organização financeira, incluindo o assistente conversacional.",
-      "\"Casa\" ou \"perfil financeiro\" é o conjunto de dados, pessoas e lançamentos que você organiza dentro da sua conta.",
-      "\"Você\" é a pessoa que cria a conta e utiliza o Aval para registrar e acompanhar gastos.",
+      '"Aval" é o aplicativo e os serviços associados de organização financeira, incluindo o assistente conversacional.',
+      '"Casa" ou "perfil financeiro" é o conjunto de dados, pessoas e lançamentos que você organiza dentro da sua conta.',
+      '"Você" é a pessoa que cria a conta e utiliza o Aval para registrar e acompanhar gastos.',
     ],
   },
   {
@@ -60,7 +60,7 @@ const SECTIONS = [
   {
     title: "8. Isenção de garantias e responsabilidade",
     body: [
-      "O Aval é oferecido \"como está\", sem garantias de disponibilidade ininterrupta ou de ausência total de erros.",
+      'O Aval é oferecido "como está", sem garantias de disponibilidade ininterrupta ou de ausência total de erros.',
       "Não nos responsabilizamos por decisões financeiras tomadas com base em informações ou sugestões do assistente. Use o bom senso e, para decisões importantes, consulte um profissional qualificado.",
     ],
   },
@@ -92,10 +92,12 @@ export function TermsPage() {
       </header>
 
       <main className="mx-auto max-w-3xl px-5 py-14">
-        <h1 className="font-display text-3xl text-foreground sm:text-4xl">Termos de uso e privacidade</h1>
+        <h1 className="font-display text-3xl text-foreground sm:text-4xl">
+          Termos de uso e privacidade
+        </h1>
         <p className="mt-3 text-sm leading-relaxed text-muted-foreground">
-          Última atualização: agosto de 2026. Este documento explica como o Aval funciona, o que fazemos com seus dados
-          e quais são as responsabilidades de cada parte.
+          Última atualização: agosto de 2026. Este documento explica como o Aval funciona, o que
+          fazemos com seus dados e quais são as responsabilidades de cada parte.
         </p>
 
         <div className="mt-10 flex flex-col gap-8">

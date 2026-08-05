@@ -23,14 +23,25 @@ describe("parseOfx", () => {
 </OFX>`;
     const result = parseOfx(ofx);
     expect(result).toHaveLength(2);
-    expect(result[0]).toMatchObject({ date: "2026-07-15", amount: 45.9, type: "expense", fitId: "ABC123" });
-    expect(result[1]).toMatchObject({ date: "2026-07-16", amount: 1500, type: "income", fitId: "ABC124" });
+    expect(result[0]).toMatchObject({
+      date: "2026-07-15",
+      amount: 45.9,
+      type: "expense",
+      fitId: "ABC123",
+    });
+    expect(result[1]).toMatchObject({
+      date: "2026-07-16",
+      amount: 1500,
+      type: "income",
+      fitId: "ABC124",
+    });
   });
 });
 
 describe("parseCsv", () => {
   it("parses dates and period-decimal amounts with comma-separated columns", () => {
-    const csv = "data,descricao,valor\n15/07/2026,Posto Shell,-180.00\n16/07/2026,Pix recebido,250.50";
+    const csv =
+      "data,descricao,valor\n15/07/2026,Posto Shell,-180.00\n16/07/2026,Pix recebido,250.50";
     const result = parseCsv(csv);
     expect(result).toHaveLength(2);
     expect(result[0]).toMatchObject({ date: "2026-07-15", amount: 180, type: "expense" });
@@ -47,12 +58,25 @@ describe("parseCsv", () => {
 
 describe("isDuplicate", () => {
   it("matches by fitId when both sides have one", () => {
-    const tx = { date: "2026-07-15", amount: 45.9, type: "expense" as const, description: "Mercado", fitId: "X1" };
-    expect(isDuplicate(tx, [{ fitId: "X1", date: "2020-01-01", amount: 1, name: "outro" }])).toBe(true);
+    const tx = {
+      date: "2026-07-15",
+      amount: 45.9,
+      type: "expense" as const,
+      description: "Mercado",
+      fitId: "X1",
+    };
+    expect(isDuplicate(tx, [{ fitId: "X1", date: "2020-01-01", amount: 1, name: "outro" }])).toBe(
+      true,
+    );
   });
 
   it("falls back to date+amount+description when there is no fitId", () => {
-    const tx = { date: "2026-07-15", amount: 45.9, type: "expense" as const, description: "Mercado" };
+    const tx = {
+      date: "2026-07-15",
+      amount: 45.9,
+      type: "expense" as const,
+      description: "Mercado",
+    };
     expect(isDuplicate(tx, [{ date: "2026-07-15", amount: 45.9, name: "Mercado" }])).toBe(true);
     expect(isDuplicate(tx, [{ date: "2026-07-15", amount: 45.9, name: "Outra loja" }])).toBe(false);
   });

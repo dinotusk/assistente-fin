@@ -25,7 +25,10 @@ function fingerprint(date: string, amount: number, description: string): string 
 export function isDuplicate(tx: ParsedTransaction, existing: ExistingFingerprint[]): boolean {
   return existing.some((item) => {
     if (tx.fitId && item.fitId) return tx.fitId === item.fitId;
-    return fingerprint(tx.date, tx.amount, tx.description) === fingerprint(item.date, item.amount, item.name);
+    return (
+      fingerprint(tx.date, tx.amount, tx.description) ===
+      fingerprint(item.date, item.amount, item.name)
+    );
   });
 }
 
@@ -36,7 +39,8 @@ export function parseOfx(text: string): ParsedTransaction[] {
     const body = block.split(/<\/STMTTRN>/i)[0];
     const amountRaw = extractOfxTag(body, "TRNAMT");
     const dateRaw = extractOfxTag(body, "DTPOSTED");
-    const memo = extractOfxTag(body, "MEMO") || extractOfxTag(body, "NAME") || "Lançamento importado";
+    const memo =
+      extractOfxTag(body, "MEMO") || extractOfxTag(body, "NAME") || "Lançamento importado";
     const fitId = extractOfxTag(body, "FITID") || undefined;
     if (!amountRaw || !dateRaw) continue;
 
@@ -64,7 +68,8 @@ export function parseCsv(text: string): ParsedTransaction[] {
   const lines = text.split(/\r?\n/).filter((line) => line.trim());
   if (lines.length < 2) return [];
 
-  const separator = (lines[0].match(/;/g)?.length || 0) > (lines[0].match(/,/g)?.length || 0) ? ";" : ",";
+  const separator =
+    (lines[0].match(/;/g)?.length || 0) > (lines[0].match(/,/g)?.length || 0) ? ";" : ",";
   const headers = lines[0].split(separator).map((h) => normalizeText(h.trim()));
   const dateIndex = headers.findIndex((h) => ["data", "date"].includes(h));
   const descIndex = headers.findIndex((h) => ["descricao", "historico", "description"].includes(h));

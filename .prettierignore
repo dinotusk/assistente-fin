@@ -6,3 +6,12 @@ pnpm-lock.yaml
 package-lock.json
 bun.lock
 routeTree.gen.ts
+
+# Not part of this app's source — third-party tooling / platform-managed files
+.claude
+ios
+native
+.lovable
+AGENTS.md
+.reference-index.html
+supabase/.temp

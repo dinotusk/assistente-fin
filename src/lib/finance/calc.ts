@@ -21,7 +21,8 @@ export function maskMoneyInText(text: string): string {
 /** Compact currency for tight chart labels, e.g. R$ 1,2 mil. */
 export function moneyShort(value: number): string {
   const v = Number(value || 0);
-  if (Math.abs(v) >= 1000) return `R$ ${(v / 1000).toLocaleString("pt-BR", { maximumFractionDigits: 1 })} mil`;
+  if (Math.abs(v) >= 1000)
+    return `R$ ${(v / 1000).toLocaleString("pt-BR", { maximumFractionDigits: 1 })} mil`;
   return money(v);
 }
 
@@ -79,7 +80,8 @@ export function responsavelToView(responsavel?: string): string {
   if (!responsavel || responsavel === VIEW_ALL || responsavel === "Todos") return VIEW_ALL;
   if (responsavel === RESPONSAVEL_CASAL || responsavel === "Casal") return VIEW_ME;
   if (["Meu perfil", "Pessoa 1", "Minha casa"].includes(responsavel)) return VIEW_ME;
-  if (["Esposa", "Pessoa 2", "Pai da namorada", "Outra casa"].includes(responsavel)) return VIEW_SPOUSE;
+  if (["Esposa", "Pessoa 2", "Pai da namorada", "Outra casa"].includes(responsavel))
+    return VIEW_SPOUSE;
   if (responsavel === VIEW_ME || responsavel === currentUserName()) return VIEW_ME;
   if (responsavel === VIEW_SPOUSE || responsavel === spouseName()) return VIEW_SPOUSE;
   return responsavel;
@@ -103,7 +105,8 @@ export function expensesForView(monthData: MonthData, view: string): Expense[] {
 }
 
 export function budgetForView(monthData: MonthData, view: string): number {
-  if (view === VIEW_ALL) return Number(monthData.income || 0) + Number(monthData.houseContribution || 0);
+  if (view === VIEW_ALL)
+    return Number(monthData.income || 0) + Number(monthData.houseContribution || 0);
   if (view === VIEW_SPOUSE) return Number(monthData.houseContribution || 0);
   if (view !== VIEW_ME) return Number(monthData.profileBudgets?.[view] || 0);
   return Number(monthData.income || 0);
@@ -117,7 +120,10 @@ export interface CategoryTotal {
 export function getCategoryTotals(monthData: MonthData, view: string): CategoryTotal[] {
   const expenses = expensesForView(monthData, view).filter((item) => item.type !== "income");
   return categories
-    .map((category) => ({ category, total: sum(expenses.filter((item) => item.category === category)) }))
+    .map((category) => ({
+      category,
+      total: sum(expenses.filter((item) => item.category === category)),
+    }))
     .filter((item) => item.total > 0)
     .sort((a, b) => b.total - a.total);
 }
@@ -140,7 +146,10 @@ export function daysLeftInMonth(monthKey?: string): number {
   const now = new Date();
   const currentKey = currentCalendarMonthKey();
   if (!monthKey || monthKey === currentKey) {
-    return Math.max(1, new Date(now.getFullYear(), now.getMonth() + 1, 0).getDate() - now.getDate() + 1);
+    return Math.max(
+      1,
+      new Date(now.getFullYear(), now.getMonth() + 1, 0).getDate() - now.getDate() + 1,
+    );
   }
   const [year, monthNumber] = monthKey.split("-").map(Number);
   if (monthKey < currentKey) return 0;
@@ -160,7 +169,18 @@ export function calc(monthData: MonthData, view: string, monthKey?: string): Met
   const byCategory = getCategoryTotals(monthData, view);
   const topCategory = byCategory[0];
   const daysLeft = daysLeftInMonth(monthKey);
-  return { total, received, pending, paid, free, saving, topCategory, paidRate: total ? paid / total : 0, daysLeft, budget };
+  return {
+    total,
+    received,
+    pending,
+    paid,
+    free,
+    saving,
+    topCategory,
+    paidRate: total ? paid / total : 0,
+    daysLeft,
+    budget,
+  };
 }
 
 export function expenseCompetence(expense: Expense): string {
@@ -183,7 +203,9 @@ export function timelineMonthEntries(state: FinanceState): [string, MonthData][]
   const calKey = currentCalendarMonthKey();
   const currentKey = state.months[calKey] ? calKey : state.activeMonth;
   const currentEntry = entries.find(([key]) => key === currentKey);
-  const previous = entries.filter(([key]) => key < currentKey).sort(([a], [b]) => b.localeCompare(a));
+  const previous = entries
+    .filter(([key]) => key < currentKey)
+    .sort(([a], [b]) => b.localeCompare(a));
   const future = entries.filter(([key]) => key > currentKey);
   return currentEntry ? [currentEntry, ...previous, ...future] : entries;
 }
@@ -207,17 +229,27 @@ export function formatMonthLabel(key: string): string {
   return label.charAt(0).toUpperCase() + label.slice(1);
 }
 
-export function getLargestCategoryGrowth(state: FinanceState, view: string): { category: string; diff: number } | null {
+export function getLargestCategoryGrowth(
+  state: FinanceState,
+  view: string,
+): { category: string; diff: number } | null {
   const entries = sortedMonthEntries(state);
   const activeIndex = entries.findIndex(([key]) => key === state.activeMonth);
   if (activeIndex <= 0) return null;
   const previous = entries[activeIndex - 1][1];
   const current = state.months[state.activeMonth];
-  const currentTotals = Object.fromEntries(getCategoryTotals(current, view).map((i) => [i.category, i.total]));
-  const previousTotals = Object.fromEntries(getCategoryTotals(previous, view).map((i) => [i.category, i.total]));
+  const currentTotals = Object.fromEntries(
+    getCategoryTotals(current, view).map((i) => [i.category, i.total]),
+  );
+  const previousTotals = Object.fromEntries(
+    getCategoryTotals(previous, view).map((i) => [i.category, i.total]),
+  );
   return (
     categories
-      .map((category) => ({ category, diff: (currentTotals[category] || 0) - (previousTotals[category] || 0) }))
+      .map((category) => ({
+        category,
+        diff: (currentTotals[category] || 0) - (previousTotals[category] || 0),
+      }))
       .filter((item) => item.diff > 0)
       .sort((a, b) => b.diff - a.diff)[0] || null
   );
@@ -233,5 +265,9 @@ export function normalizeText(value: string): string {
 }
 
 export function profileId(name: string): string {
-  return normalizeText(name).replace(/[^a-z0-9]+/g, "-").replace(/^-|-$/g, "") || "perfil";
+  return (
+    normalizeText(name)
+      .replace(/[^a-z0-9]+/g, "-")
+      .replace(/^-|-$/g, "") || "perfil"
+  );
 }

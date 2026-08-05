@@ -1,17 +1,18 @@
 import { useEffect, useState } from "react";
 import { Check, Copy, Loader2, Trash2, X } from "lucide-react";
 
-import {
-  Drawer,
-  DrawerContent,
-  DrawerHeader,
-  DrawerTitle,
-} from "@/components/ui/drawer";
+import { Drawer, DrawerContent, DrawerHeader, DrawerTitle } from "@/components/ui/drawer";
 import { Switch } from "@/components/ui/switch";
 import { categories, paymentMethods } from "@/lib/finance/constants";
 import { categoryLabel, currentUserName, resolveViewOwner, spouseName } from "@/lib/finance/calc";
 import { useFinance } from "@/lib/finance/FinanceContext";
-import { forgetCategory, learnCategory, listLearnedCategories, lookupLearnedCategory, type LearnedCategoryRule } from "@/lib/finance/learnedCategories";
+import {
+  forgetCategory,
+  learnCategory,
+  listLearnedCategories,
+  lookupLearnedCategory,
+  type LearnedCategoryRule,
+} from "@/lib/finance/learnedCategories";
 import { isDuplicate, parseCsv, parseOfx, type ParsedTransaction } from "@/lib/finance/bankImport";
 import { uid } from "@/lib/finance/seed";
 import type { Expense, Priority } from "@/lib/finance/types";
@@ -43,15 +44,25 @@ function SheetShell({
     <Drawer open={open} onOpenChange={onOpenChange}>
       <DrawerContent className="mx-auto flex max-h-[88svh] max-w-[440px] flex-col rounded-t-[1.75rem] border-border bg-card">
         <DrawerHeader className="px-5 pb-1 pt-3 text-left">
-          <DrawerTitle className="font-display text-2xl tracking-tight text-foreground">{title}</DrawerTitle>
+          <DrawerTitle className="font-display text-2xl tracking-tight text-foreground">
+            {title}
+          </DrawerTitle>
         </DrawerHeader>
-        <div className="min-h-0 flex-1 overflow-y-auto overscroll-contain px-5 pb-[max(1rem,env(safe-area-inset-bottom))] pt-2">{children}</div>
+        <div className="min-h-0 flex-1 overflow-y-auto overscroll-contain px-5 pb-[max(1rem,env(safe-area-inset-bottom))] pt-2">
+          {children}
+        </div>
       </DrawerContent>
     </Drawer>
   );
 }
 
-function Actions({ onCancel, submitLabel = "Salvar" }: { onCancel: () => void; submitLabel?: string }) {
+function Actions({
+  onCancel,
+  submitLabel = "Salvar",
+}: {
+  onCancel: () => void;
+  submitLabel?: string;
+}) {
   return (
     <div className="sticky bottom-0 -mx-5 mt-5 flex gap-3 border-t border-border/70 bg-card/95 px-5 py-3 backdrop-blur">
       <button
@@ -103,14 +114,27 @@ export function ExpenseDialog({
   }
 
   return (
-    <SheetShell open={open} onOpenChange={onOpenChange} title={editing ? "Editar gasto" : "Adicionar gasto"}>
+    <SheetShell
+      open={open}
+      onOpenChange={onOpenChange}
+      title={editing ? "Editar gasto" : "Adicionar gasto"}
+    >
       <form onSubmit={submit} className="flex flex-col gap-4">
         <Field label="Descrição">
-          <TextInput value={form.name} onChange={(e) => setForm({ ...form, name: e.target.value })} required />
+          <TextInput
+            value={form.name}
+            onChange={(e) => setForm({ ...form, name: e.target.value })}
+            required
+          />
         </Field>
         <div className="grid grid-cols-2 gap-3">
           <Field label="Data">
-            <TextInput type="date" value={form.date} onChange={(e) => setForm({ ...form, date: e.target.value })} required />
+            <TextInput
+              type="date"
+              value={form.date}
+              onChange={(e) => setForm({ ...form, date: e.target.value })}
+              required
+            />
           </Field>
           <Field label="Valor">
             <TextInput
@@ -125,7 +149,10 @@ export function ExpenseDialog({
           </Field>
         </div>
         <Field label="Categoria">
-          <SelectInput value={form.category} onChange={(e) => setForm({ ...form, category: e.target.value })}>
+          <SelectInput
+            value={form.category}
+            onChange={(e) => setForm({ ...form, category: e.target.value })}
+          >
             {categories.map((cat) => (
               <option key={cat} value={cat}>
                 {categoryLabel(cat)}
@@ -135,15 +162,24 @@ export function ExpenseDialog({
         </Field>
         <div className="grid grid-cols-2 gap-3">
           <Field label="Status">
-            <SelectInput value={form.status} onChange={(e) => setForm({ ...form, status: e.target.value as Expense["status"] })}>
+            <SelectInput
+              value={form.status}
+              onChange={(e) => setForm({ ...form, status: e.target.value as Expense["status"] })}
+            >
               <option>Pago</option>
               <option>A pagar</option>
             </SelectInput>
           </Field>
           <Field label="Responsável">
-            <SelectInput value={form.owner} onChange={(e) => setForm({ ...form, owner: e.target.value })}>
+            <SelectInput
+              value={form.owner}
+              onChange={(e) => setForm({ ...form, owner: e.target.value })}
+            >
               {state.people.map((person, index) => (
-                <option key={`${person}-${index}`} value={index === 0 ? currentUserName() : index === 1 ? spouseName() : person}>
+                <option
+                  key={`${person}-${index}`}
+                  value={index === 0 ? currentUserName() : index === 1 ? spouseName() : person}
+                >
                   {person}
                 </option>
               ))}
@@ -151,14 +187,21 @@ export function ExpenseDialog({
           </Field>
         </div>
         <Field label="Forma de pagamento">
-          <SelectInput value={form.paymentMethod} onChange={(e) => setForm({ ...form, paymentMethod: e.target.value })}>
+          <SelectInput
+            value={form.paymentMethod}
+            onChange={(e) => setForm({ ...form, paymentMethod: e.target.value })}
+          >
             {paymentMethods.map((m) => (
               <option key={m}>{m}</option>
             ))}
           </SelectInput>
         </Field>
         <Field label="Observação">
-          <TextArea rows={2} value={form.note} onChange={(e) => setForm({ ...form, note: e.target.value })} />
+          <TextArea
+            rows={2}
+            value={form.note}
+            onChange={(e) => setForm({ ...form, note: e.target.value })}
+          />
         </Field>
         <Actions onCancel={() => onOpenChange(false)} />
       </form>
@@ -208,10 +251,18 @@ export function PriorityDialog({
   }
 
   return (
-    <SheetShell open={open} onOpenChange={onOpenChange} title={editing ? "Editar prioridade" : "Adicionar prioridade"}>
+    <SheetShell
+      open={open}
+      onOpenChange={onOpenChange}
+      title={editing ? "Editar prioridade" : "Adicionar prioridade"}
+    >
       <form onSubmit={submit} className="flex flex-col gap-4">
         <Field label="Item">
-          <TextInput value={form.name} onChange={(e) => setForm({ ...form, name: e.target.value })} required />
+          <TextInput
+            value={form.name}
+            onChange={(e) => setForm({ ...form, name: e.target.value })}
+            required
+          />
         </Field>
         <Field label="Valor">
           <TextInput
@@ -226,14 +277,20 @@ export function PriorityDialog({
         </Field>
         <div className="grid grid-cols-2 gap-3">
           <Field label="Prioridade">
-            <SelectInput value={form.rank} onChange={(e) => setForm({ ...form, rank: Number(e.target.value) })}>
+            <SelectInput
+              value={form.rank}
+              onChange={(e) => setForm({ ...form, rank: Number(e.target.value) })}
+            >
               <option value="1">1 - Alta</option>
               <option value="2">2 - Média</option>
               <option value="3">3 - Baixa</option>
             </SelectInput>
           </Field>
           <Field label="Status">
-            <SelectInput value={form.status} onChange={(e) => setForm({ ...form, status: e.target.value as Priority["status"] })}>
+            <SelectInput
+              value={form.status}
+              onChange={(e) => setForm({ ...form, status: e.target.value as Priority["status"] })}
+            >
               <option>A pagar</option>
               <option>Pago</option>
               <option>Adiar</option>
@@ -247,11 +304,24 @@ export function PriorityDialog({
 }
 
 function blankPriority(): Priority {
-  return { id: uid(), name: "", amount: 0, rank: 1, status: "A pagar", responsavel: currentUserName() };
+  return {
+    id: uid(),
+    name: "",
+    amount: 0,
+    rank: 1,
+    status: "A pagar",
+    responsavel: currentUserName(),
+  };
 }
 
 /* ---------------- Month ---------------- */
-export function MonthDialog({ open, onOpenChange }: { open: boolean; onOpenChange: (v: boolean) => void }) {
+export function MonthDialog({
+  open,
+  onOpenChange,
+}: {
+  open: boolean;
+  onOpenChange: (v: boolean) => void;
+}) {
   const { month, state, saveMonthSettings, deleteMonth } = useFinance();
   const [label, setLabel] = useState("");
   const [income, setIncome] = useState(0);
@@ -281,7 +351,9 @@ export function MonthDialog({ open, onOpenChange }: { open: boolean; onOpenChang
 
   function handleDelete() {
     if (!canDelete) return;
-    const ok = confirm(`Excluir "${month.label}"? Todos os gastos e prioridades desse mês serão apagados. Essa ação não pode ser desfeita.`);
+    const ok = confirm(
+      `Excluir "${month.label}"? Todos os gastos e prioridades desse mês serão apagados. Essa ação não pode ser desfeita.`,
+    );
     if (!ok) return;
     deleteMonth(state.activeMonth);
     onOpenChange(false);
@@ -298,7 +370,8 @@ export function MonthDialog({ open, onOpenChange }: { open: boolean; onOpenChang
           <div className="min-w-0">
             <strong className="block text-sm font-bold text-foreground">Mês planejado</strong>
             <span className="block text-[12px] leading-snug text-muted-foreground">
-              Marque se este mês ainda não começou. Os valores viram uma previsão até você desmarcar.
+              Marque se este mês ainda não começou. Os valores viram uma previsão até você
+              desmarcar.
             </span>
           </div>
           <button
@@ -373,7 +446,13 @@ export function MonthDialog({ open, onOpenChange }: { open: boolean; onOpenChang
   );
 }
 /* ---------------- People ---------------- */
-export function PeopleDialog({ open, onOpenChange }: { open: boolean; onOpenChange: (v: boolean) => void }) {
+export function PeopleDialog({
+  open,
+  onOpenChange,
+}: {
+  open: boolean;
+  onOpenChange: (v: boolean) => void;
+}) {
   const { state, savePeople } = useFinance();
   const [people, setPeople] = useState<string[]>([]);
 
@@ -397,19 +476,26 @@ export function PeopleDialog({ open, onOpenChange }: { open: boolean; onOpenChan
   }
 
   function removePerson(index: number) {
-    setPeople((items) => (items.length <= 1 ? items : items.filter((_, itemIndex) => itemIndex !== index)));
+    setPeople((items) =>
+      items.length <= 1 ? items : items.filter((_, itemIndex) => itemIndex !== index),
+    );
   }
 
   return (
     <SheetShell open={open} onOpenChange={onOpenChange} title="Perfis financeiros">
       <form onSubmit={submit} className="flex flex-col gap-4">
         <p className="text-sm text-muted-foreground">
-          Crie as visoes que deseja acompanhar no filtro superior. Os gastos existentes continuam preservados.
+          Crie as visoes que deseja acompanhar no filtro superior. Os gastos existentes continuam
+          preservados.
         </p>
         {people.map((person, index) => (
           <div key={index} className="grid grid-cols-[1fr_auto] gap-2">
             <Field label={`Perfil ${index + 1}`}>
-              <TextInput value={person} onChange={(e) => updatePerson(index, e.target.value)} required />
+              <TextInput
+                value={person}
+                onChange={(e) => updatePerson(index, e.target.value)}
+                required
+              />
             </Field>
             <button
               type="button"
@@ -435,7 +521,13 @@ export function PeopleDialog({ open, onOpenChange }: { open: boolean; onOpenChan
 }
 
 /* ---------------- Learned categories ---------------- */
-export function CategoriesDialog({ open, onOpenChange }: { open: boolean; onOpenChange: (v: boolean) => void }) {
+export function CategoriesDialog({
+  open,
+  onOpenChange,
+}: {
+  open: boolean;
+  onOpenChange: (v: boolean) => void;
+}) {
   const [rules, setRules] = useState<LearnedCategoryRule[]>([]);
 
   useEffect(() => {
@@ -450,8 +542,9 @@ export function CategoriesDialog({ open, onOpenChange }: { open: boolean; onOpen
   return (
     <SheetShell open={open} onOpenChange={onOpenChange} title="Categorias aprendidas">
       <p className="text-sm text-muted-foreground">
-        Toda vez que você corrige a categoria de um gasto, o Aval memoriza a regra e passa a aplicá-la
-        automaticamente para o mesmo estabelecimento, inclusive em lançamentos futuros pelo chat ou importados.
+        Toda vez que você corrige a categoria de um gasto, o Aval memoriza a regra e passa a
+        aplicá-la automaticamente para o mesmo estabelecimento, inclusive em lançamentos futuros
+        pelo chat ou importados.
       </p>
       {rules.length === 0 ? (
         <p className="mt-4 rounded-2xl border border-dashed border-border p-4 text-center text-sm text-muted-foreground">
@@ -465,8 +558,12 @@ export function CategoriesDialog({ open, onOpenChange }: { open: boolean; onOpen
               className="flex items-center justify-between gap-3 rounded-2xl bg-secondary p-3.5"
             >
               <div className="min-w-0">
-                <strong className="block truncate text-sm font-bold text-foreground">{rule.establishment}</strong>
-                <span className="text-[12px] text-muted-foreground">{categoryLabel(rule.category)}</span>
+                <strong className="block truncate text-sm font-bold text-foreground">
+                  {rule.establishment}
+                </strong>
+                <span className="text-[12px] text-muted-foreground">
+                  {categoryLabel(rule.category)}
+                </span>
               </div>
               <button
                 type="button"
@@ -494,7 +591,13 @@ export function CategoriesDialog({ open, onOpenChange }: { open: boolean; onOpen
 }
 
 /* ---------------- Invite ---------------- */
-export function InviteDialog({ open, onOpenChange }: { open: boolean; onOpenChange: (v: boolean) => void }) {
+export function InviteDialog({
+  open,
+  onOpenChange,
+}: {
+  open: boolean;
+  onOpenChange: (v: boolean) => void;
+}) {
   const { createInvite } = useFinance();
   const [code, setCode] = useState<string | null>(null);
   const [loading, setLoading] = useState(false);
@@ -508,11 +611,14 @@ export function InviteDialog({ open, onOpenChange }: { open: boolean; onOpenChan
     setLoading(true);
     createInvite()
       .then((value) => setCode(value))
-      .catch((err) => setError(err instanceof Error ? err.message : "Não foi possível gerar o convite."))
+      .catch((err) =>
+        setError(err instanceof Error ? err.message : "Não foi possível gerar o convite."),
+      )
       .finally(() => setLoading(false));
   }, [open, createInvite]);
 
-  const link = code && typeof window !== "undefined" ? `${window.location.origin}/entrar?convite=${code}` : "";
+  const link =
+    code && typeof window !== "undefined" ? `${window.location.origin}/entrar?convite=${code}` : "";
 
   async function copy(value: string, kind: "code" | "link") {
     try {
@@ -527,8 +633,8 @@ export function InviteDialog({ open, onOpenChange }: { open: boolean; onOpenChan
   return (
     <SheetShell open={open} onOpenChange={onOpenChange} title="Convidar para a casa">
       <p className="text-sm text-muted-foreground">
-        Compartilhe este código com quem vai entrar na sua casa. Ao criar a conta com ele, a pessoa já vê as mesmas
-        despesas, prioridades e metas, sem duplicar nada.
+        Compartilhe este código com quem vai entrar na sua casa. Ao criar a conta com ele, a pessoa
+        já vê as mesmas despesas, prioridades e metas, sem duplicar nada.
       </p>
 
       {loading && (
@@ -567,7 +673,9 @@ export function InviteDialog({ open, onOpenChange }: { open: boolean; onOpenChan
             {copied === "link" ? <Check className="h-4 w-4" /> : <Copy className="h-4 w-4" />}
             {copied === "link" ? "Copiado!" : "Copiar link de convite"}
           </button>
-          <p className="text-center text-[11px] text-muted-foreground">Válido por 14 dias ou até ser usado.</p>
+          <p className="text-center text-[11px] text-muted-foreground">
+            Válido por 14 dias ou até ser usado.
+          </p>
         </div>
       )}
 
@@ -585,7 +693,13 @@ export function InviteDialog({ open, onOpenChange }: { open: boolean; onOpenChan
 }
 
 /* ---------------- Join household ---------------- */
-export function JoinHouseholdDialog({ open, onOpenChange }: { open: boolean; onOpenChange: (v: boolean) => void }) {
+export function JoinHouseholdDialog({
+  open,
+  onOpenChange,
+}: {
+  open: boolean;
+  onOpenChange: (v: boolean) => void;
+}) {
   const { joinHousehold } = useFinance();
   const [code, setCode] = useState("");
   const [loading, setLoading] = useState(false);
@@ -617,8 +731,9 @@ export function JoinHouseholdDialog({ open, onOpenChange }: { open: boolean; onO
     <SheetShell open={open} onOpenChange={onOpenChange} title="Entrar em outra casa">
       <form onSubmit={submit} className="flex flex-col gap-4">
         <p className="text-sm text-muted-foreground">
-          Cole aqui o código que alguém te enviou. Isso troca a casa que você vê no Aval pela casa de quem te
-          convidou — seus dados atuais continuam guardados, mas você deixa de vê-los aqui.
+          Cole aqui o código que alguém te enviou. Isso troca a casa que você vê no Aval pela casa
+          de quem te convidou — seus dados atuais continuam guardados, mas você deixa de vê-los
+          aqui.
         </p>
         <Field label="Código do convite">
           <TextInput
@@ -635,7 +750,10 @@ export function JoinHouseholdDialog({ open, onOpenChange }: { open: boolean; onO
             {error}
           </p>
         )}
-        <Actions onCancel={() => onOpenChange(false)} submitLabel={loading ? "Entrando..." : "Entrar nessa casa"} />
+        <Actions
+          onCancel={() => onOpenChange(false)}
+          submitLabel={loading ? "Entrando..." : "Entrar nessa casa"}
+        />
       </form>
     </SheetShell>
   );
@@ -652,7 +770,13 @@ interface ImportCandidate {
   owner: string;
 }
 
-export function BankImportDialog({ open, onOpenChange }: { open: boolean; onOpenChange: (v: boolean) => void }) {
+export function BankImportDialog({
+  open,
+  onOpenChange,
+}: {
+  open: boolean;
+  onOpenChange: (v: boolean) => void;
+}) {
   const { state, importExpenses } = useFinance();
   const [candidates, setCandidates] = useState<ImportCandidate[]>([]);
   const [skippedCount, setSkippedCount] = useState(0);
@@ -698,7 +822,8 @@ export function BankImportDialog({ open, onOpenChange }: { open: boolean; onOpen
           amount: tx.amount,
           type: tx.type,
           description: tx.description,
-          category: tx.type === "income" ? "Livre" : lookupLearnedCategory(tx.description) || "Outros",
+          category:
+            tx.type === "income" ? "Livre" : lookupLearnedCategory(tx.description) || "Outros",
           owner: defaultOwner,
         });
       });
@@ -743,8 +868,8 @@ export function BankImportDialog({ open, onOpenChange }: { open: boolean; onOpen
       {candidates.length === 0 ? (
         <div className="flex flex-col gap-4">
           <p className="text-sm text-muted-foreground">
-            Envie um arquivo OFX (padrão de extrato de qualquer banco) ou CSV. Nada entra no seu extrato sem você
-            revisar e confirmar.
+            Envie um arquivo OFX (padrão de extrato de qualquer banco) ou CSV. Nada entra no seu
+            extrato sem você revisar e confirmar.
           </p>
           <label className="press focus-ring flex h-14 cursor-pointer items-center justify-center rounded-2xl border border-dashed border-primary/35 bg-primary-soft text-sm font-bold text-primary">
             Escolher arquivo (.ofx ou .csv)
@@ -762,9 +887,12 @@ export function BankImportDialog({ open, onOpenChange }: { open: boolean; onOpen
             <div key={item.id} className="rounded-2xl bg-secondary p-3.5">
               <div className="flex items-start justify-between gap-2">
                 <div className="min-w-0">
-                  <strong className="block truncate text-sm font-bold text-foreground">{item.description}</strong>
+                  <strong className="block truncate text-sm font-bold text-foreground">
+                    {item.description}
+                  </strong>
                   <span className="text-[11px] text-muted-foreground">
-                    {item.date} · {item.type === "income" ? "Entrada" : "Saída"} · {categoryLabel(item.category)}
+                    {item.date} · {item.type === "income" ? "Entrada" : "Saída"} ·{" "}
+                    {categoryLabel(item.category)}
                   </span>
                 </div>
                 <strong className="tnum shrink-0 text-sm font-bold text-foreground">
@@ -772,16 +900,25 @@ export function BankImportDialog({ open, onOpenChange }: { open: boolean; onOpen
                 </strong>
               </div>
               <div className="mt-2.5 grid grid-cols-[1fr_1fr_auto] gap-2">
-                <SelectInput value={item.category} onChange={(e) => updateCandidate(item.id, { category: e.target.value })}>
+                <SelectInput
+                  value={item.category}
+                  onChange={(e) => updateCandidate(item.id, { category: e.target.value })}
+                >
                   {categories.map((cat) => (
                     <option key={cat} value={cat}>
                       {categoryLabel(cat)}
                     </option>
                   ))}
                 </SelectInput>
-                <SelectInput value={item.owner} onChange={(e) => updateCandidate(item.id, { owner: e.target.value })}>
+                <SelectInput
+                  value={item.owner}
+                  onChange={(e) => updateCandidate(item.id, { owner: e.target.value })}
+                >
                   {state.people.map((person, index) => (
-                    <option key={`${person}-${index}`} value={index === 0 ? currentUserName() : index === 1 ? spouseName() : person}>
+                    <option
+                      key={`${person}-${index}`}
+                      value={index === 0 ? currentUserName() : index === 1 ? spouseName() : person}
+                    >
                       {person}
                     </option>
                   ))}
@@ -827,7 +964,13 @@ const TONES: { value: VigiaTone; label: string }[] = [
   { value: "seco", label: "Seco" },
 ];
 
-export function VigiasDialog({ open, onOpenChange }: { open: boolean; onOpenChange: (v: boolean) => void }) {
+export function VigiasDialog({
+  open,
+  onOpenChange,
+}: {
+  open: boolean;
+  onOpenChange: (v: boolean) => void;
+}) {
   const [vigias, setVigias] = useState<Vigia[]>([]);
   const [creating, setCreating] = useState(false);
   const [name, setName] = useState("");
@@ -876,11 +1019,17 @@ export function VigiasDialog({ open, onOpenChange }: { open: boolean; onOpenChan
           >
             <div className="flex items-center justify-between gap-3">
               <div className="min-w-0">
-                <strong className="block truncate text-sm font-bold leading-tight text-foreground">{vigia.name}</strong>
-                <span className="mt-1 block text-[12px] leading-tight text-muted-foreground">{VIGIA_RULE_LABELS[vigia.rule]}</span>
+                <strong className="block truncate text-sm font-bold leading-tight text-foreground">
+                  {vigia.name}
+                </strong>
+                <span className="mt-1 block text-[12px] leading-tight text-muted-foreground">
+                  {VIGIA_RULE_LABELS[vigia.rule]}
+                </span>
               </div>
               <div className="flex shrink-0 items-center gap-2.5">
-                <span className={`hidden text-[11px] font-bold uppercase tracking-[0.12em] sm:inline ${vigia.enabled ? "text-primary" : "text-muted-foreground"}`}>
+                <span
+                  className={`hidden text-[11px] font-bold uppercase tracking-[0.12em] sm:inline ${vigia.enabled ? "text-primary" : "text-muted-foreground"}`}
+                >
                   {vigia.enabled ? "Ativo" : "Pausado"}
                 </span>
                 <Switch
@@ -904,9 +1053,17 @@ export function VigiasDialog({ open, onOpenChange }: { open: boolean; onOpenChan
       </div>
 
       {creating ? (
-        <form onSubmit={submitNewVigia} className="mt-4 flex flex-col gap-3 rounded-2xl border border-border bg-secondary/50 p-3.5">
+        <form
+          onSubmit={submitNewVigia}
+          className="mt-4 flex flex-col gap-3 rounded-2xl border border-border bg-secondary/50 p-3.5"
+        >
           <Field label="Nome do vigia">
-            <TextInput value={name} onChange={(e) => setName(e.target.value)} placeholder="Ex.: Fiscal das assinaturas" required />
+            <TextInput
+              value={name}
+              onChange={(e) => setName(e.target.value)}
+              placeholder="Ex.: Fiscal das assinaturas"
+              required
+            />
           </Field>
           <Field label="O que ele observa">
             <SelectInput value={rule} onChange={(e) => setRule(e.target.value as VigiaRuleType)}>
@@ -934,7 +1091,10 @@ export function VigiasDialog({ open, onOpenChange }: { open: boolean; onOpenChan
             >
               Cancelar
             </button>
-            <button type="submit" className="hero-gradient press focus-ring h-11 flex-1 rounded-xl text-sm font-bold text-primary-foreground shadow-primary">
+            <button
+              type="submit"
+              className="hero-gradient press focus-ring h-11 flex-1 rounded-xl text-sm font-bold text-primary-foreground shadow-primary"
+            >
               Criar vigia
             </button>
           </div>

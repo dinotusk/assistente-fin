@@ -47,7 +47,9 @@ describe("evaluateVigias / contaVencendo", () => {
   afterEach(() => vi.useRealTimers());
 
   it("fires with erro severity for an overdue bill", () => {
-    const month = makeMonth([makeExpense({ date: "2026-07-10", dueDate: "2026-07-10", amount: 200, status: "A pagar" })]);
+    const month = makeMonth([
+      makeExpense({ date: "2026-07-10", dueDate: "2026-07-10", amount: 200, status: "A pagar" }),
+    ]);
     const state = makeState({ "2026-07": month });
     const alerts = evaluateVigias([vigia({ threshold: 3 })], state, month, []);
     expect(alerts).toHaveLength(1);
@@ -55,30 +57,43 @@ describe("evaluateVigias / contaVencendo", () => {
   });
 
   it("does not fire for a bill due far in the future", () => {
-    const month = makeMonth([makeExpense({ date: "2026-08-10", dueDate: "2026-08-10", status: "A pagar" })]);
+    const month = makeMonth([
+      makeExpense({ date: "2026-08-10", dueDate: "2026-08-10", status: "A pagar" }),
+    ]);
     const state = makeState({ "2026-07": month });
     const alerts = evaluateVigias([vigia({ threshold: 3 })], state, month, []);
     expect(alerts).toHaveLength(0);
   });
 
   it("skips a disabled vigia", () => {
-    const month = makeMonth([makeExpense({ date: "2026-07-10", dueDate: "2026-07-10", status: "A pagar" })]);
+    const month = makeMonth([
+      makeExpense({ date: "2026-07-10", dueDate: "2026-07-10", status: "A pagar" }),
+    ]);
     const state = makeState({ "2026-07": month });
     const alerts = evaluateVigias([vigia({ enabled: false })], state, month, []);
     expect(alerts).toHaveLength(0);
   });
 
   it("respects lastFiredAt for 'sempre' frequency (once per day)", () => {
-    const month = makeMonth([makeExpense({ date: "2026-07-10", dueDate: "2026-07-10", status: "A pagar" })]);
+    const month = makeMonth([
+      makeExpense({ date: "2026-07-10", dueDate: "2026-07-10", status: "A pagar" }),
+    ]);
     const state = makeState({ "2026-07": month });
-    const alerts = evaluateVigias([vigia({ lastFiredAt: new Date(2026, 6, 15).toISOString() })], state, month, []);
+    const alerts = evaluateVigias(
+      [vigia({ lastFiredAt: new Date(2026, 6, 15).toISOString() })],
+      state,
+      month,
+      [],
+    );
     expect(alerts).toHaveLength(0);
   });
 });
 
 describe("evaluateVigias / categoriaEstourou", () => {
   it("fires when spending in envelope categories exceeds the limit", () => {
-    const month = makeMonth([makeExpense({ category: "Alimentação", amount: 600, status: "Pago" })]);
+    const month = makeMonth([
+      makeExpense({ category: "Alimentação", amount: 600, status: "Pago" }),
+    ]);
     const state = makeState({ "2026-07": month });
     const alerts = evaluateVigias(
       [vigia({ rule: "categoriaEstourou", frequency: "diaria" })],
@@ -101,7 +116,12 @@ describe("evaluateNewExpense / gastoAcimaDoNormal", () => {
       makeExpense({ id: "h3", category: "Lazer", amount: 40, date: "2026-06-20" }),
     ];
     const state = makeState({ "2026-06": makeMonth(history), "2026-07": makeMonth([]) });
-    const newExpense = makeExpense({ id: "new", category: "Lazer", amount: 300, date: "2026-07-15" });
+    const newExpense = makeExpense({
+      id: "new",
+      category: "Lazer",
+      amount: 300,
+      date: "2026-07-15",
+    });
 
     const alert = evaluateNewExpense([vigia({ rule: "gastoAcimaDoNormal" })], state, newExpense);
     expect(alert).not.toBeNull();

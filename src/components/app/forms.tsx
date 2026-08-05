@@ -8,18 +8,25 @@ const inputClass =
 export function Field({ label, children }: { label: string; children: ReactNode }) {
   return (
     <label className="flex flex-col gap-2">
-      <span className="text-xs font-semibold uppercase tracking-[0.04em] text-muted-foreground">{label}</span>
+      <span className="text-xs font-semibold uppercase tracking-[0.04em] text-muted-foreground">
+        {label}
+      </span>
       {children}
     </label>
   );
 }
 
 export const TextInput = forwardRef<HTMLInputElement, React.InputHTMLAttributes<HTMLInputElement>>(
-  ({ className, ...props }, ref) => <input {...props} ref={ref} className={cn(inputClass, className)} />,
+  ({ className, ...props }, ref) => (
+    <input {...props} ref={ref} className={cn(inputClass, className)} />
+  ),
 );
 TextInput.displayName = "TextInput";
 
-export function TextArea({ className, ...props }: React.TextareaHTMLAttributes<HTMLTextAreaElement>) {
+export function TextArea({
+  className,
+  ...props
+}: React.TextareaHTMLAttributes<HTMLTextAreaElement>) {
   return <textarea {...props} className={cn(inputClass, "h-auto py-3", className)} />;
 }
 
@@ -34,7 +41,12 @@ export function SelectInput({
   return (
     <select
       {...props}
-      className={cn(inputClass, "appearance-none bg-[right_0.9rem_center] bg-no-repeat pr-10", chevronBg, className)}
+      className={cn(
+        inputClass,
+        "appearance-none bg-[right_0.9rem_center] bg-no-repeat pr-10",
+        chevronBg,
+        className,
+      )}
     >
       {children}
     </select>

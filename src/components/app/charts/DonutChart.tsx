@@ -69,7 +69,9 @@ export function DonutChart({ data, total }: DonutChartProps) {
           ))}
         </svg>
         <div className="absolute inset-0 flex flex-col items-center justify-center">
-          <span className="text-[11px] font-medium uppercase tracking-wide text-muted-foreground">Total</span>
+          <span className="text-[11px] font-medium uppercase tracking-wide text-muted-foreground">
+            Total
+          </span>
           <strong className="tnum text-lg font-bold text-foreground">{money(total)}</strong>
         </div>
       </div>
@@ -83,8 +85,12 @@ export function DonutChart({ data, total }: DonutChartProps) {
                 className="h-2.5 w-2.5 shrink-0 rounded-full"
                 style={{ background: categoryColors[item.category] || "var(--color-primary)" }}
               />
-              <span className="min-w-0 flex-1 truncate text-foreground">{categoryLabel(item.category)}</span>
-              <span className="tnum shrink-0 font-semibold text-muted-foreground">{percent.toFixed(1)}%</span>
+              <span className="min-w-0 flex-1 truncate text-foreground">
+                {categoryLabel(item.category)}
+              </span>
+              <span className="tnum shrink-0 font-semibold text-muted-foreground">
+                {percent.toFixed(1)}%
+              </span>
             </div>
           );
         })}

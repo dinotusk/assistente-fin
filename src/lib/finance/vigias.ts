@@ -46,10 +46,43 @@ const STORAGE_KEY = "assistente-financeiro-vigias-v1";
 
 function defaultVigias(): Vigia[] {
   return [
-    { id: "vigia-atrasos", name: "Fiscal do mês", tone: "direto", rule: "contaVencendo", enabled: true, lastFiredAt: null, frequency: "sempre", threshold: 3 },
-    { id: "vigia-ritmo", name: "Guardião do orçamento", tone: "seco", rule: "ritmoDeGasto", enabled: true, lastFiredAt: null, frequency: "diaria" },
-    { id: "vigia-envelopes", name: "Zelador dos envelopes", tone: "gentil", rule: "categoriaEstourou", enabled: true, lastFiredAt: null, frequency: "diaria" },
-    { id: "vigia-resumo", name: "Cronista do dia", tone: "gentil", rule: "resumoDiario", enabled: false, lastFiredAt: null, frequency: "diaria" },
+    {
+      id: "vigia-atrasos",
+      name: "Fiscal do mês",
+      tone: "direto",
+      rule: "contaVencendo",
+      enabled: true,
+      lastFiredAt: null,
+      frequency: "sempre",
+      threshold: 3,
+    },
+    {
+      id: "vigia-ritmo",
+      name: "Guardião do orçamento",
+      tone: "seco",
+      rule: "ritmoDeGasto",
+      enabled: true,
+      lastFiredAt: null,
+      frequency: "diaria",
+    },
+    {
+      id: "vigia-envelopes",
+      name: "Zelador dos envelopes",
+      tone: "gentil",
+      rule: "categoriaEstourou",
+      enabled: true,
+      lastFiredAt: null,
+      frequency: "diaria",
+    },
+    {
+      id: "vigia-resumo",
+      name: "Cronista do dia",
+      tone: "gentil",
+      rule: "resumoDiario",
+      enabled: false,
+      lastFiredAt: null,
+      frequency: "diaria",
+    },
   ];
 }
 
@@ -121,11 +154,17 @@ export function evaluateVigias(
     if (alert) alerts.push(alert);
   }
 
-  return alerts.sort((a, b) => SEVERITY_ORDER[a.severity] - SEVERITY_ORDER[b.severity]).slice(0, maxAlerts);
+  return alerts
+    .sort((a, b) => SEVERITY_ORDER[a.severity] - SEVERITY_ORDER[b.severity])
+    .slice(0, maxAlerts);
 }
 
 /** Checks a single newly-saved expense against its category's 90-day average (gastoAcimaDoNormal). */
-export function evaluateNewExpense(vigias: Vigia[], state: FinanceState, expense: Expense): VigiaAlert | null {
+export function evaluateNewExpense(
+  vigias: Vigia[],
+  state: FinanceState,
+  expense: Expense,
+): VigiaAlert | null {
   const vigia = vigias.find((v) => v.rule === "gastoAcimaDoNormal" && v.enabled && canFireToday(v));
   if (!vigia) return null;
 
@@ -135,7 +174,10 @@ export function evaluateNewExpense(vigias: Vigia[], state: FinanceState, expense
 
   const sameCategory = Object.values(state.months)
     .flatMap((m) => m.expenses)
-    .filter((item) => item.category === expense.category && item.id !== expense.id && item.date >= cutoffKey);
+    .filter(
+      (item) =>
+        item.category === expense.category && item.id !== expense.id && item.date >= cutoffKey,
+    );
 
   if (sameCategory.length < 3) return null;
   const average = sum(sameCategory) / sameCategory.length;
@@ -168,9 +210,14 @@ function evaluateRule(vigia: Vigia, ctx: RuleContext): VigiaAlert | null {
       const limitKey = new Date();
       limitKey.setDate(limitKey.getDate() + dias);
       const limitStr = limitKey.toISOString().slice(0, 10);
-      const overdue = ctx.expenses.filter((e) => e.status === "A pagar" && (e.dueDate || e.date) < ctx.todayKey);
+      const overdue = ctx.expenses.filter(
+        (e) => e.status === "A pagar" && (e.dueDate || e.date) < ctx.todayKey,
+      );
       const dueSoon = ctx.expenses.filter(
-        (e) => e.status === "A pagar" && (e.dueDate || e.date) >= ctx.todayKey && (e.dueDate || e.date) <= limitStr,
+        (e) =>
+          e.status === "A pagar" &&
+          (e.dueDate || e.date) >= ctx.todayKey &&
+          (e.dueDate || e.date) <= limitStr,
       );
       if (overdue.length) {
         const top = overdue.sort((a, b) => b.amount - a.amount)[0];
@@ -184,7 +231,9 @@ function evaluateRule(vigia: Vigia, ctx: RuleContext): VigiaAlert | null {
         };
       }
       if (dueSoon.length) {
-        const top = dueSoon.sort((a, b) => (a.dueDate || a.date).localeCompare(b.dueDate || b.date))[0];
+        const top = dueSoon.sort((a, b) =>
+          (a.dueDate || a.date).localeCompare(b.dueDate || b.date),
+        )[0];
         return {
           vigia,
           severity: "atencao",
@@ -195,7 +244,11 @@ function evaluateRule(vigia: Vigia, ctx: RuleContext): VigiaAlert | null {
     }
     case "ritmoDeGasto": {
       if (ctx.numbers.free < 0) {
-        return { vigia, severity: "erro", message: `Ritmo acima do orçamento: já passou ${money(Math.abs(ctx.numbers.free))}.` };
+        return {
+          vigia,
+          severity: "erro",
+          message: `Ritmo acima do orçamento: já passou ${money(Math.abs(ctx.numbers.free))}.`,
+        };
       }
       return null;
     }
@@ -217,14 +270,26 @@ function evaluateRule(vigia: Vigia, ctx: RuleContext): VigiaAlert | null {
       if (!todayExpenses.length) return null;
       const out = sum(todayExpenses.filter((e) => e.type !== "income"));
       const income = sum(todayExpenses.filter((e) => e.type === "income"));
-      return { vigia, severity: "info", message: `Hoje: ${money(out)} saíram e ${money(income)} entraram.` };
+      return {
+        vigia,
+        severity: "info",
+        message: `Hoje: ${money(out)} saíram e ${money(income)} entraram.`,
+      };
     }
     case "fechamentoDoMes": {
-      const lastDay = new Date(Number(ctx.state.activeMonth.slice(0, 4)), Number(ctx.state.activeMonth.slice(5, 7)), 0)
+      const lastDay = new Date(
+        Number(ctx.state.activeMonth.slice(0, 4)),
+        Number(ctx.state.activeMonth.slice(5, 7)),
+        0,
+      )
         .toISOString()
         .slice(0, 10);
       if (ctx.todayKey !== lastDay) return null;
-      return { vigia, severity: "info", message: `Fechando o mês com ${money(ctx.numbers.total)} em gastos e ${money(ctx.numbers.free)} de saldo.` };
+      return {
+        vigia,
+        severity: "info",
+        message: `Fechando o mês com ${money(ctx.numbers.total)} em gastos e ${money(ctx.numbers.free)} de saldo.`,
+      };
     }
     case "acertoEntrePerfis": {
       const threshold = vigia.threshold ?? 100;
@@ -238,7 +303,11 @@ function evaluateRule(vigia: Vigia, ctx: RuleContext): VigiaAlert | null {
       for (const [key, amount] of debts) {
         if (amount >= threshold) {
           const [owner, paidBy] = key.split("->");
-          return { vigia, severity: "info", message: `${owner} deve ${money(amount)} para ${paidBy} neste mês.` };
+          return {
+            vigia,
+            severity: "info",
+            message: `${owner} deve ${money(amount)} para ${paidBy} neste mês.`,
+          };
         }
       }
       return null;

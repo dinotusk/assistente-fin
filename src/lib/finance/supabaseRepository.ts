@@ -258,7 +258,9 @@ export async function loadRemoteFinance(user: User): Promise<LoadedFinance> {
       .order("expense_date"),
     supabase
       .from("priorities")
-      .select("id, month_id, profile_id, description, target_amount, saved_amount, priority, status, created_at")
+      .select(
+        "id, month_id, profile_id, description, target_amount, saved_amount, priority, status, created_at",
+      )
       .eq("household_id", householdId)
       .order("priority"),
     supabase
@@ -430,8 +432,20 @@ export async function saveRemoteFinance(
   const monthIdByKey = new Map(months.map((month) => [monthKey(month.period), month.id]));
 
   await syncBudgets(workspace.householdId, nextState, profileIdByName, monthIdByKey);
-  await syncExpenses(workspace.householdId, previousState, nextState, profileIdByName, monthIdByKey);
-  await syncPriorities(workspace.householdId, previousState, nextState, profileIdByName, monthIdByKey);
+  await syncExpenses(
+    workspace.householdId,
+    previousState,
+    nextState,
+    profileIdByName,
+    monthIdByKey,
+  );
+  await syncPriorities(
+    workspace.householdId,
+    previousState,
+    nextState,
+    profileIdByName,
+    monthIdByKey,
+  );
 
   return { householdId: workspace.householdId, profiles, months };
 }
@@ -442,7 +456,10 @@ export async function saveRemoteFinance(
  * knows about entities it has locally, so it must never delete rows it
  * simply hasn't loaded yet (e.g. one just added by another device).
  */
-function diffById<T extends { id: string }>(previous: T[], next: T[]): { changed: T[]; deletedIds: string[] } {
+function diffById<T extends { id: string }>(
+  previous: T[],
+  next: T[],
+): { changed: T[]; deletedIds: string[] } {
   const previousById = new Map(previous.map((item) => [item.id, item]));
   const nextIds = new Set(next.map((item) => item.id));
   const changed = next.filter((item) => {
@@ -558,9 +575,14 @@ async function syncMonths(
 
   // Cascades to that month's budgets/expenses/priorities (FK ON DELETE CASCADE).
   const keptKeys = new Set(Object.keys(months));
-  const staleIds = existing.filter((row) => !keptKeys.has(monthKey(row.period))).map((row) => row.id);
+  const staleIds = existing
+    .filter((row) => !keptKeys.has(monthKey(row.period)))
+    .map((row) => row.id);
   if (staleIds.length) {
-    const { error: deleteError } = await supabase.from("finance_months").delete().in("id", staleIds);
+    const { error: deleteError } = await supabase
+      .from("finance_months")
+      .delete()
+      .in("id", staleIds);
     throwIfError(deleteError);
   }
 
@@ -640,8 +662,12 @@ async function syncExpenses(
           payment_method: expense.paymentMethod,
           note: expense.note || "",
           recurring: Boolean(expense.recurring),
-          recurring_key: expense.recurringKey && isUuid(expense.recurringKey) ? expense.recurringKey : null,
-          installment_key: expense.installmentKey && isUuid(expense.installmentKey) ? expense.installmentKey : null,
+          recurring_key:
+            expense.recurringKey && isUuid(expense.recurringKey) ? expense.recurringKey : null,
+          installment_key:
+            expense.installmentKey && isUuid(expense.installmentKey)
+              ? expense.installmentKey
+              : null,
           installment_number: expense.installmentNumber || null,
           installment_total: expense.installmentTotal || null,
         },
@@ -658,7 +684,9 @@ async function syncPriorities(
   monthIds: Map<string, string>,
 ): Promise<void> {
   const fallbackProfileId = profileIds.values().next().value as string | undefined;
-  const previousPriorities = Object.values(previousState.months).flatMap((month) => month.priorities);
+  const previousPriorities = Object.values(previousState.months).flatMap(
+    (month) => month.priorities,
+  );
   const nextPriorities = Object.entries(state.months).flatMap(([key, month]) =>
     month.priorities.map((priority) => ({ key, priority })),
   );

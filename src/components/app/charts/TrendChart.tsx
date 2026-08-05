@@ -15,7 +15,9 @@ const PAD_BOTTOM = 8;
 export function TrendChart({ entries, activeKey, onSelect }: TrendChartProps) {
   const moneyShort = useMoneyShort();
   if (entries.length < 2) {
-    return <p className="py-4 text-sm text-muted-foreground">Cadastre mais meses para ver a evolução.</p>;
+    return (
+      <p className="py-4 text-sm text-muted-foreground">Cadastre mais meses para ver a evolução.</p>
+    );
   }
   const values = entries.map((e) => e.total);
   const max = Math.max(...values, 1);
@@ -28,7 +30,9 @@ export function TrendChart({ entries, activeKey, onSelect }: TrendChartProps) {
     return { x, y, entry };
   });
 
-  const line = points.map((p, i) => `${i === 0 ? "M" : "L"} ${p.x.toFixed(1)} ${p.y.toFixed(1)}`).join(" ");
+  const line = points
+    .map((p, i) => `${i === 0 ? "M" : "L"} ${p.x.toFixed(1)} ${p.y.toFixed(1)}`)
+    .join(" ");
   const area = `${line} L ${points[points.length - 1].x.toFixed(1)} ${H - PAD_BOTTOM} L ${points[0].x.toFixed(1)} ${H - PAD_BOTTOM} Z`;
 
   return (
@@ -41,7 +45,14 @@ export function TrendChart({ entries, activeKey, onSelect }: TrendChartProps) {
           </linearGradient>
         </defs>
         <path d={area} fill="url(#trendFill)" />
-        <path d={line} fill="none" stroke="var(--color-primary)" strokeWidth="2.5" strokeLinejoin="round" strokeLinecap="round" />
+        <path
+          d={line}
+          fill="none"
+          stroke="var(--color-primary)"
+          strokeWidth="2.5"
+          strokeLinejoin="round"
+          strokeLinecap="round"
+        />
         {points.map((p) => (
           <circle
             key={p.entry.key}
@@ -62,11 +73,15 @@ export function TrendChart({ entries, activeKey, onSelect }: TrendChartProps) {
             onClick={() => onSelect(entry.key)}
             className="flex flex-1 flex-col items-center gap-0.5"
           >
-            <span className={`text-[10px] font-medium ${entry.key === activeKey ? "text-primary" : "text-muted-foreground"}`}>
+            <span
+              className={`text-[10px] font-medium ${entry.key === activeKey ? "text-primary" : "text-muted-foreground"}`}
+            >
               {entry.label.slice(0, 3)}
             </span>
             {entry.key === activeKey && (
-              <span className="tnum text-[10px] font-semibold text-foreground">{moneyShort(entry.total)}</span>
+              <span className="tnum text-[10px] font-semibold text-foreground">
+                {moneyShort(entry.total)}
+              </span>
             )}
           </button>
         ))}

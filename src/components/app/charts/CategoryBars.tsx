@@ -17,11 +17,18 @@ export function CategoryBars({ data }: { data: CategoryTotal[] }) {
         return (
           <div key={item.category} className="flex flex-col gap-1.5">
             <div className="flex items-center justify-between text-sm">
-              <span className="min-w-0 truncate font-medium text-foreground">{categoryLabel(item.category)}</span>
-              <span className="tnum shrink-0 font-semibold text-muted-foreground">{money(item.total)}</span>
+              <span className="min-w-0 truncate font-medium text-foreground">
+                {categoryLabel(item.category)}
+              </span>
+              <span className="tnum shrink-0 font-semibold text-muted-foreground">
+                {money(item.total)}
+              </span>
             </div>
             <div className="h-2.5 overflow-hidden rounded-full bg-muted">
-              <div className="h-full rounded-full transition-all" style={{ width: `${width}%`, background: color }} />
+              <div
+                className="h-full rounded-full transition-all"
+                style={{ width: `${width}%`, background: color }}
+              />
             </div>
           </div>
         );

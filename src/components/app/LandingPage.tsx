@@ -18,7 +18,15 @@ import { cn } from "@/lib/utils";
 import { AvalMark } from "./ui";
 
 /** Fades a section in once it scrolls into view. Respects prefers-reduced-motion globally via styles.css. */
-function Reveal({ children, className, delay = 0 }: { children: ReactNode; className?: string; delay?: number }) {
+function Reveal({
+  children,
+  className,
+  delay = 0,
+}: {
+  children: ReactNode;
+  className?: string;
+  delay?: number;
+}) {
   const ref = useRef<HTMLDivElement>(null);
   const [visible, setVisible] = useState(false);
 
@@ -154,11 +162,12 @@ export function LandingPage() {
               <Sparkles className="h-3.5 w-3.5" /> Assistente financeiro para a sua casa
             </span>
             <h1 className="mt-7 max-w-3xl font-display text-[3.35rem] leading-[0.98] tracking-tight text-foreground sm:text-6xl lg:text-[4.75rem]">
-              Uma IA que cuida do dinheiro da sua casa, <span className="text-primary">enquanto vocês cuidam da vida.</span>
+              Uma IA que cuida do dinheiro da sua casa,{" "}
+              <span className="text-primary">enquanto vocês cuidam da vida.</span>
             </h1>
             <p className="mt-7 max-w-xl text-base leading-relaxed text-foreground/82 sm:text-lg">
-              O Aval acompanha seus gastos, entende padrões e conta o que está acontecendo com o orçamento da casa antes
-              de você precisar perguntar.
+              O Aval acompanha seus gastos, entende padrões e conta o que está acontecendo com o
+              orçamento da casa antes de você precisar perguntar.
             </p>
             <div className="mt-9 flex flex-col gap-3 sm:flex-row">
               <Link
@@ -187,14 +196,21 @@ export function LandingPage() {
         {/* Recursos */}
         <section id="recursos" className="mx-auto max-w-6xl px-5 py-20">
           <Reveal className="mx-auto max-w-xl text-center">
-            <h2 className="font-display text-3xl text-foreground sm:text-4xl">Tudo que a casa precisa, num só lugar</h2>
+            <h2 className="font-display text-3xl text-foreground sm:text-4xl">
+              Tudo que a casa precisa, num só lugar
+            </h2>
             <p className="mt-3 text-sm leading-relaxed text-muted-foreground sm:text-base">
-              Sem planilha, sem grupo de WhatsApp pra fechar conta. O Aval organiza e avisa por vocês.
+              Sem planilha, sem grupo de WhatsApp pra fechar conta. O Aval organiza e avisa por
+              vocês.
             </p>
           </Reveal>
           <div className="mt-12 grid gap-4 sm:grid-cols-2 lg:grid-cols-3">
             {FEATURES.map(({ icon: Icon, title, desc }, index) => (
-              <Reveal key={title} delay={index * 70} className="card-surface hover-lift p-6 text-left">
+              <Reveal
+                key={title}
+                delay={index * 70}
+                className="card-surface hover-lift p-6 text-left"
+              >
                 <span className="flex h-11 w-11 items-center justify-center rounded-2xl bg-primary-soft text-primary ring-1 ring-primary/15">
                   <Icon className="h-5 w-5" strokeWidth={2} />
                 </span>
@@ -237,15 +253,20 @@ export function LandingPage() {
                 <span className="flex h-12 w-12 items-center justify-center rounded-2xl bg-primary-soft text-primary ring-1 ring-primary/15">
                   <ShieldCheck className="h-6 w-6" strokeWidth={2} />
                 </span>
-                <h2 className="mt-5 font-display text-3xl text-foreground sm:text-4xl">Seus dados, sua casa</h2>
+                <h2 className="mt-5 font-display text-3xl text-foreground sm:text-4xl">
+                  Seus dados, sua casa
+                </h2>
                 <p className="mt-3 max-w-md text-sm leading-relaxed text-muted-foreground sm:text-base">
-                  O Aval foi pensado pra guardar informação financeira sensível com o mesmo cuidado que um banco tem com
-                  a sua.
+                  O Aval foi pensado pra guardar informação financeira sensível com o mesmo cuidado
+                  que um banco tem com a sua.
                 </p>
               </div>
               <ul className="flex flex-col gap-4">
                 {SECURITY_POINTS.map((point) => (
-                  <li key={point} className="flex items-start gap-3 text-sm leading-relaxed text-foreground/90">
+                  <li
+                    key={point}
+                    className="flex items-start gap-3 text-sm leading-relaxed text-foreground/90"
+                  >
                     <ShieldCheck className="mt-0.5 h-4 w-4 shrink-0 text-primary" strokeWidth={2} />
                     {point}
                   </li>
@@ -259,7 +280,9 @@ export function LandingPage() {
         <section className="mx-auto max-w-6xl px-5 pb-24">
           <Reveal className="card-surface flex flex-col items-center gap-5 p-10 text-center sm:p-14">
             <AvalMark size={32} />
-            <h2 className="font-display text-3xl text-foreground sm:text-4xl">Comece agora, é grátis.</h2>
+            <h2 className="font-display text-3xl text-foreground sm:text-4xl">
+              Comece agora, é grátis.
+            </h2>
             <p className="max-w-md text-sm leading-relaxed text-muted-foreground sm:text-base">
               Crie sua conta e traga sua casa pro Aval em poucos minutos.
             </p>
@@ -279,7 +302,9 @@ export function LandingPage() {
             <AvalMark size={22} />
             <div>
               <p className="font-display text-base text-foreground">Aval</p>
-              <p className="text-xs text-muted-foreground">Assistente financeiro para a sua casa.</p>
+              <p className="text-xs text-muted-foreground">
+                Assistente financeiro para a sua casa.
+              </p>
             </div>
           </div>
           <div className="flex flex-wrap items-center gap-x-6 gap-y-2 text-xs text-muted-foreground">
@@ -338,7 +363,9 @@ function PhoneMock() {
             <p className="text-[11px] font-bold text-muted-foreground">Resumo da semana</p>
             <span className="text-[11px] font-bold text-success">↗ 6%</span>
           </div>
-          <strong className="tnum mt-3 block font-display text-3xl text-foreground">R$ 1.280,00</strong>
+          <strong className="tnum mt-3 block font-display text-3xl text-foreground">
+            R$ 1.280,00
+          </strong>
           <div className="mt-5 flex h-24 items-end gap-2">
             {bars.map((height, index) => (
               <div key={days[index]} className="flex flex-1 flex-col items-center gap-2">
@@ -391,12 +418,16 @@ function PhoneMock() {
             </div>
 
             <div className="mt-4 rounded-[1.25rem] bg-foreground p-4 text-background shadow-soft">
-              <p className="font-display text-lg leading-snug">Seu orçamento está R$ 70 acima do previsto.</p>
+              <p className="font-display text-lg leading-snug">
+                Seu orçamento está R$ 70 acima do previsto.
+              </p>
             </div>
 
             <div className="mt-auto rounded-[1.2rem] border border-border bg-background/45 p-3">
               <div className="flex items-center gap-2">
-                <span className="min-w-0 flex-1 text-[12px] font-medium text-muted-foreground">Pergunte à Aval</span>
+                <span className="min-w-0 flex-1 text-[12px] font-medium text-muted-foreground">
+                  Pergunte à Aval
+                </span>
                 <button
                   type="button"
                   aria-label="Enviar pergunta"

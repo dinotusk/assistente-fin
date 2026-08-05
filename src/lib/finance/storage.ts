@@ -60,7 +60,8 @@ function normalizeExpense(expense: Partial<Expense>, monthKey: string): Expense 
     : date.slice(0, 7);
   return {
     id: expense.id || uid(),
-    name: expense.name || (expense as { description?: string }).description || "Gasto sem descrição",
+    name:
+      expense.name || (expense as { description?: string }).description || "Gasto sem descrição",
     category: categories.includes(expense.category || "") ? (expense.category as string) : "Outros",
     amount: Number(expense.amount || 0),
     status: expense.status === "Pago" ? "Pago" : "A pagar",
@@ -96,8 +97,10 @@ export function migrateState(nextState: FinanceState, loginName = ""): FinanceSt
     "Outra casa": DEFAULT_FAMILY_PEOPLE[1],
   };
   const savedPeople = Array.isArray(nextState.people) ? nextState.people : [];
-  const firstPerson = String(savedPeople[0] || DEFAULT_FAMILY_PEOPLE[0]).trim() || DEFAULT_FAMILY_PEOPLE[0];
-  const secondPerson = String(savedPeople[1] || DEFAULT_FAMILY_PEOPLE[1]).trim() || DEFAULT_FAMILY_PEOPLE[1];
+  const firstPerson =
+    String(savedPeople[0] || DEFAULT_FAMILY_PEOPLE[0]).trim() || DEFAULT_FAMILY_PEOPLE[0];
+  const secondPerson =
+    String(savedPeople[1] || DEFAULT_FAMILY_PEOPLE[1]).trim() || DEFAULT_FAMILY_PEOPLE[1];
   nextState.people = [
     legacyOwners[firstPerson] || firstPerson,
     legacyOwners[secondPerson] || secondPerson,
@@ -109,20 +112,29 @@ export function migrateState(nextState: FinanceState, loginName = ""): FinanceSt
     });
     data.priorities = data.priorities || [];
     data.priorities.forEach((priority) => {
-      priority.responsavel = legacyOwners[priority.responsavel] || priority.responsavel || "Minha casa";
+      priority.responsavel =
+        legacyOwners[priority.responsavel] || priority.responsavel || "Minha casa";
       priority.saved = Number(priority.saved || 0);
     });
     data.income = Number(data.income || 0);
     data.houseContribution = Number(data.houseContribution || 0);
     data.profileBudgets = data.profileBudgets || {};
     Object.entries(legacyOwners).forEach(([legacyOwner, currentOwner]) => {
-      if (legacyOwner !== currentOwner && data.profileBudgets?.[legacyOwner] !== undefined && data.profileBudgets[currentOwner] === undefined) {
+      if (
+        legacyOwner !== currentOwner &&
+        data.profileBudgets?.[legacyOwner] !== undefined &&
+        data.profileBudgets[currentOwner] === undefined
+      ) {
         data.profileBudgets[currentOwner] = data.profileBudgets[legacyOwner];
       }
     });
   });
   const migratedView = responsavelToView(nextState.activePerson);
-  nextState.activePerson = [VIEW_ALL, VIEW_ME, VIEW_SPOUSE, ...nextState.people].includes(migratedView) ? migratedView : VIEW_ME;
+  nextState.activePerson = [VIEW_ALL, VIEW_ME, VIEW_SPOUSE, ...nextState.people].includes(
+    migratedView,
+  )
+    ? migratedView
+    : VIEW_ME;
   nextState.activeMonth = nextState.months[nextState.activeMonth]
     ? nextState.activeMonth
     : Object.keys(nextState.months)[0];
@@ -132,7 +144,8 @@ export function migrateState(nextState: FinanceState, loginName = ""): FinanceSt
 export function loadState(activeUser: ActiveUser | null): FinanceState {
   if (!hasWindow) return migrateState(createSeedState());
   const key = activeUser ? profileStateKey(activeUser) : STORAGE_KEY;
-  const saved = localStorage.getItem(key) || (activeUser ? localStorage.getItem(STORAGE_KEY) : null);
+  const saved =
+    localStorage.getItem(key) || (activeUser ? localStorage.getItem(STORAGE_KEY) : null);
   if (!saved) return migrateState(createSeedState(), activeUser?.name);
   try {
     const parsed = JSON.parse(saved);

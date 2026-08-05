@@ -96,7 +96,11 @@ describe("profileId", () => {
 });
 
 describe("budgetForView", () => {
-  const month = makeMonth({ income: 5000, houseContribution: 1200, profileBudgets: { Convidado: 300 } });
+  const month = makeMonth({
+    income: 5000,
+    houseContribution: 1200,
+    profileBudgets: { Convidado: 300 },
+  });
 
   it("sums income + house contribution for VIEW_ALL", () => {
     expect(budgetForView(month, VIEW_ALL)).toBe(6200);

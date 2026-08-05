@@ -46,7 +46,9 @@ export function AuthScreen() {
     try {
       await loginWithGoogle();
     } catch (error) {
-      setFeedback(error instanceof Error ? error.message : "Nao foi possivel continuar com o Google agora.");
+      setFeedback(
+        error instanceof Error ? error.message : "Nao foi possivel continuar com o Google agora.",
+      );
       setGoogleLoading(false);
     }
   }
@@ -100,7 +102,8 @@ export function AuthScreen() {
               Seu dinheiro, <span className="text-primary">com mais clareza.</span>
             </h1>
             <p className="mt-5 max-w-[470px] text-base leading-relaxed text-foreground/80">
-              O assistente financeiro com IA que acompanha sua casa, planeja com você e avisa antes de apertar.
+              O assistente financeiro com IA que acompanha sua casa, planeja com você e avisa antes
+              de apertar.
             </p>
           </div>
 
@@ -151,7 +154,9 @@ export function AuthScreen() {
                       setFeedback("");
                     }}
                     className={`h-10 rounded-full text-sm font-semibold transition ${
-                      mode === "login" ? "bg-card text-foreground shadow-sm" : "text-muted-foreground"
+                      mode === "login"
+                        ? "bg-card text-foreground shadow-sm"
+                        : "text-muted-foreground"
                     }`}
                   >
                     Entrar
@@ -163,7 +168,9 @@ export function AuthScreen() {
                       setFeedback("");
                     }}
                     className={`h-10 rounded-full text-sm font-semibold transition ${
-                      mode === "register" ? "bg-card text-foreground shadow-sm" : "text-muted-foreground"
+                      mode === "register"
+                        ? "bg-card text-foreground shadow-sm"
+                        : "text-muted-foreground"
                     }`}
                   >
                     Criar conta
@@ -218,7 +225,8 @@ export function AuthScreen() {
                       className="h-12 rounded-full border border-input bg-secondary px-4 text-base uppercase tracking-widest text-foreground outline-none transition-all duration-200 placeholder:text-muted-foreground/70 placeholder:normal-case placeholder:tracking-normal focus:border-primary focus:bg-card focus:ring-4 focus:ring-primary/12"
                     />
                     <span className="text-[12px] text-muted-foreground">
-                      Com um código, você entra direto na casa de quem te convidou e já vê as despesas dela.
+                      Com um código, você entra direto na casa de quem te convidou e já vê as
+                      despesas dela.
                     </span>
                   </label>
                 )}
@@ -260,7 +268,9 @@ export function AuthScreen() {
                 >
                   {loading ? "Aguarde..." : mode === "login" ? "Entrar" : "Criar conta"}
                 </button>
-                {feedback && <small className="text-center text-sm text-destructive">{feedback}</small>}
+                {feedback && (
+                  <small className="text-center text-sm text-destructive">{feedback}</small>
+                )}
               </div>
             </div>
           </form>

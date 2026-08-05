@@ -112,7 +112,11 @@
     font-variant-numeric: tabular-nums;
   }
 
-  h1, h2, h3, h4, .font-display {
+  h1,
+  h2,
+  h3,
+  h4,
+  .font-display {
     font-family: var(--font-display);
     letter-spacing: -0.02em;
   }
@@ -135,7 +139,13 @@
 
 @utility app-backdrop {
   background:
-    repeating-linear-gradient(90deg, rgb(200 173 122 / 0.055) 0, rgb(200 173 122 / 0.055) 1px, transparent 1px, transparent 64px),
+    repeating-linear-gradient(
+      90deg,
+      rgb(200 173 122 / 0.055) 0,
+      rgb(200 173 122 / 0.055) 1px,
+      transparent 1px,
+      transparent 64px
+    ),
     radial-gradient(circle at 100% -10%, rgb(200 173 122 / 0.18), transparent 30%),
     linear-gradient(180deg, #0d2b22 0%, #0a221b 52%, #061a14 100%);
 }
@@ -157,15 +167,21 @@
 /* Elevated variant: for the single most important panel per screen — deeper shadow + faint gold edge */
 @utility panel-elevated {
   background:
-    radial-gradient(circle at 100% 0%, rgb(200 173 122 / 0.1), transparent 45%),
-    var(--color-card);
+    radial-gradient(circle at 100% 0%, rgb(200 173 122 / 0.1), transparent 45%), var(--color-card);
   border: 1px solid rgb(200 173 122 / 0.16);
   border-radius: var(--radius-xl);
   box-shadow: var(--shadow-float);
 }
 
 @utility hero-gradient {
-  background: radial-gradient(circle at 32% 26%, #f3e8d2, #dbc190 22%, #c8ad7a 44%, #8a6f42 78%, #5f4b26);
+  background: radial-gradient(
+    circle at 32% 26%,
+    #f3e8d2,
+    #dbc190 22%,
+    #c8ad7a 44%,
+    #8a6f42 78%,
+    #5f4b26
+  );
 }
 
 @utility finance-hero {
@@ -178,14 +194,25 @@
 
 /* Faint diagonal texture for hero-type surfaces — reads as considered, not empty */
 @utility hero-texture {
-  background-image: repeating-linear-gradient(115deg, rgb(237 232 221 / 0.05) 0, rgb(237 232 221 / 0.05) 1px, transparent 1px, transparent 22px);
+  background-image: repeating-linear-gradient(
+    115deg,
+    rgb(237 232 221 / 0.05) 0,
+    rgb(237 232 221 / 0.05) 1px,
+    transparent 1px,
+    transparent 22px
+  );
 }
 
 /* --- Reusable interaction utilities (visual only) --- */
 
 /* Tactile press feedback for buttons/tappable cards */
 @utility press {
-  transition: transform 0.18s var(--ease-out-soft), box-shadow 0.2s var(--ease-out-soft), background-color 0.2s var(--ease-out-soft), border-color 0.2s var(--ease-out-soft), color 0.2s var(--ease-out-soft);
+  transition:
+    transform 0.18s var(--ease-out-soft),
+    box-shadow 0.2s var(--ease-out-soft),
+    background-color 0.2s var(--ease-out-soft),
+    border-color 0.2s var(--ease-out-soft),
+    color 0.2s var(--ease-out-soft);
   &:active {
     transform: scale(0.97);
   }
@@ -193,7 +220,9 @@
 
 /* Subtle lift on pointer devices only (keeps mobile clean) */
 @utility hover-lift {
-  transition: transform 0.22s var(--ease-out-soft), box-shadow 0.22s var(--ease-out-soft);
+  transition:
+    transform 0.22s var(--ease-out-soft),
+    box-shadow 0.22s var(--ease-out-soft);
   @media (hover: hover) {
     &:hover {
       transform: translateY(-2px);
@@ -206,7 +235,9 @@
 @utility focus-ring {
   outline: none;
   &:focus-visible {
-    box-shadow: 0 0 0 2px var(--color-background), 0 0 0 4px oklch(0.58 0.13 158 / 0.55);
+    box-shadow:
+      0 0 0 2px var(--color-background),
+      0 0 0 4px oklch(0.58 0.13 158 / 0.55);
   }
 }
 
@@ -227,7 +258,8 @@
 
 /* Slow vertical drift for ambient background accents (marketing surfaces) */
 @keyframes float-slow {
-  0%, 100% {
+  0%,
+  100% {
     transform: translateY(0);
   }
   50% {
@@ -261,7 +293,9 @@
 
 /* Typing indicator dots (assistant "thinking") */
 @keyframes typing-bounce {
-  0%, 60%, 100% {
+  0%,
+  60%,
+  100% {
     transform: translateY(0);
     opacity: 0.5;
   }
@@ -288,4 +322,3 @@
       var(--color-background);
   }
 }
-

@@ -32,11 +32,23 @@ import {
 } from "@/lib/finance/calc";
 import { answerLocally, askGemini, buildAiContext } from "@/lib/finance/ai";
 import { lookupLearnedCategory } from "@/lib/finance/learnedCategories";
-import { categories, paymentMethods, VIEW_ALL, VIEW_ME, VIEW_SPOUSE } from "@/lib/finance/constants";
+import {
+  categories,
+  paymentMethods,
+  VIEW_ALL,
+  VIEW_ME,
+  VIEW_SPOUSE,
+} from "@/lib/finance/constants";
 import { useFinance, useMoney } from "@/lib/finance/FinanceContext";
 import { uid } from "@/lib/finance/seed";
 import type { Expense } from "@/lib/finance/types";
-import { evaluateNewExpense, evaluateVigias, listVigias, markFired, type VigiaAlert } from "@/lib/finance/vigias";
+import {
+  evaluateNewExpense,
+  evaluateVigias,
+  listVigias,
+  markFired,
+  type VigiaAlert,
+} from "@/lib/finance/vigias";
 
 import { Field, SelectInput, TextArea, TextInput } from "./forms";
 import { AvalMark, BudgetRing, Panel, PanelHead, Sparkline } from "./ui";
@@ -78,16 +90,25 @@ export function AssistantView({ onAddExpense }: AssistantViewProps) {
   const budget = budgetForView(month, view);
   const usedPct = budget > 0 ? Math.min(100, (numbers.total / budget) * 100) : 0;
   const overBudget = numbers.free < 0;
-  const spendingTrend = chartMonthEntries(state, 6).map(([, data]) => sum(expensesForView(data, view)));
+  const spendingTrend = chartMonthEntries(state, 6).map(([, data]) =>
+    sum(expensesForView(data, view)),
+  );
   const today = new Date().toISOString().slice(0, 10);
   const nextDue = expenses
     .filter((item) => item.status === "A pagar")
     .sort((a, b) => (a.dueDate || a.date).localeCompare(b.dueDate || b.date))[0];
   const daysToNextDue = nextDue
-    ? Math.max(0, Math.ceil((new Date(nextDue.dueDate || nextDue.date).getTime() - new Date(today).getTime()) / 86400000))
+    ? Math.max(
+        0,
+        Math.ceil(
+          (new Date(nextDue.dueDate || nextDue.date).getTime() - new Date(today).getTime()) /
+            86400000,
+        ),
+      )
     : null;
 
-  const weeklyAllowance = numbers.daysLeft > 0 ? Math.max(0, (numbers.free / numbers.daysLeft) * 7) : 0;
+  const weeklyAllowance =
+    numbers.daysLeft > 0 ? Math.max(0, (numbers.free / numbers.daysLeft) * 7) : 0;
 
   const [messages, setMessages] = useState<Message[]>([]);
   const [input, setInput] = useState("");
@@ -109,7 +130,10 @@ export function AssistantView({ onAddExpense }: AssistantViewProps) {
     const alerts = evaluateVigias(vigias, state, month, envelopes);
     if (!alerts.length) return;
     setMessages((m) => [...m, ...alertsToMessages(alerts)]);
-    markFired(vigias, alerts.map((a) => a.vigia.id));
+    markFired(
+      vigias,
+      alerts.map((a) => a.vigia.id),
+    );
     // Only on mount ("ao abrir o app") — deliberately not re-running on every state change.
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, []);
@@ -142,7 +166,13 @@ export function AssistantView({ onAddExpense }: AssistantViewProps) {
   }
 
   const purchaseAmount = parseCurrencyInput(purchaseValue);
-  const purchaseResult = getPurchaseResult(purchaseName, purchaseAmount, numbers.free, weeklyAllowance, money);
+  const purchaseResult = getPurchaseResult(
+    purchaseName,
+    purchaseAmount,
+    numbers.free,
+    weeklyAllowance,
+    money,
+  );
 
   function updatePurchaseValue(value: string) {
     setPurchaseValue(value.replace(/[^\d,.]/g, ""));
@@ -191,7 +221,11 @@ export function AssistantView({ onAddExpense }: AssistantViewProps) {
       return;
     }
     setBusy(true);
-    setMessages((m) => [...m, { role: "user", text: question }, { role: "ai", text: "Analisando seus dados..." }]);
+    setMessages((m) => [
+      ...m,
+      { role: "user", text: question },
+      { role: "ai", text: "Analisando seus dados..." },
+    ]);
     let answer: string;
     try {
       answer = await askGemini(question, buildAiContext(state));
@@ -212,7 +246,11 @@ export function AssistantView({ onAddExpense }: AssistantViewProps) {
     const activeLabel = ownerLabelForPeople(activeOwner, state.people);
     const amountInfo = extractAmount(question);
 
-    if (amountInfo && /\b(meta|prioridade)\b/.test(normalized) && /\b(cria|criar|nova|novo|adiciona|adicionar)\b/.test(normalized)) {
+    if (
+      amountInfo &&
+      /\b(meta|prioridade)\b/.test(normalized) &&
+      /\b(cria|criar|nova|novo|adiciona|adicionar)\b/.test(normalized)
+    ) {
       const name = cleanCommandName(question, amountInfo.raw, [
         "cria",
         "criar",
@@ -283,7 +321,10 @@ export function AssistantView({ onAddExpense }: AssistantViewProps) {
       }
 
       if (pending.length) {
-        return `Nao encontrei essa conta aberta.\nContas a pagar: ${pending.slice(0, 4).map((item) => `${item.name} (${money(item.amount)})`).join(", ")}.`;
+        return `Nao encontrei essa conta aberta.\nContas a pagar: ${pending
+          .slice(0, 4)
+          .map((item) => `${item.name} (${money(item.amount)})`)
+          .join(", ")}.`;
       }
       return "Nao ha contas abertas nesta visao agora.";
     }
@@ -325,7 +366,9 @@ export function AssistantView({ onAddExpense }: AssistantViewProps) {
     },
     {
       title: "Mudança relevante",
-      body: growth ? `${categoryLabel(growth.category)} cresceu ${money(growth.diff)} contra o mês anterior.` : "Sem crescimento relevante para comparar.",
+      body: growth
+        ? `${categoryLabel(growth.category)} cresceu ${money(growth.diff)} contra o mês anterior.`
+        : "Sem crescimento relevante para comparar.",
     },
   ];
 
@@ -358,7 +401,9 @@ export function AssistantView({ onAddExpense }: AssistantViewProps) {
               <div className="mt-3 h-px w-10 bg-primary/50" />
               <button
                 type="button"
-                onClick={() => attentionRef.current?.scrollIntoView({ behavior: "smooth", block: "start" })}
+                onClick={() =>
+                  attentionRef.current?.scrollIntoView({ behavior: "smooth", block: "start" })
+                }
                 className="press mt-4 flex items-start gap-3 text-left"
               >
                 <span className="flex h-10 w-10 shrink-0 items-center justify-center rounded-full border border-primary/30 bg-primary-soft text-primary shadow-primary">
@@ -366,7 +411,10 @@ export function AssistantView({ onAddExpense }: AssistantViewProps) {
                 </span>
                 <span>
                   <span className="block text-sm text-muted-foreground">
-                    Você está <strong className="font-bold text-primary">{money(Math.abs(numbers.free))}</strong>{" "}
+                    Você está{" "}
+                    <strong className="font-bold text-primary">
+                      {money(Math.abs(numbers.free))}
+                    </strong>{" "}
                     {overBudget ? "acima" : "dentro"} do orçamento
                   </span>
                   <span className="mt-1 inline-flex items-center gap-1 text-sm font-bold text-primary">
@@ -399,8 +447,14 @@ export function AssistantView({ onAddExpense }: AssistantViewProps) {
                       m.sender ? "border-l-2 border-l-warning/60 bg-warning/8" : "bg-white/[0.03]"
                     }`}
                   >
-                    {m.sender && <span className="mb-1 block text-[11px] font-bold text-primary">{m.sender}</span>}
-                    <p className="whitespace-pre-line text-[15px] leading-[1.6] text-foreground">{m.text}</p>
+                    {m.sender && (
+                      <span className="mb-1 block text-[11px] font-bold text-primary">
+                        {m.sender}
+                      </span>
+                    )}
+                    <p className="whitespace-pre-line text-[15px] leading-[1.6] text-foreground">
+                      {m.text}
+                    </p>
                   </div>
                 </div>
               ),
@@ -413,7 +467,9 @@ export function AssistantView({ onAddExpense }: AssistantViewProps) {
             <span className="flex h-8 w-8 items-center justify-center rounded-xl bg-primary-soft text-primary">
               <TrendingUp className="h-4 w-4" />
             </span>
-            <strong className="tnum mt-2.5 block font-display text-2xl text-foreground">{money(numbers.total)}</strong>
+            <strong className="tnum mt-2.5 block font-display text-2xl text-foreground">
+              {money(numbers.total)}
+            </strong>
             <span className="text-[13px] text-muted-foreground">gastos</span>
             <Sparkline values={spendingTrend} className="mt-2" />
           </div>
@@ -422,7 +478,9 @@ export function AssistantView({ onAddExpense }: AssistantViewProps) {
               <CalendarClock className="h-4 w-4" />
             </span>
             <strong className="tnum mt-2.5 block font-display text-2xl text-foreground">
-              {daysToNextDue === null ? "—" : `${daysToNextDue} dia${daysToNextDue === 1 ? "" : "s"}`}
+              {daysToNextDue === null
+                ? "—"
+                : `${daysToNextDue} dia${daysToNextDue === 1 ? "" : "s"}`}
             </strong>
             <span className="truncate text-[13px] text-muted-foreground">
               {nextDue ? `para ${nextDue.name.toLocaleLowerCase("pt-BR")}` : "nada por vir"}
@@ -430,7 +488,9 @@ export function AssistantView({ onAddExpense }: AssistantViewProps) {
             <div className="mt-3 h-1.5 overflow-hidden rounded-full bg-muted">
               <div
                 className="h-full rounded-full bg-primary"
-                style={{ width: `${daysToNextDue === null ? 0 : Math.max(6, 100 - daysToNextDue * 12)}%` }}
+                style={{
+                  width: `${daysToNextDue === null ? 0 : Math.max(6, 100 - daysToNextDue * 12)}%`,
+                }}
               />
             </div>
           </div>
@@ -455,8 +515,12 @@ export function AssistantView({ onAddExpense }: AssistantViewProps) {
                     <TriangleAlert className="h-4 w-4" strokeWidth={2.25} />
                   </span>
                   <div className="min-w-0">
-                    <strong className="block text-sm font-bold text-foreground">{item.title}</strong>
-                    <span className="text-[13px] leading-relaxed text-muted-foreground">{item.body}</span>
+                    <strong className="block text-sm font-bold text-foreground">
+                      {item.title}
+                    </strong>
+                    <span className="text-[13px] leading-relaxed text-muted-foreground">
+                      {item.body}
+                    </span>
                   </div>
                 </div>
               );
@@ -551,14 +615,26 @@ export function AssistantView({ onAddExpense }: AssistantViewProps) {
               placeholder="Ex.: 1500"
             />
           </Field>
-          <div className={`rounded-[1.6rem] border p-4 ${purchaseResult.ok ? "border-success/30 bg-success/10" : "border-warning/30 bg-warning/10"}`}>
+          <div
+            className={`rounded-[1.6rem] border p-4 ${purchaseResult.ok ? "border-success/30 bg-success/10" : "border-warning/30 bg-warning/10"}`}
+          >
             <div className="flex items-start gap-3">
-              <span className={`flex h-10 w-10 shrink-0 items-center justify-center rounded-2xl ${purchaseResult.ok ? "bg-success/15 text-success" : "bg-warning/20 text-warning"}`}>
-                {purchaseResult.ok ? <CheckCircle2 className="h-5 w-5" /> : <Clock3 className="h-5 w-5" />}
+              <span
+                className={`flex h-10 w-10 shrink-0 items-center justify-center rounded-2xl ${purchaseResult.ok ? "bg-success/15 text-success" : "bg-warning/20 text-warning"}`}
+              >
+                {purchaseResult.ok ? (
+                  <CheckCircle2 className="h-5 w-5" />
+                ) : (
+                  <Clock3 className="h-5 w-5" />
+                )}
               </span>
               <div>
-                <strong className="block text-sm font-bold text-foreground">{purchaseResult.title}</strong>
-                <p className="mt-1 text-[13px] leading-relaxed text-muted-foreground">{purchaseResult.body}</p>
+                <strong className="block text-sm font-bold text-foreground">
+                  {purchaseResult.title}
+                </strong>
+                <p className="mt-1 text-[13px] leading-relaxed text-muted-foreground">
+                  {purchaseResult.body}
+                </p>
               </div>
             </div>
           </div>
@@ -583,7 +659,11 @@ export function AssistantView({ onAddExpense }: AssistantViewProps) {
               onClick={() => setEditingEnvelopes((value) => !value)}
               className="inline-flex h-8 items-center gap-1.5 rounded-full bg-primary-soft px-3 text-xs font-bold text-primary"
             >
-              {editingEnvelopes ? <CheckCircle2 className="h-3.5 w-3.5" /> : <Pencil className="h-3.5 w-3.5" />}
+              {editingEnvelopes ? (
+                <CheckCircle2 className="h-3.5 w-3.5" />
+              ) : (
+                <Pencil className="h-3.5 w-3.5" />
+              )}
               {editingEnvelopes ? "Concluir" : "Editar"}
             </button>
           }
@@ -594,7 +674,12 @@ export function AssistantView({ onAddExpense }: AssistantViewProps) {
             const pct = Math.min(100, rule.limit ? (spent / rule.limit) * 100 : 0);
             const remaining = Math.max(0, rule.limit - spent);
             return (
-              <div key={rule.id} className={editingEnvelopes ? "rounded-2xl border border-border bg-secondary/50 p-3" : ""}>
+              <div
+                key={rule.id}
+                className={
+                  editingEnvelopes ? "rounded-2xl border border-border bg-secondary/50 p-3" : ""
+                }
+              >
                 {editingEnvelopes ? (
                   <div className="mb-3 grid gap-3">
                     <div className="grid grid-cols-[1fr_auto] gap-2">
@@ -619,13 +704,17 @@ export function AssistantView({ onAddExpense }: AssistantViewProps) {
                           min="0"
                           step="0.01"
                           value={rule.limit}
-                          onChange={(event) => updateEnvelope(rule.id, { limit: Number(event.target.value || 0) })}
+                          onChange={(event) =>
+                            updateEnvelope(rule.id, { limit: Number(event.target.value || 0) })
+                          }
                         />
                       </Field>
                       <Field label="Categoria">
                         <SelectInput
                           value={rule.categories[0] || "Outros"}
-                          onChange={(event) => updateEnvelope(rule.id, { categories: [event.target.value] })}
+                          onChange={(event) =>
+                            updateEnvelope(rule.id, { categories: [event.target.value] })
+                          }
                         >
                           {categories.map((category) => (
                             <option key={category} value={category}>
@@ -638,8 +727,12 @@ export function AssistantView({ onAddExpense }: AssistantViewProps) {
                   </div>
                 ) : null}
                 <div className="mb-1.5 flex items-center justify-between gap-3">
-                  <span className="text-sm font-bold text-foreground">{rule.label || "Sem nome"}</span>
-                  <span className="tnum text-xs font-semibold text-muted-foreground">{money(remaining)} livre</span>
+                  <span className="text-sm font-bold text-foreground">
+                    {rule.label || "Sem nome"}
+                  </span>
+                  <span className="tnum text-xs font-semibold text-muted-foreground">
+                    {money(remaining)} livre
+                  </span>
                 </div>
                 <div className="h-2.5 overflow-hidden rounded-full bg-secondary ring-1 ring-border/70">
                   <div
@@ -648,7 +741,9 @@ export function AssistantView({ onAddExpense }: AssistantViewProps) {
                   />
                 </div>
                 <div className="mt-1 flex justify-between text-[11px] text-muted-foreground">
-                  <span>{money(spent)} usado · {Math.round(pct)}%</span>
+                  <span>
+                    {money(spent)} usado · {Math.round(pct)}%
+                  </span>
                   <span>limite {money(rule.limit)}</span>
                 </div>
               </div>
@@ -672,16 +767,24 @@ export function AssistantView({ onAddExpense }: AssistantViewProps) {
 
 function parseExpenseCommand(text: string, monthKey: string, owner: string): Expense | null {
   const normalized = normalizeText(text);
-  const looksLikeExpense = /\b(registra|registre|registrar|gastei|paguei|comprei|lanca|lancar|anota|anote|coloca|coloque|cadastro|cadastre|adiciona|adicionar|salva|salvar)\b/.test(normalized);
+  const looksLikeExpense =
+    /\b(registra|registre|registrar|gastei|paguei|comprei|lanca|lancar|anota|anote|coloca|coloque|cadastro|cadastre|adiciona|adicionar|salva|salvar)\b/.test(
+      normalized,
+    );
   if (!looksLikeExpense) return null;
 
-  const valueMatch = text.match(/(?:r\$\s*)?(\d{1,3}(?:\.\d{3})*(?:,\d{1,2})?|\d+(?:[.,]\d{1,2})?)/i);
+  const valueMatch = text.match(
+    /(?:r\$\s*)?(\d{1,3}(?:\.\d{3})*(?:,\d{1,2})?|\d+(?:[.,]\d{1,2})?)/i,
+  );
   const amount = valueMatch ? parseCurrencyInput(valueMatch[1]) : 0;
   if (amount <= 0) return null;
 
   const rawName = text
     .replace(valueMatch?.[0] || "", "")
-    .replace(/\b(registra|registre|registrar|gastei|paguei|comprei|lanca|lança|lancar|lançar|anota|anote|coloca|coloque|cadastro|cadastre|adiciona|adicionar|salva|salvar|compra|gasto|despesa|de|com|no|na|em|por|r\$)\b/gi, " ")
+    .replace(
+      /\b(registra|registre|registrar|gastei|paguei|comprei|lanca|lança|lancar|lançar|anota|anote|coloca|coloque|cadastro|cadastre|adiciona|adicionar|salva|salvar|compra|gasto|despesa|de|com|no|na|em|por|r\$)\b/gi,
+      " ",
+    )
     .replace(/\s+/g, " ")
     .trim();
   const name = rawName || "Gasto informado pelo chat";
@@ -705,14 +808,19 @@ function parseExpenseCommand(text: string, monthKey: string, owner: string): Exp
 function parseAssistantEntryCommand(text: string, monthKey: string, owner: string): Expense | null {
   const normalized = normalizeText(text);
   const isIncome = /\b(recebi|entrou|faturei|ganhei|salario|receita)\b/.test(normalized);
-  const looksLikeEntry = /\b(registra|registre|registrar|gastei|paguei|comprei|lanca|lancar|anota|anote|coloca|coloque|cadastro|cadastre|adiciona|adicionar|salva|salvar|recebi|entrou|faturei|ganhei)\b/.test(normalized);
+  const looksLikeEntry =
+    /\b(registra|registre|registrar|gastei|paguei|comprei|lanca|lancar|anota|anote|coloca|coloque|cadastro|cadastre|adiciona|adicionar|salva|salvar|recebi|entrou|faturei|ganhei)\b/.test(
+      normalized,
+    );
   if (!looksLikeEntry) return null;
 
   const valueMatch = extractAmount(text);
   if (!valueMatch || valueMatch.amount <= 0) return null;
   const amount = valueMatch.amount;
 
-  const date = normalized.includes("ontem") ? offsetDate(-1) : new Date().toISOString().slice(0, 10);
+  const date = normalized.includes("ontem")
+    ? offsetDate(-1)
+    : new Date().toISOString().slice(0, 10);
   const name =
     extractMerchant(text, valueMatch.raw) ||
     cleanCommandName(text, valueMatch.raw, [
@@ -755,7 +863,8 @@ function parseAssistantEntryCommand(text: string, monthKey: string, owner: strin
     name,
     category: isIncome ? guessIncomeCategory(text) : guessCategory(text, name),
     amount,
-    status: isIncome || normalized.includes("paguei") || normalized.includes("pago") ? "Pago" : "A pagar",
+    status:
+      isIncome || normalized.includes("paguei") || normalized.includes("pago") ? "Pago" : "A pagar",
     type: isIncome ? "income" : "expense",
     owner,
     date: date || `${monthKey}-05`,
@@ -769,7 +878,9 @@ function parseAssistantEntryCommand(text: string, monthKey: string, owner: strin
 }
 
 function extractAmount(text: string): { raw: string; amount: number } | null {
-  const match = text.match(/(?:r\$\s*)?(\d{1,3}(?:\.\d{3})+,\d{1,2}|\d{1,3}(?:\.\d{3})+|\d+(?:[.,]\d{1,2})?)/i);
+  const match = text.match(
+    /(?:r\$\s*)?(\d{1,3}(?:\.\d{3})+,\d{1,2}|\d{1,3}(?:\.\d{3})+|\d+(?:[.,]\d{1,2})?)/i,
+  );
   if (!match) return null;
   return { raw: match[0], amount: parseCurrencyInput(match[1]) };
 }
@@ -782,7 +893,10 @@ function cleanCommandName(text: string, amountRaw: string, stopWords: string[]):
     withoutAmount
       .replace(/\br\$\b/gi, " ")
       .replace(new RegExp(`\\b(${stop})\\b`, "gi"), " ")
-      .replace(/\b(hoje|ontem|pix|debito|debito|credito|credito|cartao|cartao|dinheiro|boleto)\b/gi, " ")
+      .replace(
+        /\b(hoje|ontem|pix|debito|debito|credito|credito|cartao|cartao|dinheiro|boleto)\b/gi,
+        " ",
+      )
       .replace(/\s+/g, " ")
       .trim(),
   );
@@ -793,7 +907,10 @@ function extractMerchant(text: string, amountRaw: string): string {
   const match = cleaned.match(/\b(?:no|na|em|do|da)\s+([A-Za-zÀ-ÿ0-9 .'-]{2,28})/i);
   if (!match) return "";
   const value = match[1]
-    .replace(/\b(via|com|por|de|r\$|hoje|ontem|pix|debito|debito|credito|credito|cartao|cartao|dinheiro|boleto)\b.*$/i, "")
+    .replace(
+      /\b(via|com|por|de|r\$|hoje|ontem|pix|debito|debito|credito|credito|cartao|cartao|dinheiro|boleto)\b.*$/i,
+      "",
+    )
     .replace(/\s+/g, " ")
     .trim();
   return titleCase(value);
@@ -802,7 +919,10 @@ function extractMerchant(text: string, amountRaw: string): string {
 function titleCase(value: string): string {
   return value
     .toLocaleLowerCase("pt-BR")
-    .replace(/(^|\s)(\S)/g, (_, space: string, letter: string) => `${space}${letter.toLocaleUpperCase("pt-BR")}`);
+    .replace(
+      /(^|\s)(\S)/g,
+      (_, space: string, letter: string) => `${space}${letter.toLocaleUpperCase("pt-BR")}`,
+    );
 }
 
 function offsetDate(days: number): string {
@@ -824,7 +944,11 @@ function guessCategory(text: string, establishmentName = ""): string {
     ["Empréstimo", ["emprestimo", "empréstimo"]],
     ["Lazer", ["lazer", "cinema", "show", "viagem"]],
   ];
-  return rules.find(([, words]) => words.some((word) => normalized.includes(normalizeText(word))))?.[0] || "Outros";
+  return (
+    rules.find(([, words]) =>
+      words.some((word) => normalized.includes(normalizeText(word))),
+    )?.[0] || "Outros"
+  );
 }
 
 function guessIncomeCategory(text: string): string {

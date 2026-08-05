@@ -1,8 +1,23 @@
 import { useMemo, useState } from "react";
-import { ArrowDownLeft, ArrowUpRight, Copy, Pencil, Plus, Receipt, Trash2, Search } from "lucide-react";
+import {
+  ArrowDownLeft,
+  ArrowUpRight,
+  Copy,
+  Pencil,
+  Plus,
+  Receipt,
+  Trash2,
+  Search,
+} from "lucide-react";
 
 import { categoryColors, categoryIcons } from "@/lib/finance/constants";
-import { expenseMatchesView, formatDate, normalizeText, ownerLabelForPeople, sum } from "@/lib/finance/calc";
+import {
+  expenseMatchesView,
+  formatDate,
+  normalizeText,
+  ownerLabelForPeople,
+  sum,
+} from "@/lib/finance/calc";
 import { useFinance, useMoney } from "@/lib/finance/FinanceContext";
 import type { Expense } from "@/lib/finance/types";
 
@@ -27,7 +42,13 @@ function matchesFilter(item: Expense, filter: FilterKey): boolean {
   return true;
 }
 
-export function TransactionsView({ onEdit, onAdd }: { onEdit: (id: string) => void; onAdd: () => void }) {
+export function TransactionsView({
+  onEdit,
+  onAdd,
+}: {
+  onEdit: (id: string) => void;
+  onAdd: () => void;
+}) {
   const { month, state, toggleExpenseStatus, deleteExpense, duplicateExpense } = useFinance();
   const money = useMoney();
   const [term, setTerm] = useState("");
@@ -93,7 +114,9 @@ export function TransactionsView({ onEdit, onAdd }: { onEdit: (id: string) => vo
           </span>
           <div className="min-w-0">
             <span className="block text-[11px] text-muted-foreground/80">Entradas</span>
-            <strong className="tnum block text-[15px] font-bold text-foreground">{money(incomeTotal)}</strong>
+            <strong className="tnum block text-[15px] font-bold text-foreground">
+              {money(incomeTotal)}
+            </strong>
           </div>
         </div>
         <div className="card-surface flex items-center gap-2.5 border-l-2 border-l-destructive/50 p-3">
@@ -102,7 +125,9 @@ export function TransactionsView({ onEdit, onAdd }: { onEdit: (id: string) => vo
           </span>
           <div className="min-w-0">
             <span className="block text-[11px] text-muted-foreground/80">Saídas</span>
-            <strong className="tnum block text-[15px] font-bold text-foreground">{money(expenseTotal)}</strong>
+            <strong className="tnum block text-[15px] font-bold text-foreground">
+              {money(expenseTotal)}
+            </strong>
           </div>
         </div>
       </div>
@@ -132,7 +157,10 @@ export function TransactionsView({ onEdit, onAdd }: { onEdit: (id: string) => vo
         )
       ) : (
         rows.map((item) => (
-          <div key={item.id} className="card-surface hover-lift relative overflow-hidden py-3.5 pl-4 pr-3.5">
+          <div
+            key={item.id}
+            className="card-surface hover-lift relative overflow-hidden py-3.5 pl-4 pr-3.5"
+          >
             <span
               className="absolute inset-y-0 left-0 w-1"
               style={{ background: categoryColors[item.category] || "var(--color-primary)" }}
@@ -150,8 +178,12 @@ export function TransactionsView({ onEdit, onAdd }: { onEdit: (id: string) => vo
               </span>
               <div className="min-w-0 flex-1">
                 <div className="flex items-start justify-between gap-2">
-                  <strong className="min-w-0 truncate text-sm font-bold text-foreground">{item.name}</strong>
-                  <strong className="tnum shrink-0 text-sm font-bold text-foreground">{money(item.amount)}</strong>
+                  <strong className="min-w-0 truncate text-sm font-bold text-foreground">
+                    {item.name}
+                  </strong>
+                  <strong className="tnum shrink-0 text-sm font-bold text-foreground">
+                    {money(item.amount)}
+                  </strong>
                 </div>
                 <div className="mt-0.5 flex flex-wrap items-center gap-x-2 gap-y-0.5 text-[11px] text-muted-foreground">
                   <span>{item.category}</span>
@@ -162,9 +194,15 @@ export function TransactionsView({ onEdit, onAdd }: { onEdit: (id: string) => vo
                   <span>·</span>
                   <span>{item.paymentMethod}</span>
                 </div>
-                {item.note && <p className="mt-1 truncate text-[11px] text-muted-foreground">{item.note}</p>}
+                {item.note && (
+                  <p className="mt-1 truncate text-[11px] text-muted-foreground">{item.note}</p>
+                )}
                 <div className="mt-2.5 flex items-center justify-between gap-2">
-                  <button type="button" onClick={() => toggleExpenseStatus(item.id)} className="press focus-ring rounded-full">
+                  <button
+                    type="button"
+                    onClick={() => toggleExpenseStatus(item.id)}
+                    className="press focus-ring rounded-full"
+                  >
                     <StatusPill status={item.status} />
                   </button>
                   <div className="flex items-center gap-1">

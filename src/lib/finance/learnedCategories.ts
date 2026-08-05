@@ -25,7 +25,9 @@ function writeRules(rules: Record<string, LearnedCategoryRule>): void {
 }
 
 export function listLearnedCategories(): LearnedCategoryRule[] {
-  return Object.values(readRules()).sort((a, b) => a.establishment.localeCompare(b.establishment, "pt-BR"));
+  return Object.values(readRules()).sort((a, b) =>
+    a.establishment.localeCompare(b.establishment, "pt-BR"),
+  );
 }
 
 export function learnCategory(establishment: string, category: string): void {

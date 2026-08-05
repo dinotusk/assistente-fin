@@ -22,14 +22,18 @@ export function MonthlyBars({ entries, activeKey, onSelect }: MonthlyBarsProps) 
             onClick={() => onSelect(entry.key)}
             className="flex min-w-14 flex-1 flex-col items-center gap-2"
           >
-            <span className="tnum text-[10px] font-semibold text-muted-foreground">{moneyShort(entry.total)}</span>
+            <span className="tnum text-[10px] font-semibold text-muted-foreground">
+              {moneyShort(entry.total)}
+            </span>
             <div className="flex h-24 w-full items-end justify-center">
               <div
                 className={`w-7 rounded-lg transition-all ${active ? "bg-primary shadow-primary" : "bg-primary-soft"}`}
                 style={{ height: `${height}%` }}
               />
             </div>
-            <span className={`text-[11px] font-medium ${active ? "text-primary" : "text-muted-foreground"}`}>
+            <span
+              className={`text-[11px] font-medium ${active ? "text-primary" : "text-muted-foreground"}`}
+            >
               {entry.label.replace(/\s+\d{4}/, "").slice(0, 3)}
             </span>
           </button>

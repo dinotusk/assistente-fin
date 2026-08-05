@@ -5,7 +5,13 @@ import { useFinance, useMoney } from "@/lib/finance/FinanceContext";
 
 import { Panel, PanelHead, StatusPill } from "./ui";
 
-export function PrioritiesView({ onEdit, onAdd }: { onEdit: (id: string) => void; onAdd: () => void }) {
+export function PrioritiesView({
+  onEdit,
+  onAdd,
+}: {
+  onEdit: (id: string) => void;
+  onAdd: () => void;
+}) {
   const { month, state, togglePriorityStatus, deletePriority } = useFinance();
   const money = useMoney();
   const view = state.activePerson;
@@ -55,38 +61,55 @@ export function PrioritiesView({ onEdit, onAdd }: { onEdit: (id: string) => void
           )}
           {priorities.map((item) => {
             const rankAccent =
-              item.rank === 1 ? "border-l-primary/60" : item.rank === 2 ? "border-l-warning/55" : "border-l-muted-foreground/25";
+              item.rank === 1
+                ? "border-l-primary/60"
+                : item.rank === 2
+                  ? "border-l-warning/55"
+                  : "border-l-muted-foreground/25";
             return (
-            <div key={item.id} className={`hover-lift rounded-2xl border-l-2 ${rankAccent} bg-secondary p-3.5`}>
-              <div className="flex items-start justify-between gap-2">
-                <strong className="min-w-0 truncate text-sm font-bold text-foreground">{item.name}</strong>
-                <strong className="tnum shrink-0 text-sm font-bold text-foreground">{money(item.amount)}</strong>
-              </div>
-              <span className="mt-0.5 block text-[11px] font-medium text-muted-foreground">Prioridade {item.rank}</span>
-              <div className="mt-2.5 flex items-center justify-between">
-                <button type="button" onClick={() => togglePriorityStatus(item.id)} className="press focus-ring rounded-full">
-                  <StatusPill status={item.status} />
-                </button>
-                <div className="flex gap-1">
+              <div
+                key={item.id}
+                className={`hover-lift rounded-2xl border-l-2 ${rankAccent} bg-secondary p-3.5`}
+              >
+                <div className="flex items-start justify-between gap-2">
+                  <strong className="min-w-0 truncate text-sm font-bold text-foreground">
+                    {item.name}
+                  </strong>
+                  <strong className="tnum shrink-0 text-sm font-bold text-foreground">
+                    {money(item.amount)}
+                  </strong>
+                </div>
+                <span className="mt-0.5 block text-[11px] font-medium text-muted-foreground">
+                  Prioridade {item.rank}
+                </span>
+                <div className="mt-2.5 flex items-center justify-between">
                   <button
                     type="button"
-                    onClick={() => onEdit(item.id)}
-                    aria-label="Editar"
-                    className="press focus-ring flex h-9 w-9 items-center justify-center rounded-xl bg-card text-muted-foreground hover:text-foreground"
+                    onClick={() => togglePriorityStatus(item.id)}
+                    className="press focus-ring rounded-full"
                   >
-                    <Pencil className="h-4 w-4" />
+                    <StatusPill status={item.status} />
                   </button>
-                  <button
-                    type="button"
-                    onClick={() => deletePriority(item.id)}
-                    aria-label="Excluir"
-                    className="press focus-ring flex h-9 w-9 items-center justify-center rounded-xl bg-card text-destructive hover:bg-destructive/10"
-                  >
-                    <Trash2 className="h-4 w-4" />
-                  </button>
+                  <div className="flex gap-1">
+                    <button
+                      type="button"
+                      onClick={() => onEdit(item.id)}
+                      aria-label="Editar"
+                      className="press focus-ring flex h-9 w-9 items-center justify-center rounded-xl bg-card text-muted-foreground hover:text-foreground"
+                    >
+                      <Pencil className="h-4 w-4" />
+                    </button>
+                    <button
+                      type="button"
+                      onClick={() => deletePriority(item.id)}
+                      aria-label="Excluir"
+                      className="press focus-ring flex h-9 w-9 items-center justify-center rounded-xl bg-card text-destructive hover:bg-destructive/10"
+                    >
+                      <Trash2 className="h-4 w-4" />
+                    </button>
+                  </div>
                 </div>
               </div>
-            </div>
             );
           })}
         </div>
