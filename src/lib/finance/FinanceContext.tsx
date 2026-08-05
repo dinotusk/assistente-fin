@@ -21,6 +21,7 @@ import {
 } from "./constants";
 import { lookupLearnedCategory } from "./learnedCategories";
 import { createSeedState, uid } from "./seed";
+import { createSyncQueue, type SyncQueue } from "./syncQueue";
 import {
   createHouseholdInvite,
   getAuthenticatedUser,
@@ -35,9 +36,7 @@ import {
   saveSessionPreference,
   type FinanceWorkspace,
 } from "./supabaseRepository";
-import {
-  migrateState,
-} from "./storage";
+import { migrateState } from "./storage";
 import type { ActiveUser, EnvelopeRule, Expense, FinanceState, MonthData, Priority } from "./types";
 import { currentUserName, formatMonthLabel, getNextMonthKey, spouseName } from "./calc";
 
@@ -52,7 +51,12 @@ interface FinanceContextValue {
   month: MonthData;
   envelopes: EnvelopeRule[];
   login: (name: string, email: string, password: string) => Promise<ActiveUser>;
-  register: (name: string, email: string, password: string, inviteCode?: string) => Promise<ActiveUser>;
+  register: (
+    name: string,
+    email: string,
+    password: string,
+    inviteCode?: string,
+  ) => Promise<ActiveUser>;
   loginWithGoogle: () => Promise<void>;
   logout: () => void;
   createInvite: () => Promise<string>;
@@ -95,8 +99,29 @@ export function FinanceProvider({ children }: { children: ReactNode }) {
   const [envelopes, setEnvelopes] = useState<EnvelopeRule[]>(defaultEnvelopeRules);
   const workspaceRef = useRef<FinanceWorkspace | null>(null);
   const writeQueueRef = useRef<Promise<void>>(Promise.resolve());
-  /** State as of the last persist() call, used to diff writes instead of reconciling against a full local snapshot. */
+  /** State as of the last *confirmed* remote write, used as the diff base — only advances on success. */
   const previousStateRef = useRef<FinanceState>(createEmptyState());
+  const financeSyncPendingRef = useRef<Promise<void>>(Promise.resolve());
+  const syncQueueRef = useRef<SyncQueue<FinanceState, FinanceWorkspace> | null>(null);
+  if (!syncQueueRef.current) {
+    syncQueueRef.current = createSyncQueue<FinanceState, FinanceWorkspace>({
+      getWorkspace: () => workspaceRef.current,
+      setWorkspace: (workspace) => {
+        workspaceRef.current = workspace;
+      },
+      getConfirmed: () => previousStateRef.current,
+      setConfirmed: (nextState) => {
+        previousStateRef.current = nextState;
+      },
+      write: (workspace, base, next) => saveRemoteFinance(workspace, base, next),
+      onError: (error) => {
+        console.error("Falha ao sincronizar dados financeiros", error);
+        toast.error(
+          "Não foi possível salvar sua última alteração. Verifique sua conexão e tente de novo.",
+        );
+      },
+    });
+  }
 
   useEffect(() => {
     let mounted = true;
@@ -114,7 +139,10 @@ export function FinanceProvider({ children }: { children: ReactNode }) {
         if (loaded.envelopes.length) {
           setEnvelopes(loaded.envelopes);
         } else {
-          const saved = await saveRemoteEnvelopes(loaded.workspace.householdId, defaultEnvelopeRules);
+          const saved = await saveRemoteEnvelopes(
+            loaded.workspace.householdId,
+            defaultEnvelopeRules,
+          );
           if (mounted) setEnvelopes(saved);
         }
       })
@@ -122,7 +150,9 @@ export function FinanceProvider({ children }: { children: ReactNode }) {
         console.error("Falha ao carregar dados do Supabase", error);
         if (mounted) {
           setAuthError(
-            error instanceof Error ? error.message : "Nao foi possivel conectar. Verifique sua internet.",
+            error instanceof Error
+              ? error.message
+              : "Nao foi possivel conectar. Verifique sua internet.",
           );
         }
       })
@@ -139,21 +169,9 @@ export function FinanceProvider({ children }: { children: ReactNode }) {
   const toggleHideValues = useCallback(() => setHideValues((value) => !value), []);
 
   const persist = useCallback((next: FinanceState) => {
-    const previous = previousStateRef.current;
-    previousStateRef.current = next;
     setState({ ...next });
-    if (!workspaceRef.current) return;
-
-    writeQueueRef.current = writeQueueRef.current
-      .catch(() => undefined)
-      .then(async () => {
-        if (!workspaceRef.current) return;
-        workspaceRef.current = await saveRemoteFinance(workspaceRef.current, previous, next);
-      })
-      .catch((error) => {
-        console.error("Falha ao sincronizar dados financeiros", error);
-        toast.error("Não foi possível salvar sua última alteração. Verifique sua conexão e tente de novo.");
-      });
+    if (!workspaceRef.current || !syncQueueRef.current) return;
+    financeSyncPendingRef.current = syncQueueRef.current.push(next);
   }, []);
 
   const month = useMemo(
@@ -186,7 +204,12 @@ export function FinanceProvider({ children }: { children: ReactNode }) {
   );
 
   const register = useCallback(
-    async (name: string, email: string, password: string, inviteCode?: string): Promise<ActiveUser> => {
+    async (
+      name: string,
+      email: string,
+      password: string,
+      inviteCode?: string,
+    ): Promise<ActiveUser> => {
       await registerWithSupabase({ name, email, password }, inviteCode);
       return hydrateAuthenticatedUser();
     },
@@ -207,14 +230,16 @@ export function FinanceProvider({ children }: { children: ReactNode }) {
   const loginWithGoogle = useCallback((): Promise<void> => loginWithGoogleSupabase(), []);
 
   const logout = useCallback(() => {
-    void writeQueueRef.current.finally(async () => {
-      await logoutFromSupabase();
-      workspaceRef.current = null;
-      previousStateRef.current = createEmptyState();
-      setActiveUserState(null);
-      setState(createEmptyState());
-      setEnvelopes(defaultEnvelopeRules);
-    });
+    void Promise.allSettled([writeQueueRef.current, financeSyncPendingRef.current]).then(
+      async () => {
+        await logoutFromSupabase();
+        workspaceRef.current = null;
+        previousStateRef.current = createEmptyState();
+        setActiveUserState(null);
+        setState(createEmptyState());
+        setEnvelopes(defaultEnvelopeRules);
+      },
+    );
   }, []);
 
   const setActiveMonth = useCallback(
@@ -268,7 +293,14 @@ export function FinanceProvider({ children }: { children: ReactNode }) {
       profileBudgets: Record<string, number> = {},
       planned = false,
     ) => {
-      const updated: MonthData = { ...month, label: label.trim(), income, houseContribution, profileBudgets, planned };
+      const updated: MonthData = {
+        ...month,
+        label: label.trim(),
+        income,
+        houseContribution,
+        profileBudgets,
+        planned,
+      };
       persist({ ...state, months: { ...state.months, [state.activeMonth]: updated } });
     },
     [state, month, persist],
@@ -280,7 +312,8 @@ export function FinanceProvider({ children }: { children: ReactNode }) {
       if (!remainingKeys.length) return; // always keep at least one month
       const months = { ...state.months };
       delete months[key];
-      const activeMonth = state.activeMonth === key ? remainingKeys.sort().at(-1)! : state.activeMonth;
+      const activeMonth =
+        state.activeMonth === key ? remainingKeys.sort().at(-1)! : state.activeMonth;
       persist({ ...state, months, activeMonth });
     },
     [state, persist],
@@ -291,12 +324,19 @@ export function FinanceProvider({ children }: { children: ReactNode }) {
       const clean = people
         .map((person) => person.trim())
         .filter(Boolean)
-        .filter((person, index, list) => list.findIndex((item) => item.toLocaleLowerCase("pt-BR") === person.toLocaleLowerCase("pt-BR")) === index);
+        .filter(
+          (person, index, list) =>
+            list.findIndex(
+              (item) => item.toLocaleLowerCase("pt-BR") === person.toLocaleLowerCase("pt-BR"),
+            ) === index,
+        );
       const newPeople = clean.length ? clean : [currentUserName()];
       const oldPeople = state.people;
       const renamedExtras = oldPeople
         .map((oldName, index) => ({ oldName, newName: newPeople[index], index }))
-        .filter(({ index, oldName, newName }) => index >= 2 && oldName && newName && oldName !== newName);
+        .filter(
+          ({ index, oldName, newName }) => index >= 2 && oldName && newName && oldName !== newName,
+        );
       const months = Object.fromEntries(
         Object.entries(state.months).map(([monthKey, data]) => {
           const profileBudgets = { ...(data.profileBudgets || {}) };
@@ -323,7 +363,9 @@ export function FinanceProvider({ children }: { children: ReactNode }) {
           ];
         }),
       );
-      const activePerson = [VIEW_ALL, VIEW_ME, VIEW_SPOUSE, ...newPeople].includes(state.activePerson)
+      const activePerson = [VIEW_ALL, VIEW_ME, VIEW_SPOUSE, ...newPeople].includes(
+        state.activePerson,
+      )
         ? state.activePerson
         : VIEW_ME;
       persist({ ...state, people: newPeople, months, activePerson });
@@ -623,12 +665,19 @@ function extractExpensesFromRows(rows: unknown[][], monthKey: string): Expense[]
         name,
         category: normalizeCategory(String(dataRow[categoryIndex] || ""), name),
         amount,
-        status: String(dataRow[statusIndex] || "").toLowerCase().includes("pag")
-          && !String(dataRow[statusIndex] || "").toLowerCase().includes("pago")
-          ? "A pagar"
-          : String(dataRow[statusIndex] || "").toLowerCase().includes("pago")
-            ? "Pago"
-            : "A pagar",
+        status:
+          String(dataRow[statusIndex] || "")
+            .toLowerCase()
+            .includes("pag") &&
+          !String(dataRow[statusIndex] || "")
+            .toLowerCase()
+            .includes("pago")
+            ? "A pagar"
+            : String(dataRow[statusIndex] || "")
+                  .toLowerCase()
+                  .includes("pago")
+              ? "Pago"
+              : "A pagar",
         owner: normalizeOwner(String(dataRow[ownerIndex] || "")),
         date: normalizeSheetDate(dataRow[dateIndex], monthKey),
         paymentMethod: normalizePayment(String(dataRow[paymentIndex] || "")),
@@ -772,7 +821,11 @@ function normalizeHeader(value: unknown): string {
 }
 
 function findIndex(headers: string[], names: string[]): number {
-  return headers.findIndex((header) => names.some((name) => header === normalizeHeader(name) || header.includes(normalizeHeader(name))));
+  return headers.findIndex((header) =>
+    names.some(
+      (name) => header === normalizeHeader(name) || header.includes(normalizeHeader(name)),
+    ),
+  );
 }
 
 function parseSheetAmount(value: unknown): number {
@@ -794,8 +847,10 @@ function normalizeCategory(value: string, establishmentName = ""): string {
 function normalizeOwner(value: string, fallback = "Minha casa"): string {
   const normalized = normalizeHeader(value);
   if (!normalized) return fallback;
-  if (normalized.includes("pai") || normalized.includes("namorada") || normalized.includes("outra")) return "Outra casa";
-  if (normalized.includes("minha") || normalized.includes("meus") || normalized.includes("junior")) return "Minha casa";
+  if (normalized.includes("pai") || normalized.includes("namorada") || normalized.includes("outra"))
+    return "Outra casa";
+  if (normalized.includes("minha") || normalized.includes("meus") || normalized.includes("junior"))
+    return "Minha casa";
   return fallback;
 }
 
@@ -844,19 +899,38 @@ function monthKeyFromSheetName(sheetName: string, fallbackMonth = ""): string | 
 }
 
 function expenseFromRecord(row: Record<string, unknown>, fallbackMonth: string): Expense | null {
-  const name = stringFromRecord(row, ["descricao", "descrição", "description", "item", "nome", "gasto"]);
+  const name = stringFromRecord(row, [
+    "descricao",
+    "descrição",
+    "description",
+    "item",
+    "nome",
+    "gasto",
+  ]);
   const amount = parseSheetAmount(valueFromRecord(row, ["valor", "amount", "preco", "preço"]));
   if (!name || !amount || shouldIgnoreImportedName(name)) return null;
-  const date = normalizeSheetDate(valueFromRecord(row, ["data", "date", "vencimento"]), fallbackMonth);
+  const date = normalizeSheetDate(
+    valueFromRecord(row, ["data", "date", "vencimento"]),
+    fallbackMonth,
+  );
   return {
     id: String(valueFromRecord(row, ["id", "id_gasto"]) || uid()),
     name,
     category: normalizeCategory(stringFromRecord(row, ["categoria", "category", "tipo"]), name),
     amount,
     status: normalizeExpenseStatus(stringFromRecord(row, ["status", "situacao", "situação"])),
-    owner: normalizeOwner(stringFromRecord(row, ["responsavel", "responsável", "owner", "pessoa", "nome_usuario"])),
+    owner: normalizeOwner(
+      stringFromRecord(row, ["responsavel", "responsável", "owner", "pessoa", "nome_usuario"]),
+    ),
     date,
-    paymentMethod: normalizePayment(stringFromRecord(row, ["forma_pagamento", "forma de pagamento", "pagamento", "paymentMethod"])),
+    paymentMethod: normalizePayment(
+      stringFromRecord(row, [
+        "forma_pagamento",
+        "forma de pagamento",
+        "pagamento",
+        "paymentMethod",
+      ]),
+    ),
     note: stringFromRecord(row, ["observacao", "observação", "note", "nota", "negociar"]),
     createdAt: String(valueFromRecord(row, ["criado_em", "createdAt"]) || new Date().toISOString()),
   };
@@ -871,7 +945,11 @@ function stringFromRecord(row: Record<string, unknown>, names: string[]): string
   return String(valueFromRecord(row, names) || "").trim();
 }
 
-function monthKeyFromRecord(row: Record<string, unknown>, date: string, fallbackMonth: string): string {
+function monthKeyFromRecord(
+  row: Record<string, unknown>,
+  date: string,
+  fallbackMonth: string,
+): string {
   const year = String(valueFromRecord(row, ["ano", "year"]) || "").replace(/\D/g, "");
   const month = String(valueFromRecord(row, ["mes", "mês", "month"]) || "").trim();
   const direct = monthKeyFromSheetName(`${month}${year}`, fallbackMonth);
@@ -889,7 +967,8 @@ function contextTextForRow(rows: unknown[][], headerIndex: number): string {
 
 function ownerFromContext(context: string): string {
   if (context.includes("meus itens")) return "Minha casa";
-  if (context.includes("pai") || context.includes("namorada") || context.includes("outra")) return "Outra casa";
+  if (context.includes("pai") || context.includes("namorada") || context.includes("outra"))
+    return "Outra casa";
   if (/\bcasa\b/.test(context)) return "Outra casa";
   return "Minha casa";
 }
