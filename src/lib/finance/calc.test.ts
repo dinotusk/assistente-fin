@@ -87,7 +87,7 @@ describe("normalizeText", () => {
 
 describe("profileId", () => {
   it("slugifies a name", () => {
-    expect(profileId("Pai da Namorada")).toBe("pai-da-namorada");
+    expect(profileId("Outra casa")).toBe("outra-casa");
   });
 
   it("falls back to 'perfil' when nothing is left after slugifying", () => {
@@ -119,7 +119,7 @@ describe("expensesForView", () => {
   const month = makeMonth({
     expenses: [
       makeExpense({ id: "e1", owner: "Minha casa" }),
-      makeExpense({ id: "e2", owner: "Pai da namorada" }),
+      makeExpense({ id: "e2", owner: "Outra casa" }),
     ],
   });
 

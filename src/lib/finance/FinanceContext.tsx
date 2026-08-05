@@ -782,7 +782,7 @@ function normalizeCategory(value: string, establishmentName = ""): string {
 function normalizeOwner(value: string, fallback = "Minha casa"): string {
   const normalized = normalizeHeader(value);
   if (!normalized) return fallback;
-  if (normalized.includes("pai") || normalized.includes("namorada")) return "Pai da namorada";
+  if (normalized.includes("pai") || normalized.includes("namorada") || normalized.includes("outra")) return "Outra casa";
   if (normalized.includes("minha") || normalized.includes("meus") || normalized.includes("junior")) return "Minha casa";
   return fallback;
 }
@@ -877,8 +877,8 @@ function contextTextForRow(rows: unknown[][], headerIndex: number): string {
 
 function ownerFromContext(context: string): string {
   if (context.includes("meus itens")) return "Minha casa";
-  if (context.includes("pai") || context.includes("namorada")) return "Pai da namorada";
-  if (/\bcasa\b/.test(context)) return "Pai da namorada";
+  if (context.includes("pai") || context.includes("namorada") || context.includes("outra")) return "Outra casa";
+  if (/\bcasa\b/.test(context)) return "Outra casa";
   return "Minha casa";
 }
 

@@ -79,7 +79,7 @@ export function responsavelToView(responsavel?: string): string {
   if (!responsavel || responsavel === VIEW_ALL || responsavel === "Todos") return VIEW_ALL;
   if (responsavel === RESPONSAVEL_CASAL || responsavel === "Casal") return VIEW_ME;
   if (["Meu perfil", "Pessoa 1", "Minha casa"].includes(responsavel)) return VIEW_ME;
-  if (["Esposa", "Pessoa 2", "Pai da namorada"].includes(responsavel)) return VIEW_SPOUSE;
+  if (["Esposa", "Pessoa 2", "Pai da namorada", "Outra casa"].includes(responsavel)) return VIEW_SPOUSE;
   if (responsavel === VIEW_ME || responsavel === currentUserName()) return VIEW_ME;
   if (responsavel === VIEW_SPOUSE || responsavel === spouseName()) return VIEW_SPOUSE;
   return responsavel;
