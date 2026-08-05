@@ -584,6 +584,63 @@ export function InviteDialog({ open, onOpenChange }: { open: boolean; onOpenChan
   );
 }
 
+/* ---------------- Join household ---------------- */
+export function JoinHouseholdDialog({ open, onOpenChange }: { open: boolean; onOpenChange: (v: boolean) => void }) {
+  const { joinHousehold } = useFinance();
+  const [code, setCode] = useState("");
+  const [loading, setLoading] = useState(false);
+  const [error, setError] = useState<string | null>(null);
+
+  useEffect(() => {
+    if (!open) return;
+    setCode("");
+    setError(null);
+    setLoading(false);
+  }, [open]);
+
+  async function submit(event: React.FormEvent) {
+    event.preventDefault();
+    if (!code.trim()) return;
+    setError(null);
+    setLoading(true);
+    try {
+      await joinHousehold(code.trim());
+      onOpenChange(false);
+    } catch (err) {
+      setError(err instanceof Error ? err.message : "Não foi possível usar esse código.");
+    } finally {
+      setLoading(false);
+    }
+  }
+
+  return (
+    <SheetShell open={open} onOpenChange={onOpenChange} title="Entrar em outra casa">
+      <form onSubmit={submit} className="flex flex-col gap-4">
+        <p className="text-sm text-muted-foreground">
+          Cole aqui o código que alguém te enviou. Isso troca a casa que você vê no Aval pela casa de quem te
+          convidou — seus dados atuais continuam guardados, mas você deixa de vê-los aqui.
+        </p>
+        <Field label="Código do convite">
+          <TextInput
+            value={code}
+            onChange={(e) => setCode(e.target.value.toUpperCase())}
+            placeholder="Ex: AB12CD34"
+            className="uppercase tracking-widest"
+            autoFocus
+            required
+          />
+        </Field>
+        {error && (
+          <p className="rounded-2xl border border-destructive/30 bg-destructive/10 p-4 text-sm text-destructive">
+            {error}
+          </p>
+        )}
+        <Actions onCancel={() => onOpenChange(false)} submitLabel={loading ? "Entrando..." : "Entrar nessa casa"} />
+      </form>
+    </SheetShell>
+  );
+}
+
 /* ---------------- Bank statement import (OFX/CSV) ---------------- */
 interface ImportCandidate {
   id: string;

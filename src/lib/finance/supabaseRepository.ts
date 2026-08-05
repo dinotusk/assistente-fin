@@ -177,7 +177,8 @@ async function bootstrapWorkspace(displayName: string): Promise<string> {
   return String(data);
 }
 
-async function redeemInvite(code: string, displayName: string): Promise<string> {
+/** Redeems an invite code for the currently authenticated user, moving them into that household. */
+export async function redeemInvite(code: string, displayName: string): Promise<string> {
   const { data, error } = await supabase.rpc("redeem_household_invite", {
     p_code: code.trim(),
     p_display_name: displayName.trim(),

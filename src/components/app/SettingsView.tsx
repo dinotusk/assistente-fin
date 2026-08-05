@@ -1,5 +1,5 @@
 import { useRef } from "react";
-import { Users, CalendarCog, Download, Upload, RotateCcw, LogOut, ChevronRight, Rocket, Tag, Landmark, Eye, UserPlus } from "lucide-react";
+import { Users, CalendarCog, Download, Upload, RotateCcw, LogOut, ChevronRight, Rocket, Tag, Landmark, Eye, UserPlus, LogIn } from "lucide-react";
 
 import { useFinance } from "@/lib/finance/FinanceContext";
 
@@ -12,6 +12,7 @@ export function SettingsView({
   onImportBank,
   onEditVigias,
   onInvite,
+  onJoinHousehold,
 }: {
   onEditPeople: () => void;
   onEditMonth: () => void;
@@ -19,6 +20,7 @@ export function SettingsView({
   onImportBank: () => void;
   onEditVigias: () => void;
   onInvite: () => void;
+  onJoinHousehold: () => void;
 }) {
   const { activeUser, state, exportData, importData, resetSeed, logout } = useFinance();
   const fileRef = useRef<HTMLInputElement>(null);
@@ -42,6 +44,7 @@ export function SettingsView({
       label: "Dados",
       rows: [
         { icon: UserPlus, title: "Convidar para a casa", desc: "Gere um código para alguém entrar e ver os mesmos dados.", action: onInvite },
+        { icon: LogIn, title: "Entrar em outra casa", desc: "Já tem um código? Troque sua casa atual pela de quem te convidou.", action: onJoinHousehold },
         { icon: Users, title: "Perfis financeiros", desc: "Adicione, remova ou renomeie as visoes do orçamento.", action: onEditPeople },
         { icon: CalendarCog, title: "Mês atual", desc: "Ajuste renda, repasse e nome do mês selecionado.", action: onEditMonth },
         { icon: Tag, title: "Categorias", desc: "Veja e remova as regras aprendidas por estabelecimento.", action: onEditCategories },

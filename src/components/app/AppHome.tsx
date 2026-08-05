@@ -13,7 +13,7 @@ import { DashboardView } from "./DashboardView";
 import { PrioritiesView } from "./PrioritiesView";
 import { SettingsView } from "./SettingsView";
 import { TransactionsView } from "./TransactionsView";
-import { BankImportDialog, CategoriesDialog, ExpenseDialog, InviteDialog, MonthDialog, PeopleDialog, PriorityDialog, VigiasDialog } from "./dialogs";
+import { BankImportDialog, CategoriesDialog, ExpenseDialog, InviteDialog, JoinHouseholdDialog, MonthDialog, PeopleDialog, PriorityDialog, VigiasDialog } from "./dialogs";
 import { Segmented } from "./ui";
 
 const titles: Record<ViewKey, string> = {
@@ -48,6 +48,7 @@ export function AppHome() {
   const [bankImportOpen, setBankImportOpen] = useState(false);
   const [vigiasOpen, setVigiasOpen] = useState(false);
   const [inviteOpen, setInviteOpen] = useState(false);
+  const [joinHouseholdOpen, setJoinHouseholdOpen] = useState(false);
   const [profileMenuOpen, setProfileMenuOpen] = useState(false);
   const importRef = useRef<HTMLInputElement>(null);
   const initials = getInitials(activeUser?.name || "Aval");
@@ -77,7 +78,7 @@ export function AppHome() {
         </div>
         <div className="min-w-0">
           <strong className="block truncate text-sm font-bold text-foreground">{activeUser?.name || "Perfil"}</strong>
-          <span className="text-xs text-muted-foreground">Conta local neste aparelho</span>
+          <span className="text-xs text-muted-foreground">Conta sincronizada</span>
         </div>
       </div>
       <HeaderMenuButton icon={<Settings className="h-4 w-4" />} label="Configuracoes" onClick={() => { setView("settings"); setProfileMenuOpen(false); }} />
@@ -157,6 +158,7 @@ export function AppHome() {
           onImportBank={() => setBankImportOpen(true)}
           onEditVigias={() => setVigiasOpen(true)}
           onInvite={() => setInviteOpen(true)}
+          onJoinHousehold={() => setJoinHouseholdOpen(true)}
         />
       )}
     </div>
@@ -184,6 +186,7 @@ export function AppHome() {
       <BankImportDialog open={bankImportOpen} onOpenChange={setBankImportOpen} />
       <VigiasDialog open={vigiasOpen} onOpenChange={setVigiasOpen} />
       <InviteDialog open={inviteOpen} onOpenChange={setInviteOpen} />
+      <JoinHouseholdDialog open={joinHouseholdOpen} onOpenChange={setJoinHouseholdOpen} />
     </>
   );
 
@@ -206,7 +209,7 @@ export function AppHome() {
                 </div>
                 <div className="min-w-0 flex-1">
                   <strong className="block truncate text-sm font-bold text-foreground">{activeUser?.name || "Perfil"}</strong>
-                  <span className="block truncate text-xs text-muted-foreground">Conta local</span>
+                  <span className="block truncate text-xs text-muted-foreground">Conta sincronizada</span>
                 </div>
                 <ChevronDown className="h-4 w-4 shrink-0 text-muted-foreground" />
               </button>

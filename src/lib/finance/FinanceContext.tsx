@@ -28,6 +28,7 @@ import {
   loginWithGoogle as loginWithGoogleSupabase,
   loginWithSupabase,
   logoutFromSupabase,
+  redeemInvite,
   registerWithSupabase,
   saveRemoteEnvelopes,
   saveRemoteFinance,
@@ -55,6 +56,7 @@ interface FinanceContextValue {
   loginWithGoogle: () => Promise<void>;
   logout: () => void;
   createInvite: () => Promise<string>;
+  joinHousehold: (code: string) => Promise<void>;
   setActiveMonth: (key: string) => void;
   setActivePerson: (view: string) => void;
   createNextMonth: () => string;
@@ -192,6 +194,15 @@ export function FinanceProvider({ children }: { children: ReactNode }) {
   );
 
   const createInvite = useCallback((): Promise<string> => createHouseholdInvite(), []);
+
+  const joinHousehold = useCallback(
+    async (code: string): Promise<void> => {
+      if (!activeUser) throw new Error("Sessao nao encontrada.");
+      await redeemInvite(code, activeUser.name);
+      await hydrateAuthenticatedUser();
+    },
+    [activeUser, hydrateAuthenticatedUser],
+  );
 
   const loginWithGoogle = useCallback((): Promise<void> => loginWithGoogleSupabase(), []);
 
@@ -487,6 +498,7 @@ export function FinanceProvider({ children }: { children: ReactNode }) {
     loginWithGoogle,
     logout,
     createInvite,
+    joinHousehold,
     setActiveMonth,
     setActivePerson,
     createNextMonth,
