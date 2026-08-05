@@ -6,8 +6,8 @@ import type { ViewKey } from "@/lib/finance/types";
 import { AvalMark } from "./ui";
 
 export const NAV_ITEMS: { key: ViewKey; label: string; Icon: typeof LayoutGrid }[] = [
-  { key: "assistant", label: "Início", Icon: House },
   { key: "dashboard", label: "Painel", Icon: LayoutGrid },
+  { key: "assistant", label: "Aval (IA)", Icon: House },
   { key: "transactions", label: "Gastos", Icon: ArrowLeftRight },
   { key: "priorities", label: "Metas", Icon: Star },
   { key: "settings", label: "Config", Icon: Settings },

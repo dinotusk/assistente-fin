@@ -1,22 +1,22 @@
-import { House, ArrowLeftRight, Plus, Target, LayoutGrid } from "lucide-react";
+import { ArrowLeftRight, LayoutGrid, Settings, Sparkles, Target } from "lucide-react";
 
 import { cn } from "@/lib/utils";
 import type { ViewKey } from "@/lib/finance/types";
 
 const items: { key: ViewKey; label: string; Icon: typeof LayoutGrid }[] = [
-  { key: "assistant", label: "Início", Icon: House },
+  { key: "dashboard", label: "Painel", Icon: LayoutGrid },
   { key: "transactions", label: "Gastos", Icon: ArrowLeftRight },
   { key: "priorities", label: "Metas", Icon: Target },
-  { key: "dashboard", label: "Painel", Icon: LayoutGrid },
+  { key: "settings", label: "Config", Icon: Settings },
 ];
 
 interface BottomNavProps {
   view: ViewKey;
   onChange: (view: ViewKey) => void;
-  onAdd: () => void;
+  onOpenAssistant: () => void;
 }
 
-export function BottomNav({ view, onChange, onAdd }: BottomNavProps) {
+export function BottomNav({ view, onChange, onOpenAssistant }: BottomNavProps) {
   return (
     <nav
       aria-label="Navegação principal"
@@ -28,11 +28,17 @@ export function BottomNav({ view, onChange, onAdd }: BottomNavProps) {
 
         <button
           type="button"
-          onClick={onAdd}
-          aria-label="Registrar novo gasto"
-          className="focus-ring press mx-auto -mt-7 flex h-14 w-14 items-center justify-center rounded-[1.25rem] bg-primary text-primary-foreground shadow-primary"
+          onClick={onOpenAssistant}
+          aria-label="Conversar com o Aval"
+          aria-current={view === "assistant" ? "page" : undefined}
+          className={cn(
+            "focus-ring press mx-auto -mt-7 flex h-14 w-14 items-center justify-center rounded-[1.25rem] shadow-primary transition-colors",
+            view === "assistant"
+              ? "hero-gradient text-primary-foreground"
+              : "bg-primary text-primary-foreground",
+          )}
         >
-          <Plus className="h-6 w-6" strokeWidth={2.4} />
+          <Sparkles className="h-6 w-6" strokeWidth={2.4} />
         </button>
 
         <NavButton item={items[2]} active={view === items[2].key} onChange={onChange} />

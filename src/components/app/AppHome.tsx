@@ -74,7 +74,7 @@ export function AppHome() {
     logout,
   } = useFinance();
   const isDesktop = useIsDesktop();
-  const [view, setView] = useState<ViewKey>("assistant");
+  const [view, setView] = useState<ViewKey>("dashboard");
   const [expenseDialog, setExpenseDialog] = useState<{ open: boolean; id: string | null }>({
     open: false,
     id: null,
@@ -410,11 +410,7 @@ export function AppHome() {
         {/* Content */}
         <main className="flex-1 px-5 pb-32 pt-4">{content}</main>
 
-        <BottomNav
-          view={view}
-          onChange={setView}
-          onAdd={() => setExpenseDialog({ open: true, id: null })}
-        />
+        <BottomNav view={view} onChange={setView} onOpenAssistant={() => setView("assistant")} />
       </div>
 
       {hiddenImport}
