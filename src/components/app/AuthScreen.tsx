@@ -1,5 +1,5 @@
 import { useState } from "react";
-import { Bell, MessageCircle, ShieldCheck, Sparkles, WalletCards } from "lucide-react";
+import { Bell, MessageCircle, ShieldCheck, Sparkles } from "lucide-react";
 
 import { useFinance } from "@/lib/finance/FinanceContext";
 
@@ -84,22 +84,22 @@ export function AuthScreen() {
   }
 
   return (
-    <div className="app-backdrop flex min-h-dvh items-center justify-center overflow-hidden px-5 py-10">
-      <div className="relative grid w-full max-w-6xl items-center gap-10 lg:grid-cols-[0.95fr_1.05fr] lg:gap-12">
-        <div className="pointer-events-none absolute left-1/2 top-1/2 -z-10 h-[520px] w-[520px] -translate-x-1/2 -translate-y-1/2 rounded-full bg-primary/10 blur-3xl" />
+    <div className="app-backdrop flex min-h-dvh items-center justify-center px-5 py-10">
+      <div className="relative grid w-full max-w-5xl items-center gap-10 lg:grid-cols-[0.95fr_1fr] lg:gap-16">
+        <div className="pointer-events-none absolute left-1/2 top-1/2 -z-10 h-[460px] w-[460px] -translate-x-1/2 -translate-y-1/2 rounded-full bg-primary/8 blur-3xl" />
 
-        <div className="relative flex min-h-[560px] flex-col justify-center text-center lg:text-left">
+        <div className="relative flex flex-col justify-center text-center lg:text-left">
           <div className="relative z-10 max-w-[520px]">
-            <div className="relative mx-auto mb-8 flex h-14 w-14 items-center justify-center rounded-2xl bg-secondary ring-1 ring-primary/25 lg:mx-0">
+            <div className="relative mx-auto mb-7 flex h-14 w-14 items-center justify-center rounded-2xl bg-secondary ring-1 ring-primary/25 lg:mx-0">
               <div className="pointer-events-none absolute -inset-3 -z-10 rounded-full bg-primary/12 blur-2xl" />
               <AvalMark size={28} />
             </div>
 
             <p className="text-xs font-bold uppercase tracking-[0.14em] text-primary">Aval</p>
-            <h1 className="mt-3 font-display text-[3.1rem] leading-[0.98] tracking-tight text-foreground sm:text-[4rem]">
+            <h1 className="mt-3 font-display text-[2.8rem] leading-[1.02] tracking-tight text-foreground sm:text-[3.65rem]">
               Seu dinheiro, <span className="text-primary">com mais clareza.</span>
             </h1>
-            <p className="mt-5 max-w-[470px] text-base leading-relaxed text-foreground/82 lg:text-lg">
+            <p className="mt-5 max-w-[470px] text-base leading-relaxed text-foreground/80">
               O assistente financeiro com IA que acompanha sua casa, planeja com você e avisa antes de apertar.
             </p>
           </div>
@@ -119,39 +119,17 @@ export function AuthScreen() {
             ))}
           </div>
 
-          <div className="pointer-events-none absolute right-3 top-24 hidden w-[230px] rotate-[-5deg] rounded-[1.6rem] border border-primary/18 bg-card/70 p-4 text-left shadow-float backdrop-blur-xl xl:block">
-            <p className="text-[11px] font-bold text-muted-foreground">Leitura da IA</p>
-            <div className="mt-4 rounded-2xl bg-foreground p-4 text-background">
-              <p className="font-display text-base leading-snug">Você entra e já sabe o que precisa de atenção.</p>
-            </div>
-          </div>
-
-          <div className="pointer-events-none absolute bottom-12 right-0 hidden w-[250px] rotate-[4deg] rounded-[1.7rem] border border-primary/18 bg-card/70 p-4 text-left shadow-float backdrop-blur-xl xl:block">
-            <div className="flex items-center gap-3">
-              <span className="flex h-10 w-10 items-center justify-center rounded-2xl bg-primary-soft text-primary">
-                <WalletCards className="h-5 w-5" />
-              </span>
-              <div>
-                <p className="text-xs font-bold text-foreground">Casa conectada</p>
-                <p className="text-[11px] text-muted-foreground">dados sincronizados</p>
-              </div>
-            </div>
-          </div>
-
-          <div className="pointer-events-none absolute bottom-28 left-[58%] hidden h-24 w-24 rounded-full border-[10px] border-primary/25 xl:block" />
+          <div className="pointer-events-none absolute bottom-6 right-12 hidden h-24 w-24 rounded-full border-[10px] border-primary/20 xl:block" />
         </div>
 
-        <div className="relative mx-auto w-full max-w-[430px] lg:max-w-[456px]">
-          <div className="pointer-events-none absolute -left-8 top-16 hidden h-20 w-1 rounded-l-full bg-primary/35 lg:block" />
-          <div className="pointer-events-none absolute -right-8 top-32 hidden h-24 w-1 rounded-r-full bg-primary/30 lg:block" />
-
+        <div className="relative mx-auto w-full max-w-[420px] lg:max-w-[440px]">
           <form
             onSubmit={handleSubmit}
-            className="relative overflow-hidden rounded-[2.2rem] bg-linear-to-br from-[#e6d3a5]/70 via-[#5b4a2c]/35 to-[#0c2018] p-[2px] shadow-float"
+            className="relative overflow-hidden rounded-[2rem] bg-linear-to-br from-[#e6d3a5]/62 via-[#5b4a2c]/30 to-[#0c2018] p-[2px] shadow-float"
           >
-            <div className="hero-texture relative overflow-hidden rounded-[2.05rem] border border-white/8 bg-card/92 p-7 backdrop-blur-xl sm:p-8">
+            <div className="hero-texture relative overflow-hidden rounded-[1.85rem] border border-white/8 bg-card/94 p-7 backdrop-blur-xl sm:p-8">
               <div className="pointer-events-none absolute -right-16 -top-20 h-52 w-52 rounded-full bg-primary/10 blur-3xl" />
-              <div className="pointer-events-none absolute inset-[7px] rounded-[1.65rem] ring-1 ring-white/7" />
+              <div className="pointer-events-none absolute inset-[7px] rounded-[1.45rem] ring-1 ring-white/7" />
               <div className="relative flex flex-col gap-6">
                 <div className="flex flex-col gap-1.5">
                   <span className="flex h-10 w-10 items-center justify-center rounded-2xl bg-primary-soft text-primary ring-1 ring-primary/15">
