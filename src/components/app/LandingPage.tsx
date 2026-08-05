@@ -148,35 +148,37 @@ export function LandingPage() {
 
       <main id="top">
         {/* Hero */}
-        <section className="relative mx-auto flex max-w-6xl flex-col items-center gap-10 overflow-hidden px-5 pb-20 pt-14 text-center lg:pt-20">
-          <div className="animate-float pointer-events-none absolute -top-24 left-1/2 -z-10 h-72 w-72 -translate-x-[70%] rounded-full bg-primary/14 blur-3xl" />
-          <div
-            className="animate-float pointer-events-none absolute -top-10 left-1/2 -z-10 h-96 w-96 translate-x-[20%] rounded-full bg-primary/8 blur-3xl"
-            style={{ animationDelay: "-3.5s" }}
-          />
-          <span className="inline-flex items-center gap-1.5 rounded-full bg-primary-soft px-3.5 py-1.5 text-xs font-semibold text-primary ring-1 ring-primary/20">
-            <Sparkles className="h-3.5 w-3.5" /> Assistente financeiro para a sua casa
-          </span>
-          <h1 className="max-w-3xl font-display text-4xl leading-[1.12] tracking-tight text-foreground sm:text-5xl">
-            Uma IA que cuida do dinheiro da sua casa, <span className="text-primary">enquanto vocês cuidam da vida.</span>
-          </h1>
-          <p className="max-w-xl text-base leading-relaxed text-muted-foreground sm:text-lg">
-            O Aval acompanha seus gastos, entende padrões e conta o que está acontecendo com o orçamento da casa antes
-            de você precisar perguntar.
-          </p>
-          <div className="flex flex-col gap-3 sm:flex-row">
-            <Link
-              to="/entrar"
-              className="hero-gradient press focus-ring rounded-full px-6 py-3.5 text-sm font-bold text-primary-foreground shadow-primary"
-            >
-              Criar conta grátis
-            </Link>
-            <a
-              href="#recursos"
-              className="press focus-ring rounded-full border border-border px-6 py-3.5 text-sm font-bold text-foreground hover:bg-secondary"
-            >
-              Ver como funciona
-            </a>
+        <section className="relative mx-auto grid min-h-[calc(100dvh-4rem)] max-w-6xl items-center gap-12 overflow-hidden px-5 pb-20 pt-12 lg:grid-cols-[0.9fr_1.1fr] lg:gap-8 lg:pb-16 lg:pt-16">
+          <div className="relative z-10 flex flex-col items-center text-center lg:items-start lg:text-left">
+            <span className="inline-flex items-center gap-1.5 text-xs font-bold uppercase tracking-[0.14em] text-primary">
+              <Sparkles className="h-3.5 w-3.5" /> Assistente financeiro para a sua casa
+            </span>
+            <h1 className="mt-7 max-w-3xl font-display text-[3.35rem] leading-[0.98] tracking-tight text-foreground sm:text-6xl lg:text-[4.75rem]">
+              Uma IA que cuida do dinheiro da sua casa, <span className="text-primary">enquanto vocês cuidam da vida.</span>
+            </h1>
+            <p className="mt-7 max-w-xl text-base leading-relaxed text-foreground/82 sm:text-lg">
+              O Aval acompanha seus gastos, entende padrões e conta o que está acontecendo com o orçamento da casa antes
+              de você precisar perguntar.
+            </p>
+            <div className="mt-9 flex flex-col gap-3 sm:flex-row">
+              <Link
+                to="/entrar"
+                className="hero-gradient press focus-ring rounded-full px-7 py-4 text-sm font-bold text-primary-foreground shadow-primary"
+              >
+                Criar conta grátis
+              </Link>
+              <a
+                href="#recursos"
+                className="press focus-ring rounded-full border border-border px-7 py-4 text-sm font-bold text-foreground hover:bg-secondary"
+              >
+                Ver como funciona
+              </a>
+            </div>
+            <div className="mt-9 flex flex-wrap justify-center gap-4 text-[11px] text-foreground/68 lg:justify-start">
+              <span>◉ Dados protegidos</span>
+              <span>◇ Feito para sua rotina</span>
+              <span>✦ IA com contexto</span>
+            </div>
           </div>
 
           <PhoneMock />
@@ -293,67 +295,119 @@ export function LandingPage() {
 }
 
 function PhoneMock() {
-  const bars = [38, 52, 30, 70, 45, 60, 26];
-  const days = ["S", "T", "Q", "Q", "S", "S", "D"];
+  const bars = [18, 62, 42, 22, 30, 24, 18];
+  const days = ["Seg", "Ter", "Qua", "Qui", "Sex", "Sáb", "Dom"];
+  const transactions = [
+    { icon: Utensils, title: "Café e padaria", meta: "Alimentação · Hoje", value: "R$ 18,50" },
+    { icon: Bell, title: "Assinatura mensal", meta: "Serviços · Ontem", value: "R$ 39,90" },
+    { icon: Home, title: "Aluguel", meta: "Moradia · em 3 dias", value: "R$ 1.450,00" },
+  ];
+
   return (
-    <div className="relative mt-4 w-full max-w-[300px]">
-      <div className="pointer-events-none absolute -inset-x-10 -inset-y-6 -z-10 rounded-[3rem] bg-primary/10 blur-3xl" />
-      <div className="panel-elevated hero-texture relative overflow-hidden rounded-[2.25rem] border border-primary/20 p-4">
-        <div className="flex items-center justify-between px-1">
-          <span className="text-[11px] font-semibold text-muted-foreground">Olá, tudo bem?</span>
-          <AvalMark size={16} />
-        </div>
+    <div className="relative mx-auto h-[560px] w-full max-w-[720px] lg:h-[600px]">
+      <div className="pointer-events-none absolute inset-6 rounded-full bg-primary/10 blur-3xl" />
 
-        <div className="mt-3 flex flex-col gap-2">
-          <div className="flex items-center gap-2.5 rounded-2xl bg-secondary p-2.5 text-left">
-            <span className="flex h-8 w-8 shrink-0 items-center justify-center rounded-xl bg-card text-primary">
-              <Utensils className="h-4 w-4" strokeWidth={2} />
-            </span>
-            <div className="min-w-0 flex-1">
-              <p className="truncate text-[12px] font-bold text-foreground">Mercado</p>
-              <p className="text-[10px] text-muted-foreground">Alimentação · hoje</p>
-            </div>
-            <p className="tnum shrink-0 text-[12px] font-bold text-foreground">R$ 186,40</p>
-          </div>
-          <div className="flex items-center gap-2.5 rounded-2xl bg-secondary p-2.5 text-left">
-            <span className="flex h-8 w-8 shrink-0 items-center justify-center rounded-xl bg-card text-primary">
-              <Home className="h-4 w-4" strokeWidth={2} />
-            </span>
-            <div className="min-w-0 flex-1">
-              <p className="truncate text-[12px] font-bold text-foreground">Aluguel</p>
-              <p className="text-[10px] text-muted-foreground">Casa · 5 de ago.</p>
-            </div>
-            <p className="tnum shrink-0 text-[12px] font-bold text-foreground">R$ 1.450,00</p>
-          </div>
-        </div>
-
-        <div className="panel-flat mt-3 p-3 text-left">
-          <div className="flex items-center justify-between">
-            <span className="text-[10px] font-semibold uppercase tracking-wide text-muted-foreground">
-              Gastos essa semana
-            </span>
-            <span className="text-[10px] font-bold text-primary">↑ 18%</span>
-          </div>
-          <div className="mt-2.5 flex gap-1.5">
-            {bars.map((v, i) => (
-              <div key={i} className="flex flex-1 flex-col items-center gap-1">
-                <div className="flex h-14 w-full items-end">
-                  <div
-                    className="w-full rounded-full bg-primary/70"
-                    style={{ height: `${v}%`, background: i === 3 ? "var(--color-primary)" : undefined }}
-                  />
+      <div className="absolute left-[-10px] top-[118px] hidden w-[270px] rotate-[-5deg] sm:block lg:left-[-20px]">
+        <article className="animate-float rounded-[1.6rem] border border-primary/18 bg-card/72 p-5 text-left shadow-float backdrop-blur-xl">
+          <p className="text-[11px] font-bold text-muted-foreground">Últimas movimentações</p>
+          <div className="mt-3 flex flex-col divide-y divide-border/70">
+            {transactions.map(({ icon: Icon, title, meta, value }) => (
+              <div key={title} className="grid grid-cols-[34px_1fr] gap-3 py-3">
+                <span className="flex h-8 w-8 items-center justify-center rounded-xl bg-primary-soft text-primary">
+                  <Icon className="h-4 w-4" strokeWidth={2} />
+                </span>
+                <div className="min-w-0">
+                  <div className="flex items-start justify-between gap-2">
+                    <p className="truncate text-[12px] font-bold text-foreground">{title}</p>
+                    <span className="tnum text-[10px] font-bold text-foreground/80">{value}</span>
+                  </div>
+                  <p className="truncate text-[10px] text-muted-foreground">{meta}</p>
                 </div>
-                <span className="text-[8px] text-muted-foreground">{days[i]}</span>
               </div>
             ))}
           </div>
-        </div>
+        </article>
+      </div>
 
-        <div className="mt-3 rounded-2xl bg-primary-soft p-2.5 text-left ring-1 ring-primary/15">
-          <p className="text-[11px] leading-snug text-foreground">
-            <span className="font-bold text-primary">Vigia:</span> vocês já usaram 82% do orçamento de Lazer este mês.
+      <div className="absolute bottom-6 right-[-8px] hidden w-[300px] rotate-[5deg] sm:block lg:right-[-22px]">
+        <article
+          className="animate-float rounded-[1.7rem] border border-primary/18 bg-card/70 p-5 text-left shadow-float backdrop-blur-xl"
+          style={{ animationDelay: "-3.5s" }}
+        >
+          <div className="flex items-center justify-between">
+            <p className="text-[11px] font-bold text-muted-foreground">Resumo da semana</p>
+            <span className="text-[11px] font-bold text-success">↗ 6%</span>
+          </div>
+          <strong className="tnum mt-3 block font-display text-3xl text-foreground">R$ 1.280,00</strong>
+          <div className="mt-5 flex h-24 items-end gap-2">
+            {bars.map((height, index) => (
+              <div key={days[index]} className="flex flex-1 flex-col items-center gap-2">
+                <div className="flex h-16 w-full items-end">
+                  <div
+                    className={cn("w-full rounded-full bg-success/55", index === 1 && "bg-primary")}
+                    style={{ height: `${height}%` }}
+                  />
+                </div>
+                <span className="text-[8px] text-muted-foreground">{days[index]}</span>
+              </div>
+            ))}
+          </div>
+          <p className="mt-3 border-t border-border pt-3 text-[10px] text-muted-foreground">
+            A Aval encontrou 3 ajustes
           </p>
-        </div>
+        </article>
+      </div>
+
+      <div className="absolute left-1/2 top-4 z-10 h-[536px] w-[316px] -translate-x-1/2 sm:w-[334px] lg:left-[53%] lg:h-[580px] lg:w-[348px]">
+        <div className="absolute -left-1 top-24 h-16 w-1 rounded-l-full bg-primary/35" />
+        <div className="absolute -left-1 top-48 h-12 w-1 rounded-l-full bg-primary/30" />
+        <div className="absolute -right-1 top-36 h-20 w-1 rounded-r-full bg-primary/35" />
+        <article className="animate-float h-full w-full rounded-[3.05rem] bg-linear-to-br from-[#e6d3a5]/75 via-[#5b4a2c]/45 to-[#0c2018] p-[3px] shadow-float">
+          <div className="relative flex h-full w-full flex-col overflow-hidden rounded-[2.85rem] border border-white/8 bg-[#0b2a20]/96 p-5 text-left backdrop-blur-xl">
+            <div className="absolute left-1/2 top-3 z-20 h-7 w-[92px] -translate-x-1/2 rounded-full bg-black shadow-[inset_0_1px_2px_rgb(255_255_255/0.08)]" />
+            <div className="pointer-events-none absolute inset-[7px] rounded-[2.45rem] ring-1 ring-white/7" />
+            <div className="mt-10 flex items-center justify-between">
+              <AvalMark size={34} />
+              <Sparkles className="h-4 w-4 text-primary" />
+            </div>
+
+            <div className="mt-8">
+              <p className="text-sm text-muted-foreground">Olá, Junior</p>
+              <h2 className="mt-2 max-w-[230px] font-display text-[2rem] leading-[0.98] text-foreground">
+                O que vamos organizar hoje?
+              </h2>
+            </div>
+
+            <div className="no-scrollbar mt-6 flex gap-2 overflow-x-auto">
+              <button className="focus-ring shrink-0 rounded-full border border-primary bg-primary-soft px-3 py-2 text-[10px] font-bold text-primary">
+                Como está meu mês?
+              </button>
+              <button className="focus-ring shrink-0 rounded-full border border-border px-3 py-2 text-[10px] font-bold text-muted-foreground">
+                Onde posso economizar?
+              </button>
+              <button className="focus-ring shrink-0 rounded-full border border-border px-3 py-2 text-[10px] font-bold text-muted-foreground">
+                Ver próximos vencimentos
+              </button>
+            </div>
+
+            <div className="mt-4 rounded-[1.25rem] bg-foreground p-4 text-background shadow-soft">
+              <p className="font-display text-lg leading-snug">Seu orçamento está R$ 70 acima do previsto.</p>
+            </div>
+
+            <div className="mt-auto rounded-[1.2rem] border border-border bg-background/45 p-3">
+              <div className="flex items-center gap-2">
+                <span className="min-w-0 flex-1 text-[12px] font-medium text-muted-foreground">Pergunte à Aval</span>
+                <button
+                  type="button"
+                  aria-label="Enviar pergunta"
+                  className="focus-ring flex h-9 w-9 items-center justify-center rounded-xl bg-primary text-primary-foreground"
+                >
+                  ↑
+                </button>
+              </div>
+            </div>
+          </div>
+        </article>
       </div>
     </div>
   );

@@ -25,7 +25,7 @@ export const ACTIVE_PROFILE_KEY = "assistente-financeiro-perfil-ativo-v1";
 /** Optional Google Sheets Apps Script endpoint. Empty = local/offline mode. */
 export const GOOGLE_SHEETS_API_URL = "";
 
-export const DEFAULT_FAMILY_PEOPLE = ["Minha casa", "Pai da namorada"] as const;
+export const DEFAULT_FAMILY_PEOPLE = ["Minha casa", "Outra casa"] as const;
 export const RESPONSAVEL_CASAL = "Todos/Casal";
 
 export const VIEW_ALL = "todos";

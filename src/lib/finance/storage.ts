@@ -84,20 +84,23 @@ function normalizeExpense(expense: Partial<Expense>, monthKey: string): Expense 
 export function migrateState(nextState: FinanceState, loginName = ""): FinanceState {
   const legacyOwners: Record<string, string> = {
     "Pessoa 1": "Minha casa",
-    "Pessoa 2": "Pai da namorada",
+    "Pessoa 2": DEFAULT_FAMILY_PEOPLE[1],
     "Meu perfil": "Minha casa",
     [loginName]: "Minha casa",
-    Esposa: "Pai da namorada",
+    Esposa: DEFAULT_FAMILY_PEOPLE[1],
     "Todos/Casal": "Minha casa",
     Casal: "Minha casa",
     Todos: "Minha casa",
     "Minha casa": "Minha casa",
-    "Pai da namorada": "Pai da namorada",
+    "Pai da namorada": DEFAULT_FAMILY_PEOPLE[1],
+    "Outra casa": DEFAULT_FAMILY_PEOPLE[1],
   };
   const savedPeople = Array.isArray(nextState.people) ? nextState.people : [];
+  const firstPerson = String(savedPeople[0] || DEFAULT_FAMILY_PEOPLE[0]).trim() || DEFAULT_FAMILY_PEOPLE[0];
+  const secondPerson = String(savedPeople[1] || DEFAULT_FAMILY_PEOPLE[1]).trim() || DEFAULT_FAMILY_PEOPLE[1];
   nextState.people = [
-    String(savedPeople[0] || DEFAULT_FAMILY_PEOPLE[0]).trim() || DEFAULT_FAMILY_PEOPLE[0],
-    String(savedPeople[1] || DEFAULT_FAMILY_PEOPLE[1]).trim() || DEFAULT_FAMILY_PEOPLE[1],
+    legacyOwners[firstPerson] || firstPerson,
+    legacyOwners[secondPerson] || secondPerson,
   ];
   Object.entries(nextState.months || {}).forEach(([monthKey, data]) => {
     data.expenses = (data.expenses || []).map((expense) => normalizeExpense(expense, monthKey));
@@ -112,6 +115,11 @@ export function migrateState(nextState: FinanceState, loginName = ""): FinanceSt
     data.income = Number(data.income || 0);
     data.houseContribution = Number(data.houseContribution || 0);
     data.profileBudgets = data.profileBudgets || {};
+    Object.entries(legacyOwners).forEach(([legacyOwner, currentOwner]) => {
+      if (legacyOwner !== currentOwner && data.profileBudgets?.[legacyOwner] !== undefined && data.profileBudgets[currentOwner] === undefined) {
+        data.profileBudgets[currentOwner] = data.profileBudgets[legacyOwner];
+      }
+    });
   });
   const migratedView = responsavelToView(nextState.activePerson);
   nextState.activePerson = [VIEW_ALL, VIEW_ME, VIEW_SPOUSE, ...nextState.people].includes(migratedView) ? migratedView : VIEW_ME;

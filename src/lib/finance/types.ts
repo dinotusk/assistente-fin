@@ -12,7 +12,7 @@ export interface Expense {
   amount: number;
   status: ExpenseStatus;
   type?: EntryType;
-  owner: string; // "Minha casa" | "Pai da namorada"
+  owner: string; // "Minha casa" | "Outra casa"
   date: string; // YYYY-MM-DD
   dueDate?: string; // YYYY-MM-DD
   competence?: string; // YYYY-MM
