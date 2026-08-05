@@ -7,6 +7,7 @@ import {
   DrawerHeader,
   DrawerTitle,
 } from "@/components/ui/drawer";
+import { Switch } from "@/components/ui/switch";
 import { categories, paymentMethods } from "@/lib/finance/constants";
 import { categoryLabel, currentUserName, resolveViewOwner, spouseName } from "@/lib/finance/calc";
 import { useFinance } from "@/lib/finance/FinanceContext";
@@ -810,34 +811,34 @@ export function VigiasDialog({ open, onOpenChange }: { open: boolean; onOpenChan
       <p className="text-sm text-muted-foreground">
         Regras que observam seus dados e falam sozinhas na conversa, sem você precisar perguntar.
       </p>
-      <div className="mt-4 flex flex-col gap-2">
+      <div className="mt-4 flex flex-col gap-2.5">
         {vigias.map((vigia) => (
-          <div key={vigia.id} className="rounded-2xl bg-secondary p-3.5">
+          <div
+            key={vigia.id}
+            className="rounded-[1.35rem] border border-border/60 bg-secondary/80 px-3.5 py-3 shadow-sm"
+          >
             <div className="flex items-center justify-between gap-3">
               <div className="min-w-0">
-                <strong className="block truncate text-sm font-bold text-foreground">{vigia.name}</strong>
-                <span className="block text-[12px] text-muted-foreground">{VIGIA_RULE_LABELS[vigia.rule]}</span>
+                <strong className="block truncate text-sm font-bold leading-tight text-foreground">{vigia.name}</strong>
+                <span className="mt-1 block text-[12px] leading-tight text-muted-foreground">{VIGIA_RULE_LABELS[vigia.rule]}</span>
               </div>
-              <div className="flex shrink-0 items-center gap-2">
-                <button
-                  type="button"
-                  role="switch"
-                  aria-checked={vigia.enabled}
+              <div className="flex shrink-0 items-center gap-2.5">
+                <span className={`hidden text-[11px] font-bold uppercase tracking-[0.12em] sm:inline ${vigia.enabled ? "text-primary" : "text-muted-foreground"}`}>
+                  {vigia.enabled ? "Ativo" : "Pausado"}
+                </span>
+                <Switch
+                  checked={vigia.enabled}
                   aria-label={`Ativar ${vigia.name}`}
-                  onClick={() => toggle(vigia.id, !vigia.enabled)}
-                  className={`press focus-ring relative h-7 w-12 rounded-full transition-colors ${vigia.enabled ? "bg-primary" : "bg-muted"}`}
-                >
-                  <span
-                    className={`absolute top-0.5 h-6 w-6 rounded-full bg-white shadow transition-transform ${vigia.enabled ? "translate-x-5" : "translate-x-0.5"}`}
-                  />
-                </button>
+                  onCheckedChange={(enabled) => toggle(vigia.id, enabled)}
+                  className="border border-border/50 bg-muted/70 data-[state=checked]:bg-primary"
+                />
                 <button
                   type="button"
                   onClick={() => remove(vigia.id)}
                   aria-label={`Excluir ${vigia.name}`}
-                  className="flex h-9 w-9 items-center justify-center rounded-xl bg-destructive/10 text-destructive"
+                  className="press focus-ring flex h-8 w-8 items-center justify-center rounded-full border border-destructive/15 bg-destructive/5 text-destructive/80 transition hover:bg-destructive/10 hover:text-destructive"
                 >
-                  <Trash2 className="h-4 w-4" />
+                  <Trash2 className="h-3.5 w-3.5" />
                 </button>
               </div>
             </div>
@@ -885,7 +886,7 @@ export function VigiasDialog({ open, onOpenChange }: { open: boolean; onOpenChan
         <button
           type="button"
           onClick={() => setCreating(true)}
-          className="mt-4 flex h-12 w-full items-center justify-center rounded-2xl border border-dashed border-primary/35 bg-primary-soft text-sm font-bold text-primary"
+          className="press focus-ring mt-4 flex h-12 w-full items-center justify-center rounded-2xl border border-primary/30 bg-primary/10 text-sm font-bold text-primary transition hover:bg-primary/15"
         >
           Novo vigia
         </button>
