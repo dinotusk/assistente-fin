@@ -30,10 +30,14 @@ import {
   loginWithSupabase,
   logoutFromSupabase,
   redeemInvite,
+  hasPushSubscription,
   registerWithSupabase,
+  removePushSubscription,
+  savePushSubscription,
   saveRemoteEnvelopes,
   saveRemoteFinance,
   saveSessionPreference,
+  type PushSubscriptionKeys,
   type FinanceWorkspace,
 } from "./supabaseRepository";
 import { migrateState } from "./storage";
@@ -61,6 +65,9 @@ interface FinanceContextValue {
   logout: () => void;
   createInvite: () => Promise<string>;
   joinHousehold: (code: string) => Promise<void>;
+  savePushSubscription: (subscription: PushSubscriptionKeys) => Promise<void>;
+  removePushSubscription: (endpoint: string) => Promise<void>;
+  hasPushSubscription: (endpoint: string) => Promise<boolean>;
   setActiveMonth: (key: string) => void;
   setActivePerson: (view: string) => void;
   createNextMonth: () => string;
@@ -228,6 +235,21 @@ export function FinanceProvider({ children }: { children: ReactNode }) {
   );
 
   const loginWithGoogle = useCallback((): Promise<void> => loginWithGoogleSupabase(), []);
+
+  const savePushSubscriptionAction = useCallback(
+    (subscription: PushSubscriptionKeys): Promise<void> => savePushSubscription(subscription),
+    [],
+  );
+
+  const removePushSubscriptionAction = useCallback(
+    (endpoint: string): Promise<void> => removePushSubscription(endpoint),
+    [],
+  );
+
+  const hasPushSubscriptionAction = useCallback(
+    (endpoint: string): Promise<boolean> => hasPushSubscription(endpoint),
+    [],
+  );
 
   const logout = useCallback(() => {
     void Promise.allSettled([writeQueueRef.current, financeSyncPendingRef.current]).then(
@@ -541,6 +563,9 @@ export function FinanceProvider({ children }: { children: ReactNode }) {
     logout,
     createInvite,
     joinHousehold,
+    savePushSubscription: savePushSubscriptionAction,
+    removePushSubscription: removePushSubscriptionAction,
+    hasPushSubscription: hasPushSubscriptionAction,
     setActiveMonth,
     setActivePerson,
     createNextMonth,

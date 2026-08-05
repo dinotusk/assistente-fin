@@ -36,6 +36,7 @@ import {
   PeopleDialog,
   PriorityDialog,
   PurchaseSimulatorDialog,
+  PushNotificationsDialog,
   VigiasDialog,
 } from "./dialogs";
 import { Segmented } from "./ui";
@@ -92,6 +93,7 @@ export function AppHome() {
   const [joinHouseholdOpen, setJoinHouseholdOpen] = useState(false);
   const [simulatorOpen, setSimulatorOpen] = useState(false);
   const [envelopesOpen, setEnvelopesOpen] = useState(false);
+  const [pushOpen, setPushOpen] = useState(false);
   const [profileMenuOpen, setProfileMenuOpen] = useState(false);
   const importRef = useRef<HTMLInputElement>(null);
   const initials = getInitials(activeUser?.name || "Aval");
@@ -252,6 +254,7 @@ export function AppHome() {
           onEditVigias={() => setVigiasOpen(true)}
           onInvite={() => setInviteOpen(true)}
           onJoinHousehold={() => setJoinHouseholdOpen(true)}
+          onPushNotifications={() => setPushOpen(true)}
         />
       )}
     </div>
@@ -288,6 +291,7 @@ export function AppHome() {
       <JoinHouseholdDialog open={joinHouseholdOpen} onOpenChange={setJoinHouseholdOpen} />
       <PurchaseSimulatorDialog open={simulatorOpen} onOpenChange={setSimulatorOpen} />
       <EnvelopesDialog open={envelopesOpen} onOpenChange={setEnvelopesOpen} />
+      <PushNotificationsDialog open={pushOpen} onOpenChange={setPushOpen} />
     </>
   );
 

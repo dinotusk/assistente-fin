@@ -1,5 +1,17 @@
 import { useEffect, useState } from "react";
-import { Check, CheckCircle2, Clock3, Copy, Loader2, Pencil, Plus, Trash2, X } from "lucide-react";
+import {
+  Bell,
+  BellOff,
+  Check,
+  CheckCircle2,
+  Clock3,
+  Copy,
+  Loader2,
+  Pencil,
+  Plus,
+  Trash2,
+  X,
+} from "lucide-react";
 
 import { Drawer, DrawerContent, DrawerHeader, DrawerTitle } from "@/components/ui/drawer";
 import { Switch } from "@/components/ui/switch";
@@ -14,6 +26,13 @@ import {
   sum,
 } from "@/lib/finance/calc";
 import { useFinance, useMoney } from "@/lib/finance/FinanceContext";
+import {
+  getExistingPushSubscription,
+  isPushConfigured,
+  isPushSupported,
+  subscribeToPush,
+  unsubscribeFromPush,
+} from "@/lib/finance/push";
 import {
   forgetCategory,
   learnCategory,
@@ -763,6 +782,144 @@ export function JoinHouseholdDialog({
           submitLabel={loading ? "Entrando..." : "Entrar nessa casa"}
         />
       </form>
+    </SheetShell>
+  );
+}
+
+/* ---------------- Push notifications ---------------- */
+type PushStatus = "checking" | "unsupported" | "unconfigured" | "off" | "on";
+
+export function PushNotificationsDialog({
+  open,
+  onOpenChange,
+}: {
+  open: boolean;
+  onOpenChange: (v: boolean) => void;
+}) {
+  const { savePushSubscription, removePushSubscription, hasPushSubscription } = useFinance();
+  const [status, setStatus] = useState<PushStatus>("checking");
+  const [busy, setBusy] = useState(false);
+  const [error, setError] = useState<string | null>(null);
+
+  useEffect(() => {
+    if (!open) return;
+    setError(null);
+    if (!isPushSupported()) {
+      setStatus("unsupported");
+      return;
+    }
+    if (!isPushConfigured()) {
+      setStatus("unconfigured");
+      return;
+    }
+    setStatus("checking");
+    getExistingPushSubscription()
+      .then(async (sub) => {
+        if (!sub) return setStatus("off");
+        const stillSaved = await hasPushSubscription(sub.endpoint);
+        setStatus(stillSaved ? "on" : "off");
+      })
+      .catch(() => setStatus("off"));
+  }, [open, hasPushSubscription]);
+
+  async function enable() {
+    setBusy(true);
+    setError(null);
+    try {
+      const subscription = await subscribeToPush();
+      if (!subscription) {
+        setError("Permissão de notificação não concedida.");
+        return;
+      }
+      await savePushSubscription(
+        subscription.toJSON() as { endpoint: string; keys: { p256dh: string; auth: string } },
+      );
+      setStatus("on");
+    } catch (err) {
+      setError(err instanceof Error ? err.message : "Não foi possível ativar as notificações.");
+    } finally {
+      setBusy(false);
+    }
+  }
+
+  async function disable() {
+    setBusy(true);
+    setError(null);
+    try {
+      const endpoint = await unsubscribeFromPush();
+      if (endpoint) await removePushSubscription(endpoint);
+      setStatus("off");
+    } catch (err) {
+      setError(err instanceof Error ? err.message : "Não foi possível desativar as notificações.");
+    } finally {
+      setBusy(false);
+    }
+  }
+
+  return (
+    <SheetShell open={open} onOpenChange={onOpenChange} title="Notificações push">
+      <p className="text-sm text-muted-foreground">
+        Uma vez por dia, o Aval confere contas vencendo ou atrasadas e o ritmo do orçamento, e avisa
+        no seu aparelho — mesmo com o app fechado.
+      </p>
+
+      <div className="mt-5 flex flex-col items-center gap-3 rounded-[1.6rem] border border-border bg-secondary/60 p-6 text-center">
+        <span
+          className={`flex h-12 w-12 items-center justify-center rounded-2xl ${status === "on" ? "bg-success/15 text-success" : "bg-primary-soft text-primary"}`}
+        >
+          {status === "on" ? <Bell className="h-6 w-6" /> : <BellOff className="h-6 w-6" />}
+        </span>
+
+        {status === "checking" && <Loader2 className="h-5 w-5 animate-spin text-primary" />}
+        {status === "unsupported" && (
+          <p className="text-sm text-muted-foreground">
+            Esse navegador não suporta notificações push. Tenta pelo Chrome ou Edge, ou adicione o
+            Aval à tela inicial primeiro.
+          </p>
+        )}
+        {status === "unconfigured" && (
+          <p className="text-sm text-muted-foreground">
+            Notificações ainda não foram configuradas nesse ambiente.
+          </p>
+        )}
+        {status === "off" && (
+          <>
+            <strong className="text-sm font-bold text-foreground">Notificações desativadas</strong>
+            <button
+              type="button"
+              onClick={enable}
+              disabled={busy}
+              className="hero-gradient press focus-ring mt-1 h-11 w-full rounded-full text-sm font-bold text-primary-foreground shadow-primary disabled:opacity-60"
+            >
+              {busy ? "Ativando..." : "Ativar notificações"}
+            </button>
+          </>
+        )}
+        {status === "on" && (
+          <>
+            <strong className="text-sm font-bold text-foreground">Notificações ativadas</strong>
+            <button
+              type="button"
+              onClick={disable}
+              disabled={busy}
+              className="press focus-ring mt-1 h-11 w-full rounded-full border border-input bg-secondary text-sm font-semibold text-foreground hover:bg-muted disabled:opacity-60"
+            >
+              {busy ? "Desativando..." : "Desativar"}
+            </button>
+          </>
+        )}
+        {error && <p className="text-sm text-destructive">{error}</p>}
+      </div>
+
+      <div className="sticky bottom-0 -mx-5 mt-5 border-t border-border/70 bg-card/95 px-5 py-3 backdrop-blur">
+        <button
+          type="button"
+          onClick={() => onOpenChange(false)}
+          className="press focus-ring h-12 w-full rounded-xl border border-input bg-secondary font-semibold text-foreground hover:bg-muted"
+        >
+          Fechar
+        </button>
+      </div>
     </SheetShell>
   );
 }

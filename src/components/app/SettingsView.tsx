@@ -13,6 +13,7 @@ import {
   Eye,
   UserPlus,
   LogIn,
+  Bell,
 } from "lucide-react";
 import { toast } from "sonner";
 
@@ -28,6 +29,7 @@ export function SettingsView({
   onEditVigias,
   onInvite,
   onJoinHousehold,
+  onPushNotifications,
 }: {
   onEditPeople: () => void;
   onEditMonth: () => void;
@@ -36,6 +38,7 @@ export function SettingsView({
   onEditVigias: () => void;
   onInvite: () => void;
   onJoinHousehold: () => void;
+  onPushNotifications: () => void;
 }) {
   const { activeUser, state, exportData, importData, resetSeed, logout } = useFinance();
   const fileRef = useRef<HTMLInputElement>(null);
@@ -93,6 +96,12 @@ export function SettingsView({
           title: "Vigias",
           desc: "Regras que avisam sozinhas na conversa quando algo importa.",
           action: onEditVigias,
+        },
+        {
+          icon: Bell,
+          title: "Notificações push",
+          desc: "Avisos de contas vencendo e orçamento no seu aparelho, mesmo com o app fechado.",
+          action: onPushNotifications,
         },
         {
           icon: Download,

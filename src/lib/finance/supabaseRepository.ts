@@ -194,6 +194,46 @@ export async function createHouseholdInvite(): Promise<string> {
   return String(data);
 }
 
+export interface PushSubscriptionKeys {
+  endpoint: string;
+  keys: { p256dh: string; auth: string };
+}
+
+export async function savePushSubscription(subscription: PushSubscriptionKeys): Promise<void> {
+  const { data: userData, error: userError } = await supabase.auth.getUser();
+  throwIfError(userError);
+  const userId = userData.user?.id;
+  if (!userId) throw new Error("Sessao nao encontrada.");
+  const householdId = await findHouseholdId();
+
+  const { error } = await supabase.from("push_subscriptions").upsert(
+    {
+      household_id: householdId,
+      user_id: userId,
+      endpoint: subscription.endpoint,
+      p256dh: subscription.keys.p256dh,
+      auth: subscription.keys.auth,
+    },
+    { onConflict: "endpoint" },
+  );
+  throwIfError(error);
+}
+
+export async function removePushSubscription(endpoint: string): Promise<void> {
+  const { error } = await supabase.from("push_subscriptions").delete().eq("endpoint", endpoint);
+  throwIfError(error);
+}
+
+export async function hasPushSubscription(endpoint: string): Promise<boolean> {
+  const { data, error } = await supabase
+    .from("push_subscriptions")
+    .select("id")
+    .eq("endpoint", endpoint)
+    .maybeSingle();
+  throwIfError(error);
+  return Boolean(data);
+}
+
 export async function loginWithGoogle(): Promise<void> {
   const { error } = await supabase.auth.signInWithOAuth({
     provider: "google",

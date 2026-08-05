@@ -13,6 +13,7 @@ import { Route as TermosRouteImport } from './routes/termos'
 import { Route as EntrarRouteImport } from './routes/entrar'
 import { Route as IndexRouteImport } from './routes/index'
 import { Route as ApiGeminiChatRouteImport } from './routes/api/gemini-chat'
+import { Route as ApiPushSendRemindersRouteImport } from './routes/api/push/send-reminders'
 
 const TermosRoute = TermosRouteImport.update({
   id: '/termos',
@@ -34,18 +35,25 @@ const ApiGeminiChatRoute = ApiGeminiChatRouteImport.update({
   path: '/api/gemini-chat',
   getParentRoute: () => rootRouteImport,
 } as any)
+const ApiPushSendRemindersRoute = ApiPushSendRemindersRouteImport.update({
+  id: '/api/push/send-reminders',
+  path: '/api/push/send-reminders',
+  getParentRoute: () => rootRouteImport,
+} as any)
 
 export interface FileRoutesByFullPath {
   '/': typeof IndexRoute
   '/entrar': typeof EntrarRoute
   '/termos': typeof TermosRoute
   '/api/gemini-chat': typeof ApiGeminiChatRoute
+  '/api/push/send-reminders': typeof ApiPushSendRemindersRoute
 }
 export interface FileRoutesByTo {
   '/': typeof IndexRoute
   '/entrar': typeof EntrarRoute
   '/termos': typeof TermosRoute
   '/api/gemini-chat': typeof ApiGeminiChatRoute
+  '/api/push/send-reminders': typeof ApiPushSendRemindersRoute
 }
 export interface FileRoutesById {
   __root__: typeof rootRouteImport
@@ -53,13 +61,30 @@ export interface FileRoutesById {
   '/entrar': typeof EntrarRoute
   '/termos': typeof TermosRoute
   '/api/gemini-chat': typeof ApiGeminiChatRoute
+  '/api/push/send-reminders': typeof ApiPushSendRemindersRoute
 }
 export interface FileRouteTypes {
   fileRoutesByFullPath: FileRoutesByFullPath
-  fullPaths: '/' | '/entrar' | '/termos' | '/api/gemini-chat'
+  fullPaths:
+    | '/'
+    | '/entrar'
+    | '/termos'
+    | '/api/gemini-chat'
+    | '/api/push/send-reminders'
   fileRoutesByTo: FileRoutesByTo
-  to: '/' | '/entrar' | '/termos' | '/api/gemini-chat'
-  id: '__root__' | '/' | '/entrar' | '/termos' | '/api/gemini-chat'
+  to:
+    | '/'
+    | '/entrar'
+    | '/termos'
+    | '/api/gemini-chat'
+    | '/api/push/send-reminders'
+  id:
+    | '__root__'
+    | '/'
+    | '/entrar'
+    | '/termos'
+    | '/api/gemini-chat'
+    | '/api/push/send-reminders'
   fileRoutesById: FileRoutesById
 }
 export interface RootRouteChildren {
@@ -67,6 +92,7 @@ export interface RootRouteChildren {
   EntrarRoute: typeof EntrarRoute
   TermosRoute: typeof TermosRoute
   ApiGeminiChatRoute: typeof ApiGeminiChatRoute
+  ApiPushSendRemindersRoute: typeof ApiPushSendRemindersRoute
 }
 
 declare module '@tanstack/react-router' {
@@ -99,6 +125,13 @@ declare module '@tanstack/react-router' {
       preLoaderRoute: typeof ApiGeminiChatRouteImport
       parentRoute: typeof rootRouteImport
     }
+    '/api/push/send-reminders': {
+      id: '/api/push/send-reminders'
+      path: '/api/push/send-reminders'
+      fullPath: '/api/push/send-reminders'
+      preLoaderRoute: typeof ApiPushSendRemindersRouteImport
+      parentRoute: typeof rootRouteImport
+    }
   }
 }
 
@@ -107,6 +140,7 @@ const rootRouteChildren: RootRouteChildren = {
   EntrarRoute: EntrarRoute,
   TermosRoute: TermosRoute,
   ApiGeminiChatRoute: ApiGeminiChatRoute,
+  ApiPushSendRemindersRoute: ApiPushSendRemindersRoute,
 }
 export const routeTree = rootRouteImport
   ._addFileChildren(rootRouteChildren)

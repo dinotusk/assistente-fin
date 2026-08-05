@@ -7,5 +7,11 @@
       "source": "/(.*)",
       "destination": "/index.html"
     }
+  ],
+  "crons": [
+    {
+      "path": "/api/push/send-reminders",
+      "schedule": "0 12 * * *"
+    }
   ]
 }
