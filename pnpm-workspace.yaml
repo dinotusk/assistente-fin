@@ -3,3 +3,7 @@ packages:
 
 allowBuilds:
   esbuild: true
+
+minimumReleaseAgeExclude:
+  - '@lovable.dev/vite-plugin-hmr-gate@1.4.0'
+  - '@lovable.dev/vite-tanstack-config@2.9.0'
