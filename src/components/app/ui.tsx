@@ -109,11 +109,9 @@ export function Sparkline({ values, className }: { values: number[]; className?:
   });
   return (
     <svg
-      width={w}
-      height={h}
       viewBox={`0 0 ${w} ${h}`}
-      className={className}
       preserveAspectRatio="none"
+      className={cn("h-8 w-full", className)}
     >
       <polyline
         points={points.join(" ")}

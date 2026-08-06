@@ -84,13 +84,12 @@ export function AssistantView({
   const nextDue = expenses
     .filter((item) => item.status === "A pagar")
     .sort((a, b) => (a.dueDate || a.date).localeCompare(b.dueDate || b.date))[0];
+  // Negative = overdue, 0 = due today, positive = days remaining. Not clamped
+  // to 0 here so overdue bills can be told apart from "due today" downstream.
   const daysToNextDue = nextDue
-    ? Math.max(
-        0,
-        Math.ceil(
-          (new Date(nextDue.dueDate || nextDue.date).getTime() - new Date(today).getTime()) /
-            86400000,
-        ),
+    ? Math.ceil(
+        (new Date(nextDue.dueDate || nextDue.date).getTime() - new Date(today).getTime()) /
+          86400000,
       )
     : null;
 
@@ -280,7 +279,13 @@ export function AssistantView({
   const primaryRecommendation = overBudget
     ? `O orçamento passou ${money(Math.abs(numbers.free))}. Priorize cortar novas compras.`
     : daysToNextDue !== null && daysToNextDue <= 3 && nextDue
-      ? `${nextDue.name} vence ${daysToNextDue === 0 ? "hoje" : `em ${daysToNextDue} dia${daysToNextDue === 1 ? "" : "s"}`}.`
+      ? `${nextDue.name} ${
+          daysToNextDue < 0
+            ? "está atrasada"
+            : daysToNextDue === 0
+              ? "vence hoje"
+              : `vence em ${daysToNextDue} dia${daysToNextDue === 1 ? "" : "s"}`
+        }.`
       : growth
         ? `${categoryLabel(growth.category)} cresceu ${money(growth.diff)} contra o mês anterior.`
         : `Você pode gastar cerca de ${money(weeklyAllowance)} nesta semana.`;
@@ -472,17 +477,25 @@ export function AssistantView({
           <span className="flex h-8 w-8 items-center justify-center rounded-xl bg-primary-soft text-primary">
             <CalendarClock className="h-4 w-4" />
           </span>
-          <strong className="tnum mt-2.5 block font-display text-2xl text-foreground">
-            {daysToNextDue === null ? "—" : `${daysToNextDue} dia${daysToNextDue === 1 ? "" : "s"}`}
+          <strong
+            className={`tnum mt-2.5 block font-display text-2xl ${daysToNextDue !== null && daysToNextDue < 0 ? "text-destructive" : "text-foreground"}`}
+          >
+            {daysToNextDue === null
+              ? "—"
+              : daysToNextDue < 0
+                ? "Atrasada"
+                : daysToNextDue === 0
+                  ? "Hoje"
+                  : `${daysToNextDue} dia${daysToNextDue === 1 ? "" : "s"}`}
           </strong>
           <span className="truncate text-[13px] text-muted-foreground">
             {nextDue ? `para ${nextDue.name.toLocaleLowerCase("pt-BR")}` : "nada por vir"}
           </span>
           <div className="mt-3 h-1.5 overflow-hidden rounded-full bg-muted">
             <div
-              className="h-full rounded-full bg-primary"
+              className={`h-full rounded-full ${daysToNextDue !== null && daysToNextDue < 0 ? "bg-destructive" : "bg-primary"}`}
               style={{
-                width: `${daysToNextDue === null ? 0 : Math.max(6, 100 - daysToNextDue * 12)}%`,
+                width: `${daysToNextDue === null ? 0 : Math.min(100, Math.max(6, 100 - Math.max(daysToNextDue, 0) * 12))}%`,
               }}
             />
           </div>
