@@ -240,48 +240,30 @@ export interface AiConsentStatus {
   acceptedAt: string | null;
 }
 
-/** The source of truth for AI consent — /api/gemini-chat checks this same table server-side. */
+/**
+ * The source of truth for AI consent — /api/gemini-chat checks the same table
+ * server-side. Both writes go through SECURITY DEFINER RPCs that take no
+ * arguments at all: accept_ai_consent() always stamps the database's own
+ * current version and revoke_ai_consent() always scopes to auth.uid()
+ * internally, so there is no client-writable path for either a user id or a
+ * consent_version value — direct INSERT/UPDATE/DELETE on ai_consents is
+ * denied by RLS (no such policy exists).
+ */
 export async function saveAiConsent(): Promise<void> {
-  const { data: userData, error: userError } = await supabase.auth.getUser();
-  throwIfError(userError);
-  const userId = userData.user?.id;
-  if (!userId) throw new Error("Sessao nao encontrada.");
-
-  const { error } = await supabase.from("ai_consents").upsert(
-    {
-      user_id: userId,
-      consent_version: AI_CONSENT_VERSION,
-      accepted_at: new Date().toISOString(),
-      revoked_at: null,
-    },
-    { onConflict: "user_id" },
-  );
+  const { error } = await supabase.rpc("accept_ai_consent");
   throwIfError(error);
 }
 
 export async function revokeAiConsent(): Promise<void> {
-  const { data: userData, error: userError } = await supabase.auth.getUser();
-  throwIfError(userError);
-  const userId = userData.user?.id;
-  if (!userId) throw new Error("Sessao nao encontrada.");
-
-  const { error } = await supabase
-    .from("ai_consents")
-    .update({ revoked_at: new Date().toISOString() })
-    .eq("user_id", userId);
+  const { error } = await supabase.rpc("revoke_ai_consent");
   throwIfError(error);
 }
 
+/** Read-only; RLS restricts this to the caller's own row, so no explicit filter is needed. */
 export async function getAiConsentStatus(): Promise<AiConsentStatus> {
-  const { data: userData, error: userError } = await supabase.auth.getUser();
-  throwIfError(userError);
-  const userId = userData.user?.id;
-  if (!userId) return { granted: false, acceptedAt: null };
-
   const { data, error } = await supabase
     .from("ai_consents")
     .select("consent_version, accepted_at, revoked_at")
-    .eq("user_id", userId)
     .maybeSingle();
   throwIfError(error);
   if (!data || !data.accepted_at || data.revoked_at || data.consent_version < AI_CONSENT_VERSION) {
