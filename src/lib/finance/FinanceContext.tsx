@@ -24,6 +24,7 @@ import { createSeedState, uid } from "./seed";
 import { createSyncQueue, type SyncQueue } from "./syncQueue";
 import {
   createHouseholdInvite,
+  getAiConsentStatus,
   getAuthenticatedUser,
   loadRemoteFinance,
   loginWithGoogle as loginWithGoogleSupabase,
@@ -33,10 +34,13 @@ import {
   hasPushSubscription,
   registerWithSupabase,
   removePushSubscription,
+  revokeAiConsent,
+  saveAiConsent,
   savePushSubscription,
   saveRemoteEnvelopes,
   saveRemoteFinance,
   saveSessionPreference,
+  type AiConsentStatus,
   type PushSubscriptionKeys,
   type FinanceWorkspace,
 } from "./supabaseRepository";
@@ -68,6 +72,9 @@ interface FinanceContextValue {
   savePushSubscription: (subscription: PushSubscriptionKeys) => Promise<void>;
   removePushSubscription: (endpoint: string) => Promise<void>;
   hasPushSubscription: (endpoint: string) => Promise<boolean>;
+  saveAiConsent: () => Promise<void>;
+  revokeAiConsent: () => Promise<void>;
+  getAiConsentStatus: () => Promise<AiConsentStatus>;
   setActiveMonth: (key: string) => void;
   setActivePerson: (view: string) => void;
   createNextMonth: () => string;
@@ -248,6 +255,13 @@ export function FinanceProvider({ children }: { children: ReactNode }) {
 
   const hasPushSubscriptionAction = useCallback(
     (endpoint: string): Promise<boolean> => hasPushSubscription(endpoint),
+    [],
+  );
+
+  const saveAiConsentAction = useCallback((): Promise<void> => saveAiConsent(), []);
+  const revokeAiConsentAction = useCallback((): Promise<void> => revokeAiConsent(), []);
+  const getAiConsentStatusAction = useCallback(
+    (): Promise<AiConsentStatus> => getAiConsentStatus(),
     [],
   );
 
@@ -566,6 +580,9 @@ export function FinanceProvider({ children }: { children: ReactNode }) {
     savePushSubscription: savePushSubscriptionAction,
     removePushSubscription: removePushSubscriptionAction,
     hasPushSubscription: hasPushSubscriptionAction,
+    saveAiConsent: saveAiConsentAction,
+    revokeAiConsent: revokeAiConsentAction,
+    getAiConsentStatus: getAiConsentStatusAction,
     setActiveMonth,
     setActivePerson,
     createNextMonth,

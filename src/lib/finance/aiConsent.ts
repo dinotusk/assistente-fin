@@ -1,8 +1,14 @@
-// Device-local consent gate for the Gemini assistant. Deliberately not synced to
-// Supabase: this governs what leaves *this* client, not a server-side secret, so
-// there's nothing a shared/remote record would protect that localStorage doesn't
-// already cover for a single device.
+// Local cache of the Gemini consent gate, for instant UI checks without a network
+// round trip. This is NOT the enforcement boundary — the server independently
+// verifies consent against the `ai_consents` table on every request (see
+// hasActiveConsent in routes/api/gemini-chat.ts), since a client-only flag can be
+// bypassed by calling the API directly. Callers should treat FinanceContext's
+// saveAiConsent/revokeAiConsent (which write to Supabase) as the source of truth
+// and only use this module to mirror that state locally after a successful write.
 const CONSENT_KEY = "aval:ai-consent:v1";
+
+/** Bump when the consent copy/scope changes meaningfully — forces re-consent. */
+export const AI_CONSENT_VERSION = 1;
 
 interface ConsentRecord {
   accepted: boolean;

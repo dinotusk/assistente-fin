@@ -1,12 +1,8 @@
 import { useEffect, useState } from "react";
 import { ShieldCheck } from "lucide-react";
 
-import {
-  getAiConsentGrantedAt,
-  grantAiConsent,
-  hasAiConsent,
-  revokeAiConsent,
-} from "@/lib/finance/aiConsent";
+import { getAiConsentGrantedAt, grantAiConsent, revokeAiConsent } from "@/lib/finance/aiConsent";
+import { useFinance } from "@/lib/finance/FinanceContext";
 
 import { SheetShell } from "./dialogs";
 
@@ -16,7 +12,9 @@ const CONSENT_BODY =
 /**
  * Two modes: "request" is shown right before the first Gemini call (Aceitar/Cancelar,
  * blocks the pending question on decline). "manage" is opened from Settings to review
- * or revoke a consent already granted.
+ * or revoke a consent already granted. Grant/revoke always write to Supabase first
+ * (the server's source of truth, checked on every /api/gemini-chat call) — the local
+ * aiConsent.ts cache is only updated after that write succeeds.
  */
 export function AiConsentDialog({
   open,
@@ -31,20 +29,54 @@ export function AiConsentDialog({
   onAccept?: () => void;
   onDecline?: () => void;
 }) {
+  const {
+    saveAiConsent,
+    revokeAiConsent: revokeAiConsentRemote,
+    getAiConsentStatus,
+  } = useFinance();
   const [accepted, setAccepted] = useState(false);
   const [grantedAt, setGrantedAt] = useState<string | null>(null);
+  const [busy, setBusy] = useState(false);
+  const [checking, setChecking] = useState(false);
+  const [error, setError] = useState<string | null>(null);
 
   useEffect(() => {
-    if (!open) return;
-    setAccepted(hasAiConsent());
-    setGrantedAt(getAiConsentGrantedAt());
-  }, [open]);
+    if (!open || mode !== "manage") return;
+    let cancelled = false;
+    setChecking(true);
+    setError(null);
+    getAiConsentStatus()
+      .then((status) => {
+        if (cancelled) return;
+        setAccepted(status.granted);
+        setGrantedAt(status.acceptedAt);
+      })
+      .catch(() => {
+        if (cancelled) return;
+        setError("Nao foi possivel verificar o consentimento agora.");
+      })
+      .finally(() => {
+        if (!cancelled) setChecking(false);
+      });
+    return () => {
+      cancelled = true;
+    };
+  }, [open, mode, getAiConsentStatus]);
 
-  function accept() {
-    grantAiConsent();
-    setAccepted(true);
-    setGrantedAt(getAiConsentGrantedAt());
-    onAccept?.();
+  async function accept() {
+    setBusy(true);
+    setError(null);
+    try {
+      await saveAiConsent();
+      grantAiConsent();
+      setAccepted(true);
+      setGrantedAt(getAiConsentGrantedAt());
+      onAccept?.();
+    } catch (err) {
+      setError(err instanceof Error ? err.message : "Nao foi possivel salvar o consentimento.");
+    } finally {
+      setBusy(false);
+    }
   }
 
   function decline() {
@@ -52,10 +84,19 @@ export function AiConsentDialog({
     onDecline?.();
   }
 
-  function revoke() {
-    revokeAiConsent();
-    setAccepted(false);
-    setGrantedAt(null);
+  async function revoke() {
+    setBusy(true);
+    setError(null);
+    try {
+      await revokeAiConsentRemote();
+      revokeAiConsent();
+      setAccepted(false);
+      setGrantedAt(null);
+    } catch (err) {
+      setError(err instanceof Error ? err.message : "Nao foi possivel revogar agora.");
+    } finally {
+      setBusy(false);
+    }
   }
 
   return (
@@ -74,6 +115,7 @@ export function AiConsentDialog({
             Autorizado em {new Date(grantedAt).toLocaleDateString("pt-BR")}
           </p>
         )}
+        {error && <p className="text-sm text-destructive">{error}</p>}
       </div>
 
       {mode === "request" ? (
@@ -81,16 +123,18 @@ export function AiConsentDialog({
           <button
             type="button"
             onClick={decline}
-            className="press focus-ring h-12 flex-1 rounded-xl border border-input bg-secondary font-semibold text-foreground hover:bg-muted"
+            disabled={busy}
+            className="press focus-ring h-12 flex-1 rounded-xl border border-input bg-secondary font-semibold text-foreground hover:bg-muted disabled:opacity-60"
           >
             Cancelar
           </button>
           <button
             type="button"
             onClick={accept}
-            className="hero-gradient press focus-ring h-12 flex-1 rounded-xl font-semibold text-primary-foreground shadow-primary"
+            disabled={busy}
+            className="hero-gradient press focus-ring h-12 flex-1 rounded-xl font-semibold text-primary-foreground shadow-primary disabled:opacity-60"
           >
-            Aceitar e continuar
+            {busy ? "Salvando..." : "Aceitar e continuar"}
           </button>
         </div>
       ) : (
@@ -99,17 +143,19 @@ export function AiConsentDialog({
             <button
               type="button"
               onClick={revoke}
-              className="press focus-ring h-12 w-full rounded-xl border border-input bg-secondary font-semibold text-destructive hover:bg-muted"
+              disabled={busy || checking}
+              className="press focus-ring h-12 w-full rounded-xl border border-input bg-secondary font-semibold text-destructive hover:bg-muted disabled:opacity-60"
             >
-              Revogar consentimento
+              {busy ? "Revogando..." : "Revogar consentimento"}
             </button>
           ) : (
             <button
               type="button"
               onClick={accept}
-              className="hero-gradient press focus-ring h-12 w-full rounded-xl font-semibold text-primary-foreground shadow-primary"
+              disabled={busy || checking}
+              className="hero-gradient press focus-ring h-12 w-full rounded-xl font-semibold text-primary-foreground shadow-primary disabled:opacity-60"
             >
-              Autorizar
+              {busy ? "Salvando..." : "Autorizar"}
             </button>
           )}
           <button

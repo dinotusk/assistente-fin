@@ -1,5 +1,6 @@
 import type { User } from "@supabase/supabase-js";
 
+import { AI_CONSENT_VERSION } from "./aiConsent";
 import { formatMonthLabel } from "./calc";
 import { VIEW_ME } from "./constants";
 import type { ActiveUser, EnvelopeRule, Expense, FinanceState, MonthData, Priority } from "./types";
@@ -232,6 +233,61 @@ export async function hasPushSubscription(endpoint: string): Promise<boolean> {
     .maybeSingle();
   throwIfError(error);
   return Boolean(data);
+}
+
+export interface AiConsentStatus {
+  granted: boolean;
+  acceptedAt: string | null;
+}
+
+/** The source of truth for AI consent — /api/gemini-chat checks this same table server-side. */
+export async function saveAiConsent(): Promise<void> {
+  const { data: userData, error: userError } = await supabase.auth.getUser();
+  throwIfError(userError);
+  const userId = userData.user?.id;
+  if (!userId) throw new Error("Sessao nao encontrada.");
+
+  const { error } = await supabase.from("ai_consents").upsert(
+    {
+      user_id: userId,
+      consent_version: AI_CONSENT_VERSION,
+      accepted_at: new Date().toISOString(),
+      revoked_at: null,
+    },
+    { onConflict: "user_id" },
+  );
+  throwIfError(error);
+}
+
+export async function revokeAiConsent(): Promise<void> {
+  const { data: userData, error: userError } = await supabase.auth.getUser();
+  throwIfError(userError);
+  const userId = userData.user?.id;
+  if (!userId) throw new Error("Sessao nao encontrada.");
+
+  const { error } = await supabase
+    .from("ai_consents")
+    .update({ revoked_at: new Date().toISOString() })
+    .eq("user_id", userId);
+  throwIfError(error);
+}
+
+export async function getAiConsentStatus(): Promise<AiConsentStatus> {
+  const { data: userData, error: userError } = await supabase.auth.getUser();
+  throwIfError(userError);
+  const userId = userData.user?.id;
+  if (!userId) return { granted: false, acceptedAt: null };
+
+  const { data, error } = await supabase
+    .from("ai_consents")
+    .select("consent_version, accepted_at, revoked_at")
+    .eq("user_id", userId)
+    .maybeSingle();
+  throwIfError(error);
+  if (!data || !data.accepted_at || data.revoked_at || data.consent_version < AI_CONSENT_VERSION) {
+    return { granted: false, acceptedAt: null };
+  }
+  return { granted: true, acceptedAt: data.accepted_at };
 }
 
 export async function loginWithGoogle(): Promise<void> {

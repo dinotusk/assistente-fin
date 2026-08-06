@@ -1,7 +1,11 @@
-import { createClient } from "@supabase/supabase-js";
+import { createClient, type SupabaseClient } from "@supabase/supabase-js";
 import { createFileRoute } from "@tanstack/react-router";
 
+import { AI_CONSENT_VERSION } from "@/lib/finance/aiConsent";
 import { MAX_BODY_BYTES, validateAiChatRequest } from "@/lib/finance/aiRequestValidation";
+
+// eslint-disable-next-line @typescript-eslint/no-explicit-any
+type SupabaseAdmin = SupabaseClient<any, any, any, any, any>;
 
 // Secure Gemini proxy — the API key stays server-side (never exposed to the front-end).
 // Mirrors the original Netlify function contract: POST { question, context } -> { answer }.
@@ -17,6 +21,7 @@ const CLIENT_ERRORS = {
   unauthorized: "Sessao invalida ou expirada",
   badJson: "Corpo da requisicao invalido",
   payloadTooLarge: "Requisicao excede o tamanho maximo permitido",
+  consentRequired: "Consentimento de IA necessario ou desatualizado",
   rateLimited: "Muitas perguntas em pouco tempo. Aguarde alguns minutos e tente novamente.",
   unavailable: "Assistente de IA indisponivel no momento",
   timeout: "Tempo de resposta excedido. Tente novamente.",
@@ -24,6 +29,12 @@ const CLIENT_ERRORS = {
   unexpected: "Erro inesperado. Tente novamente.",
 } as const;
 
+/**
+ * The user id used for consent AND rate limiting always comes from this — the
+ * verified JWT subject — never from the request body. validateAiChatRequest also
+ * rejects any unrecognized field, so a client can't smuggle an alternate user id
+ * through the payload even if this function's result were bypassed some other way.
+ */
 async function getAuthenticatedUserId(request: Request): Promise<string | null> {
   const authHeader = request.headers.get("authorization") || "";
   const token = authHeader.replace(/^Bearer\s+/i, "").trim();
@@ -38,15 +49,53 @@ async function getAuthenticatedUserId(request: Request): Promise<string | null> 
   return data.user.id;
 }
 
+/** Service-role client for the two checks below — never exposed to, or reachable from, the client bundle. */
+function getServiceRoleClient(): SupabaseAdmin | null {
+  const serviceRoleKey = process.env.SUPABASE_SERVICE_ROLE_KEY;
+  if (!serviceRoleKey) return null;
+  const supabaseUrl = process.env.VITE_SUPABASE_URL || "https://cvsefuukfmdfaajjlpmi.supabase.co";
+  return createClient(supabaseUrl, serviceRoleKey);
+}
+
+interface ConsentRow {
+  consent_version: number;
+  accepted_at: string | null;
+  revoked_at: string | null;
+}
+
+/**
+ * The real enforcement point for consent — a client-side localStorage flag (see
+ * aiConsent.ts) can't be trusted since it's trivially bypassed by calling this
+ * route directly. Fails closed: missing row, revoked, no accepted_at, an
+ * out-of-date consent_version, or a DB error all count as "not consented."
+ */
+async function hasActiveConsent(userId: string): Promise<boolean> {
+  const admin = getServiceRoleClient();
+  if (!admin) {
+    console.error("Consent check skipped: SUPABASE_SERVICE_ROLE_KEY nao configurada");
+    return false;
+  }
+  const { data, error } = await admin
+    .from("ai_consents")
+    .select("consent_version, accepted_at, revoked_at")
+    .eq("user_id", userId)
+    .maybeSingle();
+  if (error) {
+    console.error("AI consent check failed:", error.message);
+    return false;
+  }
+  const row = data as ConsentRow | null;
+  if (!row || !row.accepted_at || row.revoked_at) return false;
+  return row.consent_version >= AI_CONSENT_VERSION;
+}
+
 /** True if allowed to proceed; false once the window's request budget is used up. Fails closed on any DB error. */
 async function checkRateLimit(userId: string): Promise<boolean> {
-  const serviceRoleKey = process.env.SUPABASE_SERVICE_ROLE_KEY;
-  const supabaseUrl = process.env.VITE_SUPABASE_URL || "https://cvsefuukfmdfaajjlpmi.supabase.co";
-  if (!serviceRoleKey) {
+  const admin = getServiceRoleClient();
+  if (!admin) {
     console.error("Rate limit check skipped: SUPABASE_SERVICE_ROLE_KEY nao configurada");
     return false;
   }
-  const admin = createClient(supabaseUrl, serviceRoleKey);
   const { data, error } = await admin.rpc("check_and_log_ai_rate_limit", {
     p_user_id: userId,
     p_window_seconds: RATE_LIMIT_WINDOW_SECONDS,
@@ -92,6 +141,11 @@ export async function handleGeminiChatRequest(request: Request): Promise<Respons
     return Response.json({ error: validated.error }, { status: 400 });
   }
   const { question, context } = validated.value;
+
+  const consented = await hasActiveConsent(userId);
+  if (!consented) {
+    return Response.json({ error: CLIENT_ERRORS.consentRequired }, { status: 403 });
+  }
 
   const allowed = await checkRateLimit(userId);
   if (!allowed) {
