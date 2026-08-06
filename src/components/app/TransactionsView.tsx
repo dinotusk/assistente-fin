@@ -64,7 +64,7 @@ export function TransactionsView({
         return (
           (!normalizedTerm || text.includes(normalizedTerm)) &&
           matchesFilter(item, filter) &&
-          expenseMatchesView(item, state.activePerson)
+          expenseMatchesView(item, state.activePerson, state.people)
         );
       })
       .sort((a, b) => (b.date || "").localeCompare(a.date || ""));

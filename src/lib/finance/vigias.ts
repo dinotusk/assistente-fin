@@ -144,8 +144,8 @@ export function evaluateVigias(
 ): VigiaAlert[] {
   const alerts: VigiaAlert[] = [];
   const view = state.activePerson;
-  const expenses = expensesForView(month, view);
-  const numbers = calc(month, view, state.activeMonth);
+  const expenses = expensesForView(month, view, state.people);
+  const numbers = calc(month, view, state.activeMonth, state.people);
   const todayKey = today();
 
   for (const vigia of vigias) {

@@ -67,8 +67,8 @@ export function AssistantView({
     useFinance();
   const money = useMoney();
   const view = state.activePerson;
-  const numbers = calc(month, view, state.activeMonth);
-  const expenses = expensesForView(month, view);
+  const numbers = calc(month, view, state.activeMonth, state.people);
+  const expenses = expensesForView(month, view, state.people);
   const growth = getLargestCategoryGrowth(state, view);
   const biggestPending = expenses
     .filter((e) => e.status === "A pagar")
@@ -78,7 +78,7 @@ export function AssistantView({
   const usedPct = budget > 0 ? Math.min(100, (numbers.total / budget) * 100) : 0;
   const overBudget = numbers.free < 0;
   const spendingTrend = chartMonthEntries(state, 6).map(([, data]) =>
-    sum(expensesForView(data, view)),
+    sum(expensesForView(data, view, state.people)),
   );
   const today = new Date().toISOString().slice(0, 10);
   const nextDue = expenses
@@ -176,7 +176,7 @@ export function AssistantView({
 
   function handleAssistantCommand(question: string): string | null {
     const normalized = normalizeText(question);
-    const activeOwner = resolveViewOwner(view) || "Minha casa";
+    const activeOwner = resolveViewOwner(view, state.people) || state.people[0] || "Minha casa";
     const activeLabel = ownerLabelForPeople(activeOwner, state.people);
     const amountInfo = extractAmount(question);
 

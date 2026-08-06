@@ -30,14 +30,14 @@ export function DashboardView() {
   const { state, month, setActiveMonth } = useFinance();
   const money = useMoney();
   const view = state.activePerson;
-  const numbers = calc(month, view, state.activeMonth);
-  const byCategory = getCategoryTotals(month, view);
+  const numbers = calc(month, view, state.activeMonth, state.people);
+  const byCategory = getCategoryTotals(month, view, state.people);
   const budget = budgetForView(month, view);
 
   const chartEntries = chartMonthEntries(state, 6).map(([key, data]) => ({
     key,
     label: data.label,
-    total: sum(expensesForView(data, view)),
+    total: sum(expensesForView(data, view, state.people)),
   }));
   const timeline = timelineMonthEntries(state);
 
@@ -77,7 +77,7 @@ export function DashboardView() {
         <PanelHead title="Histórico de meses" hint="toque para abrir" icon={History} />
         <div className="flex gap-2.5 overflow-x-auto no-scrollbar pb-1">
           {timeline.map(([key, data]) => {
-            const expenses = expensesForView(data, view);
+            const expenses = expensesForView(data, view, state.people);
             const total = sum(expenses);
             const pending = sum(expenses.filter((e) => e.status === "A pagar"));
             const active = key === state.activeMonth;
@@ -122,7 +122,7 @@ export function DashboardView() {
         <div className="grid grid-cols-2 gap-3">
           {state.people.map((name, index) => {
             const key = index === 0 ? VIEW_ME : index === 1 ? VIEW_SPOUSE : name;
-            const mine = expensesForView(month, key);
+            const mine = expensesForView(month, key, state.people);
             const pending = sum(mine.filter((e) => e.status === "A pagar"));
             const active = key === view;
             return (

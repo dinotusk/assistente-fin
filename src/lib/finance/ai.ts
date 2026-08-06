@@ -17,8 +17,8 @@ import { supabase } from "../supabase/client";
 export function buildAiContext(state: FinanceState) {
   const monthData = state.months[state.activeMonth];
   const view = state.activePerson;
-  const numbers = calc(monthData, view, state.activeMonth);
-  const currentExpenses = expensesForView(monthData, view)
+  const numbers = calc(monthData, view, state.activeMonth, state.people);
+  const currentExpenses = expensesForView(monthData, view, state.people)
     .slice()
     .sort((a, b) => Number(b.amount || 0) - Number(a.amount || 0))
     .slice(0, 20)
@@ -32,7 +32,7 @@ export function buildAiContext(state: FinanceState) {
       pagamento: item.paymentMethod || "Pix",
     }));
   const currentPriorities = monthData.priorities
-    .filter((item) => priorityMatchesView(item, view))
+    .filter((item) => priorityMatchesView(item, view, state.people))
     .slice()
     .sort((a, b) => a.rank - b.rank || Number(b.amount || 0) - Number(a.amount || 0))
     .map((item) => ({
@@ -81,14 +81,14 @@ export function answerLocally(question: string, state: FinanceState): string {
   const intent = matchIntent(normalizeText(question));
   const monthData = state.months[state.activeMonth];
   const view = state.activePerson;
-  const numbers = calc(monthData, view, state.activeMonth);
-  const filteredExpenses = expensesForView(monthData, view);
+  const numbers = calc(monthData, view, state.activeMonth, state.people);
+  const filteredExpenses = expensesForView(monthData, view, state.people);
   const pending = filteredExpenses.filter((item) => item.status === "A pagar");
 
   if (intent === "responsavel") {
     return [
-      `${currentUserName()}: ${money(sum(expensesForView(monthData, VIEW_ME)))}`,
-      `${spouseName()}: ${money(sum(expensesForView(monthData, VIEW_SPOUSE)))}`,
+      `${state.people[0] || currentUserName()}: ${money(sum(expensesForView(monthData, VIEW_ME, state.people)))}`,
+      `${state.people[1] || spouseName()}: ${money(sum(expensesForView(monthData, VIEW_SPOUSE, state.people)))}`,
     ].join(" | ");
   }
   if (intent === "pendente") {
@@ -105,7 +105,7 @@ export function answerLocally(question: string, state: FinanceState): string {
   }
   if (intent === "prioridade") {
     const first = monthData.priorities
-      .filter((item) => priorityMatchesView(item, view) && item.status === "A pagar")
+      .filter((item) => priorityMatchesView(item, view, state.people) && item.status === "A pagar")
       .slice()
       .sort((a, b) => a.rank - b.rank || b.amount - a.amount)[0];
     if (!first) return "Você não tem prioridades pendentes agora.";

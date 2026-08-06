@@ -16,11 +16,11 @@ export function PrioritiesView({
   const money = useMoney();
   const view = state.activePerson;
   const priorities = month.priorities
-    .filter((item) => priorityMatchesView(item, view))
+    .filter((item) => priorityMatchesView(item, view, state.people))
     .slice()
     .sort((a, b) => a.rank - b.rank || b.amount - a.amount);
 
-  const free = calc(month, view).free;
+  const free = calc(month, view, undefined, state.people).free;
   const pending = priorities.filter((p) => p.status === "A pagar");
   let remaining = free;
 

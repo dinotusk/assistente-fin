@@ -22,7 +22,6 @@ import {
   currentUserName,
   expensesForView,
   resolveViewOwner,
-  spouseName,
   sum,
 } from "@/lib/finance/calc";
 import { useFinance, useMoney } from "@/lib/finance/FinanceContext";
@@ -121,12 +120,16 @@ export function ExpenseDialog({
 }) {
   const { month, state, saveExpense } = useFinance();
   const editing = editingId ? month.expenses.find((e) => e.id === editingId) : null;
-  const [form, setForm] = useState<Expense>(blankExpense(state.activeMonth, state.activePerson));
+  const [form, setForm] = useState<Expense>(
+    blankExpense(state.activeMonth, state.activePerson, state.people),
+  );
 
   useEffect(() => {
     if (!open) return;
-    setForm(editing ? { ...editing } : blankExpense(state.activeMonth, state.activePerson));
-  }, [open, editingId, state.activeMonth, state.activePerson]);
+    setForm(
+      editing ? { ...editing } : blankExpense(state.activeMonth, state.activePerson, state.people),
+    );
+  }, [open, editingId, state.activeMonth, state.activePerson, state.people]);
 
   function submit(event: React.FormEvent) {
     event.preventDefault();
@@ -203,10 +206,7 @@ export function ExpenseDialog({
               onChange={(e) => setForm({ ...form, owner: e.target.value })}
             >
               {state.people.map((person, index) => (
-                <option
-                  key={`${person}-${index}`}
-                  value={index === 0 ? currentUserName() : index === 1 ? spouseName() : person}
-                >
+                <option key={`${person}-${index}`} value={person}>
                   {person}
                 </option>
               ))}
@@ -236,7 +236,7 @@ export function ExpenseDialog({
   );
 }
 
-function blankExpense(monthKey: string, activePerson = "me"): Expense {
+function blankExpense(monthKey: string, activePerson = "me", people?: string[]): Expense {
   return {
     id: uid(),
     name: "",
@@ -244,7 +244,7 @@ function blankExpense(monthKey: string, activePerson = "me"): Expense {
     category: "Casa",
     amount: 0,
     status: "A pagar",
-    owner: resolveViewOwner(activePerson) || currentUserName(),
+    owner: resolveViewOwner(activePerson, people) || people?.[0] || currentUserName(),
     paymentMethod: "Pix",
     note: "",
   };
@@ -260,19 +260,19 @@ export function PriorityDialog({
   onOpenChange: (v: boolean) => void;
   editingId: string | null;
 }) {
-  const { month, savePriority } = useFinance();
+  const { month, state, savePriority } = useFinance();
   const editing = editingId ? month.priorities.find((p) => p.id === editingId) : null;
-  const [form, setForm] = useState<Priority>(blankPriority());
+  const [form, setForm] = useState<Priority>(blankPriority(state.activePerson, state.people));
 
   useEffect(() => {
     if (!open) return;
-    setForm(editing ? { ...editing } : blankPriority());
-  }, [open, editingId]);
+    setForm(editing ? { ...editing } : blankPriority(state.activePerson, state.people));
+  }, [open, editingId, state.activePerson, state.people]);
 
   function submit(event: React.FormEvent) {
     event.preventDefault();
     if (!form.name.trim()) return;
-    const payload: Priority = { ...form, name: form.name.trim(), responsavel: currentUserName() };
+    const payload: Priority = { ...form, name: form.name.trim() };
     savePriority(payload, editing?.id);
     onOpenChange(false);
   }
@@ -330,14 +330,14 @@ export function PriorityDialog({
   );
 }
 
-function blankPriority(): Priority {
+function blankPriority(activePerson = "me", people?: string[]): Priority {
   return {
     id: uid(),
     name: "",
     amount: 0,
     rank: 1,
     status: "A pagar",
-    responsavel: currentUserName(),
+    responsavel: resolveViewOwner(activePerson, people) || people?.[0] || currentUserName(),
   };
 }
 
@@ -946,7 +946,8 @@ export function BankImportDialog({
   const [candidates, setCandidates] = useState<ImportCandidate[]>([]);
   const [skippedCount, setSkippedCount] = useState(0);
   const [error, setError] = useState("");
-  const defaultOwner = resolveViewOwner(state.activePerson) || currentUserName();
+  const defaultOwner =
+    resolveViewOwner(state.activePerson, state.people) || state.people[0] || currentUserName();
 
   useEffect(() => {
     if (!open) {
@@ -1080,10 +1081,7 @@ export function BankImportDialog({
                   onChange={(e) => updateCandidate(item.id, { owner: e.target.value })}
                 >
                   {state.people.map((person, index) => (
-                    <option
-                      key={`${person}-${index}`}
-                      value={index === 0 ? currentUserName() : index === 1 ? spouseName() : person}
-                    >
+                    <option key={`${person}-${index}`} value={person}>
                       {person}
                     </option>
                   ))}
@@ -1342,7 +1340,7 @@ export function PurchaseSimulatorDialog({
   const { month, state, savePriority } = useFinance();
   const money = useMoney();
   const view = state.activePerson;
-  const numbers = calc(month, view, state.activeMonth);
+  const numbers = calc(month, view, state.activeMonth, state.people);
   const weeklyAllowance =
     numbers.daysLeft > 0 ? Math.max(0, (numbers.free / numbers.daysLeft) * 7) : 0;
 
@@ -1367,7 +1365,7 @@ export function PurchaseSimulatorDialog({
       amount,
       rank: result.ok ? 2 : 3,
       status: result.ok ? "A pagar" : "Adiar",
-      responsavel: resolveViewOwner(view) || "Minha casa",
+      responsavel: resolveViewOwner(view, state.people) || state.people[0] || "Minha casa",
       createdAt: new Date().toISOString(),
     });
     onOpenChange(false);
@@ -1441,7 +1439,7 @@ export function EnvelopesDialog({
 }) {
   const { month, state, envelopes, saveEnvelopes } = useFinance();
   const money = useMoney();
-  const expenses = expensesForView(month, state.activePerson);
+  const expenses = expensesForView(month, state.activePerson, state.people);
   const [editing, setEditing] = useState(false);
 
   useEffect(() => {

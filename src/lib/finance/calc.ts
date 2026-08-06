@@ -47,9 +47,16 @@ export function spouseName(): string {
   return DEFAULT_FAMILY_PEOPLE[1];
 }
 
-export function resolveViewOwner(view: string): string | null {
-  if (view === VIEW_ME) return currentUserName();
-  if (view === VIEW_SPOUSE) return spouseName();
+/**
+ * Resolves a view (VIEW_ME/VIEW_SPOUSE/a person's name) to the owner value stored on
+ * expenses/priorities. Must use the household's *current* member names — not the
+ * hardcoded "Minha casa"/"Outra casa" placeholders — because Supabase sync matches
+ * owners by the real profile name; a stale placeholder silently falls back to the
+ * first profile once synced (see supabaseRepository.ts syncExpenses).
+ */
+export function resolveViewOwner(view: string, people?: string[]): string | null {
+  if (view === VIEW_ME) return people?.[0] || currentUserName();
+  if (view === VIEW_SPOUSE) return people?.[1] || spouseName();
   if ((DEFAULT_FAMILY_PEOPLE as readonly string[]).includes(view)) return view;
   if (view && view !== VIEW_ALL) return view;
   return null;
@@ -87,21 +94,21 @@ export function responsavelToView(responsavel?: string): string {
   return responsavel;
 }
 
-export function expenseMatchesView(expense: Expense, view: string): boolean {
-  const owner = resolveViewOwner(view);
+export function expenseMatchesView(expense: Expense, view: string, people?: string[]): boolean {
+  const owner = resolveViewOwner(view, people);
   if (!owner) return true;
   return expense.owner === owner;
 }
 
-export function priorityMatchesView(priority: Priority, view: string): boolean {
-  const owner = resolveViewOwner(view);
-  const responsible = priority.responsavel || currentUserName();
+export function priorityMatchesView(priority: Priority, view: string, people?: string[]): boolean {
+  const owner = resolveViewOwner(view, people);
+  const responsible = priority.responsavel || people?.[0] || currentUserName();
   if (!owner) return true;
   return responsible === owner;
 }
 
-export function expensesForView(monthData: MonthData, view: string): Expense[] {
-  return (monthData.expenses || []).filter((item) => expenseMatchesView(item, view));
+export function expensesForView(monthData: MonthData, view: string, people?: string[]): Expense[] {
+  return (monthData.expenses || []).filter((item) => expenseMatchesView(item, view, people));
 }
 
 export function budgetForView(monthData: MonthData, view: string): number {
@@ -117,8 +124,14 @@ export interface CategoryTotal {
   total: number;
 }
 
-export function getCategoryTotals(monthData: MonthData, view: string): CategoryTotal[] {
-  const expenses = expensesForView(monthData, view).filter((item) => item.type !== "income");
+export function getCategoryTotals(
+  monthData: MonthData,
+  view: string,
+  people?: string[],
+): CategoryTotal[] {
+  const expenses = expensesForView(monthData, view, people).filter(
+    (item) => item.type !== "income",
+  );
   return categories
     .map((category) => ({
       category,
@@ -156,8 +169,13 @@ export function daysLeftInMonth(monthKey?: string): number {
   return new Date(year, monthNumber, 0).getDate();
 }
 
-export function calc(monthData: MonthData, view: string, monthKey?: string): Metrics {
-  const entries = expensesForView(monthData, view);
+export function calc(
+  monthData: MonthData,
+  view: string,
+  monthKey?: string,
+  people?: string[],
+): Metrics {
+  const entries = expensesForView(monthData, view, people);
   const expenses = entries.filter((item) => item.type !== "income");
   const received = sum(entries.filter((item) => item.type === "income"));
   const budget = budgetForView(monthData, view);
@@ -166,7 +184,7 @@ export function calc(monthData: MonthData, view: string, monthKey?: string): Met
   const paid = sum(expenses.filter((item) => item.status === "Pago"));
   const free = budget - total;
   const saving = Math.max(0, budget - paid);
-  const byCategory = getCategoryTotals(monthData, view);
+  const byCategory = getCategoryTotals(monthData, view, people);
   const topCategory = byCategory[0];
   const daysLeft = daysLeftInMonth(monthKey);
   return {
@@ -239,10 +257,10 @@ export function getLargestCategoryGrowth(
   const previous = entries[activeIndex - 1][1];
   const current = state.months[state.activeMonth];
   const currentTotals = Object.fromEntries(
-    getCategoryTotals(current, view).map((i) => [i.category, i.total]),
+    getCategoryTotals(current, view, state.people).map((i) => [i.category, i.total]),
   );
   const previousTotals = Object.fromEntries(
-    getCategoryTotals(previous, view).map((i) => [i.category, i.total]),
+    getCategoryTotals(previous, view, state.people).map((i) => [i.category, i.total]),
   );
   return (
     categories
