@@ -55,7 +55,7 @@ import {
 
 import { Field, SelectInput, TextArea, TextInput } from "./forms";
 
-function SheetShell({
+export function SheetShell({
   open,
   onOpenChange,
   title,

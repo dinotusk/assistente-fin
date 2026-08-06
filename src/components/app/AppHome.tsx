@@ -18,6 +18,7 @@ import { VIEW_ALL, VIEW_ME, VIEW_SPOUSE } from "@/lib/finance/constants";
 import { useFinance } from "@/lib/finance/FinanceContext";
 import type { ViewKey } from "@/lib/finance/types";
 
+import { AiConsentDialog } from "./AiConsentDialog";
 import { AssistantView } from "./AssistantView";
 import { BottomNav } from "./BottomNav";
 import { SideNav } from "./SideNav";
@@ -94,6 +95,7 @@ export function AppHome() {
   const [simulatorOpen, setSimulatorOpen] = useState(false);
   const [envelopesOpen, setEnvelopesOpen] = useState(false);
   const [pushOpen, setPushOpen] = useState(false);
+  const [aiConsentOpen, setAiConsentOpen] = useState(false);
   const [profileMenuOpen, setProfileMenuOpen] = useState(false);
   const importRef = useRef<HTMLInputElement>(null);
   const initials = getInitials(activeUser?.name || "Aval");
@@ -255,6 +257,7 @@ export function AppHome() {
           onInvite={() => setInviteOpen(true)}
           onJoinHousehold={() => setJoinHouseholdOpen(true)}
           onPushNotifications={() => setPushOpen(true)}
+          onAiConsent={() => setAiConsentOpen(true)}
         />
       )}
     </div>
@@ -292,6 +295,7 @@ export function AppHome() {
       <PurchaseSimulatorDialog open={simulatorOpen} onOpenChange={setSimulatorOpen} />
       <EnvelopesDialog open={envelopesOpen} onOpenChange={setEnvelopesOpen} />
       <PushNotificationsDialog open={pushOpen} onOpenChange={setPushOpen} />
+      <AiConsentDialog open={aiConsentOpen} onOpenChange={setAiConsentOpen} mode="manage" />
     </>
   );
 

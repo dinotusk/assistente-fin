@@ -1,26 +1,28 @@
 import { createClient } from "@supabase/supabase-js";
 import { createFileRoute } from "@tanstack/react-router";
 
+import { MAX_BODY_BYTES, validateAiChatRequest } from "@/lib/finance/aiRequestValidation";
+
 // Secure Gemini proxy — the API key stays server-side (never exposed to the front-end).
 // Mirrors the original Netlify function contract: POST { question, context } -> { answer }.
 
-const MAX_QUESTION_LENGTH = 2000;
-const MAX_CONTEXT_LENGTH = 20000;
-const RATE_LIMIT_WINDOW_MS = 5 * 60 * 1000;
+const RATE_LIMIT_WINDOW_SECONDS = 5 * 60;
 const RATE_LIMIT_MAX_REQUESTS = 20;
+const GEMINI_TIMEOUT_MS = 15_000;
 
-// Best-effort only: this resets on cold start and isn't shared across serverless
-// instances. It stops a single warm instance from being hammered, not a
-// distributed attack — a real deployment would want Upstash/Redis for that.
-const requestLog = new Map<string, number[]>();
-
-function isRateLimited(userId: string): boolean {
-  const now = Date.now();
-  const timestamps = (requestLog.get(userId) || []).filter((t) => now - t < RATE_LIMIT_WINDOW_MS);
-  timestamps.push(now);
-  requestLog.set(userId, timestamps);
-  return timestamps.length > RATE_LIMIT_MAX_REQUESTS;
-}
+// Every error surfaced to the client is one of these fixed, safe strings — never
+// upstream response bodies, stack traces, config state, or internal URLs/keys.
+// Anything with real diagnostic value goes to console.error only (server logs).
+const CLIENT_ERRORS = {
+  unauthorized: "Sessao invalida ou expirada",
+  badJson: "Corpo da requisicao invalido",
+  payloadTooLarge: "Requisicao excede o tamanho maximo permitido",
+  rateLimited: "Muitas perguntas em pouco tempo. Aguarde alguns minutos e tente novamente.",
+  unavailable: "Assistente de IA indisponivel no momento",
+  timeout: "Tempo de resposta excedido. Tente novamente.",
+  blocked: "Nao consegui gerar uma resposta para essa pergunta.",
+  unexpected: "Erro inesperado. Tente novamente.",
+} as const;
 
 async function getAuthenticatedUserId(request: Request): Promise<string | null> {
   const authHeader = request.headers.get("authorization") || "";
@@ -36,101 +38,128 @@ async function getAuthenticatedUserId(request: Request): Promise<string | null> 
   return data.user.id;
 }
 
-export const Route = createFileRoute("/api/gemini-chat")({
-  server: {
-    handlers: {
-      POST: async ({ request }) => {
-        const userId = await getAuthenticatedUserId(request);
-        if (!userId) {
-          return Response.json({ error: "Sessao invalida ou expirada" }, { status: 401 });
-        }
-        if (isRateLimited(userId)) {
-          return Response.json(
-            { error: "Muitas perguntas em pouco tempo. Aguarde um instante." },
-            { status: 429 },
-          );
-        }
-
-        const apiKey = getGeminiApiKey();
-        if (!apiKey) {
-          return Response.json(
-            { error: "GEMINI_API_KEY ou GEMINI_API nao configurada" },
-            { status: 500 },
-          );
-        }
-        const model = process.env.GEMINI_MODEL || "gemini-2.5-flash";
-
-        try {
-          const body = (await request.json()) as { question?: string; context?: unknown };
-          const question = String(body.question || "").trim();
-          const context = body.context || {};
-          if (!question) return Response.json({ error: "Pergunta vazia" }, { status: 400 });
-          if (question.length > MAX_QUESTION_LENGTH) {
-            return Response.json({ error: "Pergunta muito longa" }, { status: 400 });
-          }
-          if (JSON.stringify(context).length > MAX_CONTEXT_LENGTH) {
-            return Response.json({ error: "Contexto muito grande" }, { status: 400 });
-          }
-
-          const response = await fetch(
-            `https://generativelanguage.googleapis.com/v1beta/models/${model}:generateContent`,
-            {
-              method: "POST",
-              headers: { "Content-Type": "application/json", "x-goog-api-key": apiKey },
-              body: JSON.stringify({
-                contents: [{ role: "user", parts: [{ text: buildPrompt(question, context) }] }],
-                generationConfig: { temperature: 0.35, maxOutputTokens: 700 },
-              }),
-            },
-          );
-
-          if (!response.ok) {
-            const details = await response.text();
-            console.error(`Gemini error [${response.status}]: ${details}`);
-            return Response.json(
-              { error: "Erro ao chamar Gemini", details: normalizeGeminiError(details), model },
-              { status: response.status },
-            );
-          }
-
-          const data = (await response.json()) as {
-            candidates?: { content?: { parts?: { text?: string }[] } }[];
-            promptFeedback?: { blockReason?: string };
-          };
-          const raw = data?.candidates?.[0]?.content?.parts
-            ?.map((p) => p.text || "")
-            .join("\n")
-            .trim();
-          if (!raw && data?.promptFeedback?.blockReason) {
-            return Response.json(
-              { error: `Gemini bloqueou a resposta: ${data.promptFeedback.blockReason}`, model },
-              { status: 502 },
-            );
-          }
-          return Response.json({
-            answer: cleanAnswer(raw) || "Nao consegui gerar uma resposta agora.",
-          });
-        } catch (error) {
-          console.error(error);
-          return Response.json({ error: "Erro inesperado" }, { status: 500 });
-        }
-      },
-    },
-  },
-});
+/** True if allowed to proceed; false once the window's request budget is used up. Fails closed on any DB error. */
+async function checkRateLimit(userId: string): Promise<boolean> {
+  const serviceRoleKey = process.env.SUPABASE_SERVICE_ROLE_KEY;
+  const supabaseUrl = process.env.VITE_SUPABASE_URL || "https://cvsefuukfmdfaajjlpmi.supabase.co";
+  if (!serviceRoleKey) {
+    console.error("Rate limit check skipped: SUPABASE_SERVICE_ROLE_KEY nao configurada");
+    return false;
+  }
+  const admin = createClient(supabaseUrl, serviceRoleKey);
+  const { data, error } = await admin.rpc("check_and_log_ai_rate_limit", {
+    p_user_id: userId,
+    p_window_seconds: RATE_LIMIT_WINDOW_SECONDS,
+    p_max_requests: RATE_LIMIT_MAX_REQUESTS,
+  });
+  if (error) {
+    console.error("Rate limit RPC failed:", error.message);
+    return false;
+  }
+  return data === true;
+}
 
 function getGeminiApiKey(): string {
   return String(process.env.GEMINI_API_KEY || process.env.GEMINI_API || "").trim();
 }
 
-function normalizeGeminiError(details: string): string {
+/** Extracted for testability — the route below just delegates to this. */
+export async function handleGeminiChatRequest(request: Request): Promise<Response> {
+  const userId = await getAuthenticatedUserId(request);
+  if (!userId) {
+    return Response.json({ error: CLIENT_ERRORS.unauthorized }, { status: 401 });
+  }
+
+  const contentLengthHeader = request.headers.get("content-length");
+  if (contentLengthHeader && Number(contentLengthHeader) > MAX_BODY_BYTES) {
+    return Response.json({ error: CLIENT_ERRORS.payloadTooLarge }, { status: 413 });
+  }
+
+  const rawBody = await request.text();
+  if (Buffer.byteLength(rawBody, "utf8") > MAX_BODY_BYTES) {
+    return Response.json({ error: CLIENT_ERRORS.payloadTooLarge }, { status: 413 });
+  }
+
+  let parsedBody: unknown;
   try {
-    const data = JSON.parse(details) as { error?: { message?: string; status?: string } };
-    return [data.error?.status, data.error?.message].filter(Boolean).join(": ") || details;
+    parsedBody = JSON.parse(rawBody);
   } catch {
-    return details.slice(0, 500);
+    return Response.json({ error: CLIENT_ERRORS.badJson }, { status: 400 });
+  }
+
+  const validated = validateAiChatRequest(parsedBody);
+  if (!validated.ok) {
+    return Response.json({ error: validated.error }, { status: 400 });
+  }
+  const { question, context } = validated.value;
+
+  const allowed = await checkRateLimit(userId);
+  if (!allowed) {
+    return Response.json({ error: CLIENT_ERRORS.rateLimited }, { status: 429 });
+  }
+
+  const apiKey = getGeminiApiKey();
+  if (!apiKey) {
+    console.error("GEMINI_API_KEY/GEMINI_API nao configurada");
+    return Response.json({ error: CLIENT_ERRORS.unavailable }, { status: 500 });
+  }
+  const model = process.env.GEMINI_MODEL || "gemini-2.5-flash";
+
+  const controller = new AbortController();
+  const timeoutId = setTimeout(() => controller.abort(), GEMINI_TIMEOUT_MS);
+  try {
+    const response = await fetch(
+      `https://generativelanguage.googleapis.com/v1beta/models/${model}:generateContent`,
+      {
+        method: "POST",
+        headers: { "Content-Type": "application/json", "x-goog-api-key": apiKey },
+        body: JSON.stringify({
+          contents: [{ role: "user", parts: [{ text: buildPrompt(question, context) }] }],
+          generationConfig: { temperature: 0.35, maxOutputTokens: 700 },
+        }),
+        signal: controller.signal,
+      },
+    );
+
+    if (!response.ok) {
+      const details = await response.text().catch(() => "");
+      console.error(`Gemini error [${response.status}]:`, details);
+      return Response.json({ error: CLIENT_ERRORS.unavailable }, { status: 502 });
+    }
+
+    const data = (await response.json()) as {
+      candidates?: { content?: { parts?: { text?: string }[] } }[];
+      promptFeedback?: { blockReason?: string };
+    };
+    const raw = data?.candidates?.[0]?.content?.parts
+      ?.map((p) => p.text || "")
+      .join("\n")
+      .trim();
+    if (!raw && data?.promptFeedback?.blockReason) {
+      console.error("Gemini blocked the response:", data.promptFeedback.blockReason);
+      return Response.json({ error: CLIENT_ERRORS.blocked }, { status: 502 });
+    }
+    return Response.json({
+      answer: cleanAnswer(raw) || "Nao consegui gerar uma resposta agora.",
+    });
+  } catch (error) {
+    if (error instanceof Error && error.name === "AbortError") {
+      return Response.json({ error: CLIENT_ERRORS.timeout }, { status: 504 });
+    }
+    console.error("Gemini request failed:", error instanceof Error ? error.message : String(error));
+    return Response.json({ error: CLIENT_ERRORS.unexpected }, { status: 500 });
+  } finally {
+    clearTimeout(timeoutId);
   }
 }
+
+export const Route = createFileRoute("/api/gemini-chat")({
+  server: {
+    handlers: {
+      POST: async ({ request }) => handleGeminiChatRequest(request),
+    },
+  },
+});
 
 function buildPrompt(question: string, context: unknown): string {
   return `

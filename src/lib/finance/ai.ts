@@ -13,45 +13,65 @@ import {
 import { VIEW_ME, VIEW_SPOUSE } from "./constants";
 import type { FinanceState } from "./types";
 import { supabase } from "../supabase/client";
+import { hasAiConsent } from "./aiConsent";
+import {
+  MAX_CONTEXT_ITEMS,
+  MAX_CONTEXT_TEXT_LENGTH,
+  validateAiChatRequest,
+  type AiChatContext,
+} from "./aiRequestValidation";
 
-export function buildAiContext(state: FinanceState) {
+/** Bounds a string to the context's shared text-size ceiling — same limit the server enforces. */
+function clip(value: string): string {
+  return value.slice(0, MAX_CONTEXT_TEXT_LENGTH);
+}
+
+/**
+ * Builds the minimal context sent to the AI: only the numbers and the most relevant
+ * gastos/prioridades for the active view, capped in count and per-field length. No
+ * internal ids, emails, tokens or other technical metadata are included.
+ */
+export function buildAiContext(state: FinanceState): AiChatContext {
   const monthData = state.months[state.activeMonth];
   const view = state.activePerson;
   const numbers = calc(monthData, view, state.activeMonth, state.people);
   const currentExpenses = expensesForView(monthData, view, state.people)
     .slice()
     .sort((a, b) => Number(b.amount || 0) - Number(a.amount || 0))
-    .slice(0, 20)
+    .slice(0, MAX_CONTEXT_ITEMS)
     .map((item) => ({
-      descricao: item.name,
-      categoria: item.category,
+      descricao: clip(item.name),
+      categoria: clip(item.category),
       valor: Number(item.amount || 0),
-      status: item.status,
-      responsavel: item.owner,
+      status: clip(item.status),
+      responsavel: clip(item.owner),
       data: item.date,
-      pagamento: item.paymentMethod || "Pix",
+      pagamento: clip(item.paymentMethod || "Pix"),
     }));
   const currentPriorities = monthData.priorities
     .filter((item) => priorityMatchesView(item, view, state.people))
     .slice()
     .sort((a, b) => a.rank - b.rank || Number(b.amount || 0) - Number(a.amount || 0))
+    .slice(0, MAX_CONTEXT_ITEMS)
     .map((item) => ({
-      descricao: item.name,
+      descricao: clip(item.name),
       valor: Number(item.amount || 0),
       prioridade: item.rank,
-      status: item.status,
-      responsavel: item.responsavel || currentUserName(),
+      status: clip(item.status),
+      responsavel: clip(item.responsavel || currentUserName()),
     }));
   return {
-    mes: monthData.label,
+    mes: clip(monthData.label),
     planejamento: Boolean(monthData.planned),
-    visao: viewLabel(view),
+    visao: clip(viewLabel(view)),
     orcamento: budgetForView(monthData, view),
     totalGasto: numbers.total,
     pendente: numbers.pending,
     pago: numbers.paid,
     saldoRestante: numbers.free,
-    maiorCategoria: numbers.topCategory || null,
+    maiorCategoria: numbers.topCategory
+      ? { category: clip(numbers.topCategory.category), total: numbers.topCategory.total }
+      : null,
     gastos: currentExpenses,
     prioridades: currentPriorities,
   };
@@ -133,8 +153,21 @@ function sum(items: { amount?: number }[]): number {
   return items.reduce((total, item) => total + Number(item.amount || 0), 0);
 }
 
-/** Call the secure Gemini backend; throws if unavailable so callers can fall back. */
+/**
+ * Call the secure Gemini backend; throws if unavailable so callers can fall back.
+ * Hard-blocks without consent and validates the outgoing payload — this is the last
+ * line of defense even though the caller (AssistantView) is expected to gate the UI
+ * before ever reaching this call.
+ */
 export async function askGemini(question: string, context: unknown): Promise<string> {
+  if (!hasAiConsent()) {
+    throw new Error("Consentimento de IA necessario");
+  }
+  const validated = validateAiChatRequest({ question, context });
+  if (!validated.ok) {
+    throw new Error(validated.error);
+  }
+
   const { data: sessionData } = await supabase.auth.getSession();
   const token = sessionData.session?.access_token;
   if (!token) throw new Error("Sessao nao encontrada");
@@ -142,16 +175,11 @@ export async function askGemini(question: string, context: unknown): Promise<str
   const response = await fetch("/api/gemini-chat", {
     method: "POST",
     headers: { "Content-Type": "application/json", Authorization: `Bearer ${token}` },
-    body: JSON.stringify({ question, context }),
+    body: JSON.stringify(validated.value),
   });
   const data = await response.json().catch(() => ({}));
   if (!response.ok) {
-    const message =
-      typeof data?.error === "string"
-        ? data.error
-        : typeof data?.details === "string"
-          ? data.details
-          : "Gemini indisponivel";
+    const message = typeof data?.error === "string" ? data.error : "Assistente indisponivel";
     console.warn("Gemini backend unavailable:", message);
     throw new Error(message);
   }

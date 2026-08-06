@@ -14,6 +14,7 @@ import {
   UserPlus,
   LogIn,
   Bell,
+  ShieldCheck,
 } from "lucide-react";
 import { toast } from "sonner";
 
@@ -30,6 +31,7 @@ export function SettingsView({
   onInvite,
   onJoinHousehold,
   onPushNotifications,
+  onAiConsent,
 }: {
   onEditPeople: () => void;
   onEditMonth: () => void;
@@ -39,6 +41,7 @@ export function SettingsView({
   onInvite: () => void;
   onJoinHousehold: () => void;
   onPushNotifications: () => void;
+  onAiConsent: () => void;
 }) {
   const { activeUser, state, exportData, importData, resetSeed, logout } = useFinance();
   const fileRef = useRef<HTMLInputElement>(null);
@@ -102,6 +105,12 @@ export function SettingsView({
           title: "Notificações push",
           desc: "Avisos de contas vencendo e orçamento no seu aparelho, mesmo com o app fechado.",
           action: onPushNotifications,
+        },
+        {
+          icon: ShieldCheck,
+          title: "Assistente de IA",
+          desc: "Veja o que é enviado ao Gemini e revogue o consentimento quando quiser.",
+          action: onAiConsent,
         },
         {
           icon: Download,

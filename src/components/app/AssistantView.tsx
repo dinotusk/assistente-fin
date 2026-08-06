@@ -26,6 +26,7 @@ import {
   viewLabelForPeople,
 } from "@/lib/finance/calc";
 import { answerLocally, askGemini, buildAiContext } from "@/lib/finance/ai";
+import { hasAiConsent } from "@/lib/finance/aiConsent";
 import { lookupLearnedCategory } from "@/lib/finance/learnedCategories";
 import { paymentMethods, VIEW_ALL, VIEW_ME, VIEW_SPOUSE } from "@/lib/finance/constants";
 import { useFinance, useMoney } from "@/lib/finance/FinanceContext";
@@ -39,6 +40,7 @@ import {
   type VigiaAlert,
 } from "@/lib/finance/vigias";
 
+import { AiConsentDialog } from "./AiConsentDialog";
 import { TextArea } from "./forms";
 import { AvalMark, BudgetRing, Sparkline } from "./ui";
 
@@ -99,6 +101,8 @@ export function AssistantView({
   const [messages, setMessages] = useState<Message[]>([]);
   const [input, setInput] = useState("");
   const [busy, setBusy] = useState(false);
+  const [consentOpen, setConsentOpen] = useState(false);
+  const [pendingQuestion, setPendingQuestion] = useState<string | null>(null);
   const scrollEndRef = useRef<HTMLDivElement | null>(null);
   const inputRef = useRef<HTMLTextAreaElement | null>(null);
 
@@ -152,6 +156,11 @@ export function AssistantView({
         { role: "user", text: question },
         { role: "ai", text: commandAnswer },
       ]);
+      return;
+    }
+    if (!hasAiConsent()) {
+      setPendingQuestion(question);
+      setConsentOpen(true);
       return;
     }
     setBusy(true);
@@ -553,6 +562,19 @@ export function AssistantView({
           </span>
         </button>
       </div>
+
+      <AiConsentDialog
+        open={consentOpen}
+        onOpenChange={setConsentOpen}
+        mode="request"
+        onAccept={() => {
+          setConsentOpen(false);
+          const question = pendingQuestion;
+          setPendingQuestion(null);
+          if (question) void askQuestion(question);
+        }}
+        onDecline={() => setPendingQuestion(null)}
+      />
     </div>
   );
 }
