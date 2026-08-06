@@ -70,7 +70,7 @@ export function viewLabel(view: string): string {
 }
 
 export function viewLabelForPeople(view: string, people?: string[]): string {
-  if (view === VIEW_ALL) return "Tudo junto";
+  if (view === VIEW_ALL) return "Minha casa";
   if (view === VIEW_ME) return people?.[0] || currentUserName();
   if (view === VIEW_SPOUSE) return people?.[1] || spouseName();
   if (people?.includes(view)) return view;

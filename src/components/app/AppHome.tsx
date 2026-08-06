@@ -184,7 +184,7 @@ export function AppHome() {
         value={state.activePerson}
         onChange={(v) => setActivePerson(v)}
         options={[
-          { value: VIEW_ALL, label: "Tudo junto" },
+          { value: VIEW_ALL, label: "Minha casa" },
           ...state.people.map((person, index) => ({
             value: index === 0 ? VIEW_ME : index === 1 ? VIEW_SPOUSE : person,
             label: person,
