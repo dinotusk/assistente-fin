@@ -419,15 +419,17 @@ export function FinanceProvider({ children }: { children: ReactNode }) {
         );
       const newPeople = clean.length ? clean : [currentUserName()];
       const oldPeople = state.people;
-      const renamedExtras = oldPeople
-        .map((oldName, index) => ({ oldName, newName: newPeople[index], index }))
-        .filter(
-          ({ index, oldName, newName }) => index >= 2 && oldName && newName && oldName !== newName,
-        );
+      // Positional rename detection for every profile, including 0/1 (the
+      // primary and spouse slots) — previously only index >= 2 was covered,
+      // which left profileBudgets/expense.owner/priority.responsavel keyed
+      // to a stale name after renaming either of the first two profiles.
+      const renamedProfiles = oldPeople
+        .map((oldName, index) => ({ oldName, newName: newPeople[index] }))
+        .filter(({ oldName, newName }) => oldName && newName && oldName !== newName);
       const months = Object.fromEntries(
         Object.entries(state.months).map(([monthKey, data]) => {
           const profileBudgets = { ...(data.profileBudgets || {}) };
-          renamedExtras.forEach(({ oldName, newName }) => {
+          renamedProfiles.forEach(({ oldName, newName }) => {
             if (profileBudgets[oldName] !== undefined) {
               profileBudgets[newName] = profileBudgets[oldName];
               delete profileBudgets[oldName];
@@ -439,11 +441,13 @@ export function FinanceProvider({ children }: { children: ReactNode }) {
               ...data,
               profileBudgets,
               expenses: data.expenses.map((expense) => {
-                const renamed = renamedExtras.find((item) => expense.owner === item.oldName);
+                const renamed = renamedProfiles.find((item) => expense.owner === item.oldName);
                 return renamed ? { ...expense, owner: renamed.newName } : expense;
               }),
               priorities: data.priorities.map((priority) => {
-                const renamed = renamedExtras.find((item) => priority.responsavel === item.oldName);
+                const renamed = renamedProfiles.find(
+                  (item) => priority.responsavel === item.oldName,
+                );
                 return renamed ? { ...priority, responsavel: renamed.newName } : priority;
               }),
             },
