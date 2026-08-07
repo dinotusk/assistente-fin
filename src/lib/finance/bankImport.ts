@@ -64,21 +64,104 @@ function extractOfxTag(block: string, tag: string): string {
   return match ? match[1].trim() : "";
 }
 
+/** Thrown when a CSV can't be parsed safely — ambiguous delimiter or a row whose
+ *  column count doesn't match the header. Never silently truncates a value instead. */
+export class CsvFormatError extends Error {
+  constructor(message: string) {
+    super(message);
+    this.name = "CsvFormatError";
+  }
+}
+
+const CSV_DELIMITERS = [",", ";"] as const;
+const DATE_HEADERS = ["data", "date"];
+const AMOUNT_HEADERS = ["valor", "amount"];
+const DESC_HEADERS = ["descricao", "historico", "description"];
+
+/**
+ * Splits one CSV line into cells, honoring RFC 4180 quoting: a field starting
+ * with `"` runs until the next unescaped `"`, `""` inside a quoted field is a
+ * literal quote, and a delimiter inside quotes is part of the value — not a
+ * column break. This is what lets a quoted "1.234,56" survive a comma-delimited
+ * file instead of being split into "1.234" + "56".
+ */
+function splitCsvLine(line: string, delimiter: string): string[] {
+  const cells: string[] = [];
+  let current = "";
+  let inQuotes = false;
+  for (let i = 0; i < line.length; i += 1) {
+    const char = line[i];
+    if (inQuotes) {
+      if (char === '"') {
+        if (line[i + 1] === '"') {
+          current += '"';
+          i += 1;
+        } else {
+          inQuotes = false;
+        }
+      } else {
+        current += char;
+      }
+      continue;
+    }
+    if (char === '"' && current === "") {
+      inQuotes = true;
+      continue;
+    }
+    if (char === delimiter) {
+      cells.push(current.trim());
+      current = "";
+      continue;
+    }
+    current += char;
+  }
+  cells.push(current.trim());
+  return cells;
+}
+
+function matchCsvHeaders(headerCells: string[]): {
+  dateIndex: number;
+  amountIndex: number;
+  descIndex: number;
+} {
+  const headers = headerCells.map((cell) => normalizeText(cell));
+  return {
+    dateIndex: headers.findIndex((h) => DATE_HEADERS.includes(h)),
+    amountIndex: headers.findIndex((h) => AMOUNT_HEADERS.includes(h)),
+    descIndex: headers.findIndex((h) => DESC_HEADERS.includes(h)),
+  };
+}
+
 export function parseCsv(text: string): ParsedTransaction[] {
   const lines = text.split(/\r?\n/).filter((line) => line.trim());
   if (lines.length < 2) return [];
 
-  const separator =
-    (lines[0].match(/;/g)?.length || 0) > (lines[0].match(/,/g)?.length || 0) ? ";" : ",";
-  const headers = lines[0].split(separator).map((h) => normalizeText(h.trim()));
-  const dateIndex = headers.findIndex((h) => ["data", "date"].includes(h));
-  const descIndex = headers.findIndex((h) => ["descricao", "historico", "description"].includes(h));
-  const amountIndex = headers.findIndex((h) => ["valor", "amount"].includes(h));
-  if (dateIndex < 0 || amountIndex < 0) return [];
+  // Try every candidate delimiter and keep only the ones whose header row
+  // actually resolves a date + amount column — never guess by counting
+  // characters. If more than one delimiter looks valid, the file is
+  // structurally ambiguous and we refuse to pick one silently.
+  const viable = CSV_DELIMITERS.map((delimiter) => {
+    const headerCells = splitCsvLine(lines[0], delimiter);
+    return { delimiter, headerCells, ...matchCsvHeaders(headerCells) };
+  }).filter((candidate) => candidate.dateIndex >= 0 && candidate.amountIndex >= 0);
+
+  if (viable.length === 0) return [];
+  if (viable.length > 1) {
+    throw new CsvFormatError(
+      "Não consegui identificar com segurança o separador deste CSV (vírgula ou ponto e vírgula). Confira o arquivo.",
+    );
+  }
+  const { delimiter, headerCells, dateIndex, amountIndex, descIndex } = viable[0];
+  const expectedColumns = headerCells.length;
 
   const transactions: ParsedTransaction[] = [];
-  for (const line of lines.slice(1)) {
-    const cells = line.split(separator).map((c) => c.trim().replace(/^"|"$/g, ""));
+  for (let lineIndex = 1; lineIndex < lines.length; lineIndex += 1) {
+    const cells = splitCsvLine(lines[lineIndex], delimiter);
+    if (cells.length !== expectedColumns) {
+      throw new CsvFormatError(
+        `Linha ${lineIndex + 1} do CSV tem um número de colunas diferente do cabeçalho — confira se os valores decimais com milhar estão entre aspas (ex.: "1.234,56").`,
+      );
+    }
     const rawAmount = cells[amountIndex] || "";
     const amount = parseBrazilianAmount(rawAmount);
     const date = normalizeCsvDate(cells[dateIndex] || "");

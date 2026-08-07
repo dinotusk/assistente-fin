@@ -7,7 +7,7 @@ import {
   RESPONSAVEL_CASAL,
   categories,
 } from "./constants";
-import type { Expense, FinanceState, MonthData, Priority } from "./types";
+import type { Expense, FinanceState, ImportSummary, MonthData, Priority } from "./types";
 
 export function money(value: number): string {
   return Number(value || 0).toLocaleString("pt-BR", { style: "currency", currency: "BRL" });
@@ -280,6 +280,27 @@ export function normalizeText(value: string): string {
     .toLocaleLowerCase("pt-BR")
     .normalize("NFD")
     .replace(/[\u0300-\u036f]/g, "");
+}
+
+/** Builds the toast text for a finished import — see FinanceContext.importData/ImportSummary. */
+export function summarizeImport(summary: ImportSummary): string {
+  const total = summary.importedExpenses + summary.importedPriorities;
+  const parts: string[] = [
+    total === 0
+      ? "Importação concluída, mas nenhum lançamento novo foi adicionado."
+      : total === 1
+        ? "Importação concluída. 1 lançamento adicionado."
+        : `Importação concluída. ${total} lançamentos adicionados.`,
+  ];
+  if (summary.skipped.length > 0) {
+    const names = [...new Set(summary.skipped.map((row) => row.ownerRaw))];
+    parts.push(
+      summary.skipped.length === 1
+        ? `1 lançamento não foi importado por responsável desconhecido (${names.join(", ")}).`
+        : `${summary.skipped.length} lançamentos não foram importados por responsável desconhecido (${names.join(", ")}).`,
+    );
+  }
+  return parts.join(" ");
 }
 
 export function profileId(name: string): string {

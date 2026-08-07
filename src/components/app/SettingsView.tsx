@@ -18,6 +18,7 @@ import {
 } from "lucide-react";
 import { toast } from "sonner";
 
+import { summarizeImport } from "@/lib/finance/calc";
 import { useFinance } from "@/lib/finance/FinanceContext";
 
 import { Panel, PanelHead } from "./ui";
@@ -51,8 +52,8 @@ export function SettingsView({
     const file = e.target.files?.[0];
     if (!file) return;
     try {
-      await importData(file);
-      toast.success("Importação concluída. Confira o mês e a visão selecionada.");
+      const summary = await importData(file);
+      toast.success(summarizeImport(summary));
     } catch (error) {
       toast.error(
         error instanceof Error

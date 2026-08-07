@@ -13,7 +13,7 @@ import {
 } from "lucide-react";
 import { toast } from "sonner";
 
-import { formatMonthLabel } from "@/lib/finance/calc";
+import { formatMonthLabel, summarizeImport } from "@/lib/finance/calc";
 import { VIEW_ALL, VIEW_ME, VIEW_SPOUSE } from "@/lib/finance/constants";
 import { useFinance } from "@/lib/finance/FinanceContext";
 import type { ViewKey } from "@/lib/finance/types";
@@ -108,7 +108,8 @@ export function AppHome() {
     const file = e.target.files?.[0];
     if (!file) return;
     try {
-      await importData(file);
+      const summary = await importData(file);
+      toast.success(summarizeImport(summary));
       setProfileMenuOpen(false);
     } catch (error) {
       toast.error(

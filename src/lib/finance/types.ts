@@ -25,6 +25,15 @@ export interface Expense {
   installmentNumber?: number;
   installmentTotal?: number;
   createdAt?: string;
+  /**
+   * Bank-assigned unique transaction identifier (e.g. OFX FITID), when the
+   * expense came from a bank statement import. Not yet persisted to Supabase
+   * — see the proposed `bank_transaction_id` migration — so today this only
+   * survives for the lifetime of the in-memory session; it lets a second
+   * import in the same session tell two genuinely distinct transactions
+   * apart even when they share date/amount/description.
+   */
+  bankTransactionId?: string;
   /** Optimistic-concurrency token from the DB row. Absent for a not-yet-synced local record. */
   version?: number;
 }
@@ -78,3 +87,18 @@ export interface EnvelopeRule {
 }
 
 export type ViewKey = "assistant" | "dashboard" | "transactions" | "priorities" | "settings";
+
+/** A row from an imported file that couldn't be attributed to a real profile — see FinanceContext's resolveKnownOwner. */
+export interface ImportSkippedRow {
+  reason: "unresolved_owner";
+  /** The raw text from the file — shown to the user so they know what to fix, never silently mapped to a guess. */
+  ownerRaw: string;
+  description: string;
+}
+
+/** What importData resolves with once the remote write is actually confirmed — see P0-IMPORT-1 Etapa 1/5. */
+export interface ImportSummary {
+  importedExpenses: number;
+  importedPriorities: number;
+  skipped: ImportSkippedRow[];
+}

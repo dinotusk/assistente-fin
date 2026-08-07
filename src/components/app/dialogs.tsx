@@ -39,7 +39,13 @@ import {
   lookupLearnedCategory,
   type LearnedCategoryRule,
 } from "@/lib/finance/learnedCategories";
-import { isDuplicate, parseCsv, parseOfx, type ParsedTransaction } from "@/lib/finance/bankImport";
+import {
+  CsvFormatError,
+  isDuplicate,
+  parseCsv,
+  parseOfx,
+  type ParsedTransaction,
+} from "@/lib/finance/bankImport";
 import { uid } from "@/lib/finance/seed";
 import type { Expense, Priority } from "@/lib/finance/types";
 import {
@@ -933,6 +939,8 @@ interface ImportCandidate {
   description: string;
   category: string;
   owner: string;
+  /** Bank-assigned identifier (OFX FITID), when the source file has one — see Expense.bankTransactionId. */
+  fitId?: string;
 }
 
 export function BankImportDialog({
@@ -972,16 +980,30 @@ export function BankImportDialog({
       }
 
       const existing = Object.values(state.months).flatMap((month) =>
-        month.expenses.map((item) => ({ date: item.date, amount: item.amount, name: item.name })),
+        month.expenses.map((item) => ({
+          date: item.date,
+          amount: item.amount,
+          name: item.name,
+          fitId: item.bankTransactionId,
+        })),
       );
 
+      const seenInBatch = new Set<string>();
       const fresh: ImportCandidate[] = [];
       let skipped = 0;
       parsed.forEach((tx) => {
+        // A bank identifier repeated within the SAME file is the same
+        // transaction appearing twice in the statement, not two purchases —
+        // dedupe that before it ever reaches the ledger comparison below.
+        if (tx.fitId && seenInBatch.has(tx.fitId)) {
+          skipped += 1;
+          return;
+        }
         if (isDuplicate(tx, existing)) {
           skipped += 1;
           return;
         }
+        if (tx.fitId) seenInBatch.add(tx.fitId);
         fresh.push({
           id: uid(),
           date: tx.date,
@@ -991,12 +1013,17 @@ export function BankImportDialog({
           category:
             tx.type === "income" ? "Livre" : lookupLearnedCategory(tx.description) || "Outros",
           owner: defaultOwner,
+          fitId: tx.fitId,
         });
       });
       setCandidates(fresh);
       setSkippedCount(skipped);
-    } catch {
-      setError("Não consegui ler esse arquivo. Confira se é um OFX ou CSV válido.");
+    } catch (err) {
+      setError(
+        err instanceof CsvFormatError
+          ? err.message
+          : "Não consegui ler esse arquivo. Confira se é um OFX ou CSV válido.",
+      );
     }
   }
 
@@ -1023,6 +1050,7 @@ export function BankImportDialog({
       paidBy: item.owner,
       paymentMethod: "Não informado",
       note: "Importado do extrato bancário",
+      bankTransactionId: item.fitId,
       createdAt: new Date().toISOString(),
     }));
     importExpenses(expenses);

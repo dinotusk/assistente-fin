@@ -25,7 +25,7 @@ describe("createSyncQueue", () => {
       onError: () => undefined,
     });
 
-    await queue.push("B"); // fails — confirmed must stay "A"
+    await expect(queue.push("B")).rejects.toThrow("network down"); // fails — confirmed must stay "A"
     expect(confirmed).toBe("A");
 
     await queue.push("C"); // should diff against "A", not the failed "B"
@@ -123,11 +123,60 @@ describe("createSyncQueue", () => {
       onError,
     });
 
-    await queue.push("B");
+    await expect(queue.push("B")).rejects.toThrow("boom");
     expect(onError).toHaveBeenCalledTimes(1);
 
     await queue.push("C");
     expect(confirmed).toBe("C");
+  });
+
+  it("push() rejects with the real error while the internal queue keeps flowing for later pushes", async () => {
+    let workspace: { version: number } | null = { version: 0 };
+    let confirmed = "A";
+
+    const queue = createSyncQueue<string, { version: number }>({
+      getWorkspace: () => workspace,
+      setWorkspace: (w) => {
+        workspace = w;
+      },
+      getConfirmed: () => confirmed,
+      setConfirmed: (s) => {
+        confirmed = s;
+      },
+      write: async (ws, _base, next) => {
+        if (next === "B") throw new Error("simulated failure");
+        return { workspace: { version: ws.version + 1 }, state: next };
+      },
+      onError: () => undefined,
+    });
+
+    await expect(queue.push("B")).rejects.toThrow("simulated failure");
+    // a caller that actually awaits push() (e.g. import) learns about the
+    // failure directly — not just via the ambient onError side channel.
+    await expect(queue.push("C")).resolves.toBeUndefined();
+    expect(confirmed).toBe("C");
+  });
+
+  it("opts (e.g. { silent: true }) are forwarded to onError so a caller can suppress the ambient toast for its own write", async () => {
+    const onError = vi.fn();
+    let workspace: { version: number } | null = { version: 0 };
+    const confirmed = "A";
+
+    const queue = createSyncQueue<string, { version: number }>({
+      getWorkspace: () => workspace,
+      setWorkspace: (w) => {
+        workspace = w;
+      },
+      getConfirmed: () => confirmed,
+      setConfirmed: () => undefined,
+      write: async () => {
+        throw new Error("boom");
+      },
+      onError,
+    });
+
+    await expect(queue.push("B", { silent: true })).rejects.toThrow("boom");
+    expect(onError).toHaveBeenCalledWith(expect.any(Error), { silent: true });
   });
 
   it("does NOT limit how many pushes can be queued while one is still in flight — only execution is serialized, not queuing (see P0-02B conflict-refresh risk note in FinanceContext.tsx)", async () => {
