@@ -20,6 +20,7 @@ import type { ViewKey } from "@/lib/finance/types";
 
 import { AiConsentDialog } from "./AiConsentDialog";
 import { AssistantView } from "./AssistantView";
+import { ConflictDialog } from "./ConflictDialog";
 import { BottomNav } from "./BottomNav";
 import { SideNav } from "./SideNav";
 import { DashboardView } from "./DashboardView";
@@ -74,6 +75,9 @@ export function AppHome() {
     exportData,
     importData,
     logout,
+    writeConflict,
+    refreshAfterConflict,
+    dismissWriteConflict,
   } = useFinance();
   const isDesktop = useIsDesktop();
   const [view, setView] = useState<ViewKey>("dashboard");
@@ -296,6 +300,11 @@ export function AppHome() {
       <EnvelopesDialog open={envelopesOpen} onOpenChange={setEnvelopesOpen} />
       <PushNotificationsDialog open={pushOpen} onOpenChange={setPushOpen} />
       <AiConsentDialog open={aiConsentOpen} onOpenChange={setAiConsentOpen} mode="manage" />
+      <ConflictDialog
+        open={Boolean(writeConflict)}
+        onRefresh={refreshAfterConflict}
+        onDismiss={dismissWriteConflict}
+      />
     </>
   );
 

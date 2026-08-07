@@ -47,6 +47,7 @@ import {
 import { migrateState } from "./storage";
 import type { ActiveUser, EnvelopeRule, Expense, FinanceState, MonthData, Priority } from "./types";
 import { currentUserName, formatMonthLabel, getNextMonthKey, spouseName } from "./calc";
+import { classifySyncError, type WriteConflict } from "./writeConflict";
 
 interface FinanceContextValue {
   ready: boolean;
@@ -99,6 +100,12 @@ interface FinanceContextValue {
   exportData: () => void;
   importData: (file: File) => Promise<void>;
   resetSeed: () => void;
+  /** Set when the last sync failed because a row changed/vanished under us (see WriteNotAppliedError). Null otherwise. */
+  writeConflict: WriteConflict | null;
+  /** Reloads remote state only (no page reload, no re-login) and clears writeConflict. The failed local edit is discarded. */
+  refreshAfterConflict: () => Promise<void>;
+  /** Closes the conflict dialog without reloading — the stale local edit stays as-is until the user acts again. */
+  dismissWriteConflict: () => void;
 }
 
 const FinanceContext = createContext<FinanceContextValue | null>(null);
@@ -111,6 +118,7 @@ export function FinanceProvider({ children }: { children: ReactNode }) {
   const [activeUser, setActiveUserState] = useState<ActiveUser | null>(null);
   const [state, setState] = useState<FinanceState>(() => createEmptyState());
   const [envelopes, setEnvelopes] = useState<EnvelopeRule[]>(defaultEnvelopeRules);
+  const [writeConflict, setWriteConflict] = useState<WriteConflict | null>(null);
   const workspaceRef = useRef<FinanceWorkspace | null>(null);
   const writeQueueRef = useRef<Promise<void>>(Promise.resolve());
   /** State as of the last *confirmed* remote write, used as the diff base — only advances on success. */
@@ -130,6 +138,13 @@ export function FinanceProvider({ children }: { children: ReactNode }) {
       write: (workspace, base, next) => saveRemoteFinance(workspace, base, next),
       onError: (error) => {
         console.error("Falha ao sincronizar dados financeiros", error);
+        const conflict = classifySyncError(error);
+        if (conflict) {
+          // A dedicated dialog handles this case (see ConflictDialog) — no
+          // generic toast, no stack trace, no technical message shown here.
+          setWriteConflict(conflict);
+          return;
+        }
         toast.error(
           "Não foi possível salvar sua última alteração. Verifique sua conexão e tente de novo.",
         );
@@ -208,6 +223,42 @@ export function FinanceProvider({ children }: { children: ReactNode }) {
     }
     return loaded.user;
   }, []);
+
+  /**
+   * "Atualizar dados" in the conflict dialog. Reloads remote state only —
+   * same mechanism login/register/joinHousehold already use, so no page
+   * reload, no re-login, no touching local UI state (filters, open dialogs,
+   * hideValues) that lives outside FinanceContext. The optimistic edit that
+   * conflicted was never confirmed, so replacing `state` with the fresh
+   * server copy is what discards it.
+   *
+   * KNOWN RISK (checked, not fixed — see P0-02B review): persist() never
+   * blocks the UI, and syncQueue.push() only serializes *execution* (one
+   * write in flight at a time) — it does not cap how many pushes can be
+   * queued waiting their turn. So a second edit made anywhere in the app
+   * while the first save is still in flight is a real, already-possible
+   * sequence (e.g. edit expense A, immediately edit expense B before A's
+   * network round trip finishes) — see syncQueue.test.ts's "keeps the
+   * confirmed base after a failed write" test, which already demonstrates a
+   * second push executing right after a failed first one, independent of
+   * anything the UI does. If write A fails and shows this dialog while
+   * write B is still queued/in flight, clicking "Atualizar dados" replaces
+   * workspaceRef/previousStateRef with a fresh server copy, and write B's
+   * completion (moments later) overwrites those same refs again with data
+   * that predates the refresh. This cannot silently corrupt Postgres data —
+   * P0-02A's version check still guards every write — but it can leave the
+   * *local* bookkeeping refs briefly stale, which can surface as a spurious
+   * extra conflict on the next save rather than true data loss. Not fixed
+   * here per explicit scope (no new architecture without confirming this
+   * first) — see PR discussion for the full analysis.
+   */
+  const refreshAfterConflict = useCallback(async (): Promise<void> => {
+    await hydrateAuthenticatedUser();
+    setWriteConflict(null);
+  }, [hydrateAuthenticatedUser]);
+
+  /** "Fechar" in the conflict dialog — just hides it. No reload, no retry: the stale local edit is left exactly as it was. */
+  const dismissWriteConflict = useCallback(() => setWriteConflict(null), []);
 
   const login = useCallback(
     async (name: string, email: string, password: string): Promise<ActiveUser> => {
@@ -601,6 +652,9 @@ export function FinanceProvider({ children }: { children: ReactNode }) {
     exportData,
     importData,
     resetSeed,
+    writeConflict,
+    refreshAfterConflict,
+    dismissWriteConflict,
   };
 
   return <FinanceContext.Provider value={value}>{children}</FinanceContext.Provider>;

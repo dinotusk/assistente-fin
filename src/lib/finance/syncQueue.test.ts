@@ -130,6 +130,51 @@ describe("createSyncQueue", () => {
     expect(confirmed).toBe("C");
   });
 
+  it("does NOT limit how many pushes can be queued while one is still in flight — only execution is serialized, not queuing (see P0-02B conflict-refresh risk note in FinanceContext.tsx)", async () => {
+    let resolveFirstWrite: (() => void) | undefined;
+    const writeCalls: string[] = [];
+    let workspace: { version: number } | null = { version: 0 };
+    let confirmed = "A";
+
+    const queue = createSyncQueue<string, { version: number }>({
+      getWorkspace: () => workspace,
+      setWorkspace: (w) => {
+        workspace = w;
+      },
+      getConfirmed: () => confirmed,
+      setConfirmed: (s) => {
+        confirmed = s;
+      },
+      write: async (ws, _base, next) => {
+        writeCalls.push(next);
+        if (next === "B") {
+          await new Promise<void>((resolve) => {
+            resolveFirstWrite = resolve;
+          });
+        }
+        return { workspace: { version: ws.version + 1 }, state: next };
+      },
+      onError: () => undefined,
+    });
+
+    const pushB = queue.push("B"); // starts executing right away and hangs mid-write
+    await Promise.resolve(); // flush the microtask so write("B") actually runs and blocks
+    expect(writeCalls).toEqual(["B"]);
+
+    const pushC = queue.push("C"); // queued while "B" is still unresolved — push() never rejects/blocks this
+    await Promise.resolve(); // give "C" a chance to (incorrectly) start too, if queuing were broken
+
+    // "C" must not have started yet: execution IS serialized, just not queuing.
+    expect(writeCalls).toEqual(["B"]);
+
+    resolveFirstWrite?.();
+    await pushB;
+    await pushC;
+
+    expect(writeCalls).toEqual(["B", "C"]);
+    expect(confirmed).toBe("C");
+  });
+
   it("does nothing when there is no workspace yet", async () => {
     let confirmed = "A";
     const write = vi.fn();
