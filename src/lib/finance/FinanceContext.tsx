@@ -530,7 +530,20 @@ export function FinanceProvider({ children }: { children: ReactNode }) {
       updateMonthExpenses((list) => {
         const item = list.find((e) => e.id === id);
         if (!item) return list;
-        return [...list, { ...item, id: uid(), name: `${item.name} (cópia)`, status: "A pagar" }];
+        // A duplicate is a new, manually-created expense — never the same
+        // bank transaction as the original, so it must never carry the same
+        // bank_transaction_id (that column is unique per household; two rows
+        // sharing it would fail to sync). The original keeps its own.
+        return [
+          ...list,
+          {
+            ...item,
+            id: uid(),
+            name: `${item.name} (cópia)`,
+            status: "A pagar",
+            bankTransactionId: undefined,
+          },
+        ];
       }),
     [updateMonthExpenses],
   );
