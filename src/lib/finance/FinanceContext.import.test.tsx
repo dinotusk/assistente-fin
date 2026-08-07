@@ -3,6 +3,7 @@
 // (backup/JSON merge, async persistence confirmation, unresolved-owner
 // flagging) — see the audit for the bugs these guard against.
 import { cleanup, fireEvent, render, screen, waitFor } from "@testing-library/react";
+import { useState } from "react";
 import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
 import * as XLSX from "xlsx";
 
@@ -90,6 +91,16 @@ function baseState(): FinanceState {
 
 function Harness() {
   const { ready, importData, state } = useFinance();
+  // `result` is React state, not a raw DOM mutation: `state` (from
+  // FinanceContext) and `result` (set below) must both go through React's
+  // own render pipeline so a `waitFor` on one can never observe a commit
+  // "ahead of" the other. The previous version wrote directly to
+  // `document.getElementById("result")`, bypassing React entirely — under
+  // heavy parallel-worker CPU contention that let `waitFor` see the
+  // hand-written DOM node update before React had actually flushed the
+  // *separate* `state` update `persist()` triggered earlier, so `readState()`
+  // could read a stale snapshot even though the manual signal said "resolved".
+  const [result, setResult] = useState("");
   if (!ready) return <div>carregando</div>;
   return (
     <div>
@@ -99,20 +110,15 @@ function Harness() {
         onClick={() => {
           const file = (window as unknown as { __importFile: File }).__importFile;
           importData(file).then(
-            (summary) => {
-              document.getElementById("result")!.textContent =
-                `resolved:${JSON.stringify(summary)}`;
-            },
-            (error: unknown) => {
-              document.getElementById("result")!.textContent =
-                `rejected:${error instanceof Error ? error.message : String(error)}`;
-            },
+            (summary) => setResult(`resolved:${JSON.stringify(summary)}`),
+            (error: unknown) =>
+              setResult(`rejected:${error instanceof Error ? error.message : String(error)}`),
           );
         }}
       >
         importar
       </button>
-      <div id="result" data-testid="result"></div>
+      <div data-testid="result">{result}</div>
     </div>
   );
 }
