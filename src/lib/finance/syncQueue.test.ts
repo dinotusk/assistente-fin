@@ -20,7 +20,7 @@ describe("createSyncQueue", () => {
       write: async (ws, base, next) => {
         writeCalls.push({ base, next });
         if (next === "B") throw new Error("network down");
-        return { version: ws.version + 1 };
+        return { workspace: { version: ws.version + 1 }, state: next };
       },
       onError: () => undefined,
     });
@@ -52,7 +52,7 @@ describe("createSyncQueue", () => {
       },
       write: async (ws, base, next) => {
         writeCalls.push({ base, next });
-        return { version: ws.version + 1 };
+        return { workspace: { version: ws.version + 1 }, state: next };
       },
       onError: () => undefined,
     });
@@ -65,6 +65,41 @@ describe("createSyncQueue", () => {
       { base: "B", next: "C" },
     ]);
     expect(confirmed).toBe("C");
+  });
+
+  it("confirms whatever state write() returns, not the raw next it was given — this is how server-assigned data (e.g. version numbers) reaches the next push's base", async () => {
+    let workspace: { version: number } | null = { version: 0 };
+    let confirmed = "A:v0";
+    const bases: string[] = [];
+
+    const queue = createSyncQueue<string, { version: number }>({
+      getWorkspace: () => workspace,
+      setWorkspace: (w) => {
+        workspace = w;
+      },
+      getConfirmed: () => confirmed,
+      setConfirmed: (s) => {
+        confirmed = s;
+      },
+      write: async (ws, base, next) => {
+        bases.push(base);
+        // Simulate the server patching the locally-authored "next" with an
+        // assigned version before it's confirmed — analogous to
+        // applyConfirmedVersions() merging server versions into nextState.
+        const serverPatched = `${next}:server-assigned`;
+        return { workspace: { version: ws.version + 1 }, state: serverPatched };
+      },
+      onError: () => undefined,
+    });
+
+    await queue.push("B");
+    expect(confirmed).toBe("B:server-assigned");
+
+    await queue.push("C");
+    // The second push's base must be the server-patched value from the first
+    // write, proving the patched data actually reached the next write's base.
+    expect(bases).toEqual(["A:v0", "B:server-assigned"]);
+    expect(confirmed).toBe("C:server-assigned");
   });
 
   it("calls onError and keeps the queue alive after a failure", async () => {
@@ -83,7 +118,7 @@ describe("createSyncQueue", () => {
       },
       write: async (ws, _base, next) => {
         if (next === "B") throw new Error("boom");
-        return { version: ws.version + 1 };
+        return { workspace: { version: ws.version + 1 }, state: next };
       },
       onError,
     });

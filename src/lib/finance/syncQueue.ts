@@ -15,7 +15,19 @@ export function createSyncQueue<TState, TWorkspace>(options: {
   setWorkspace: (workspace: TWorkspace) => void;
   getConfirmed: () => TState;
   setConfirmed: (state: TState) => void;
-  write: (workspace: TWorkspace, base: TState, next: TState) => Promise<TWorkspace>;
+  /**
+   * Resolves with both the updated workspace AND the state to treat as
+   * confirmed. `state` is not required to be the exact `next` that was
+   * passed in — a write can hand back `next` patched with server-assigned
+   * data (e.g. optimistic-concurrency version numbers) so the *next* push
+   * diffs against what the server actually has, not just what this device
+   * locally asked for.
+   */
+  write: (
+    workspace: TWorkspace,
+    base: TState,
+    next: TState,
+  ) => Promise<{ workspace: TWorkspace; state: TState }>;
   onError: (error: unknown) => void;
 }): SyncQueue<TState, TWorkspace> {
   let queue: Promise<void> = Promise.resolve();
@@ -27,9 +39,9 @@ export function createSyncQueue<TState, TWorkspace>(options: {
         if (!workspace) return;
         const base = options.getConfirmed();
         try {
-          const updatedWorkspace = await options.write(workspace, base, next);
-          options.setWorkspace(updatedWorkspace);
-          options.setConfirmed(next);
+          const result = await options.write(workspace, base, next);
+          options.setWorkspace(result.workspace);
+          options.setConfirmed(result.state);
         } catch (error) {
           options.onError(error);
         }

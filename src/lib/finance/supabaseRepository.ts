@@ -505,25 +505,60 @@ function readSessionPreference(key: "activeMonth" | "activePerson"): string | nu
   return sessionStorage.getItem(`finance:${key}`);
 }
 
+/**
+ * Builds the state that becomes the new sync base: `state` (what the user
+ * just saved) with `version` patched onto every expense/priority this save
+ * actually wrote, using the versions the server just returned. Untouched
+ * months/expenses/priorities keep their existing object identity — this is
+ * a targeted patch, not a reload. Pure: never mutates its inputs.
+ */
+export function applyConfirmedVersions(
+  state: FinanceState,
+  expenseVersions: Map<string, number>,
+  priorityVersions: Map<string, number>,
+): FinanceState {
+  if (!expenseVersions.size && !priorityVersions.size) return state;
+  const months = Object.fromEntries(
+    Object.entries(state.months).map(([key, month]) => {
+      const expenses = expenseVersions.size
+        ? month.expenses.map((expense) =>
+            expenseVersions.has(expense.id)
+              ? { ...expense, version: expenseVersions.get(expense.id) }
+              : expense,
+          )
+        : month.expenses;
+      const priorities = priorityVersions.size
+        ? month.priorities.map((priority) =>
+            priorityVersions.has(priority.id)
+              ? { ...priority, version: priorityVersions.get(priority.id) }
+              : priority,
+          )
+        : month.priorities;
+      return [key, { ...month, expenses, priorities }];
+    }),
+  );
+  return { ...state, months };
+}
+
 export async function saveRemoteFinance(
   workspace: FinanceWorkspace,
   previousState: FinanceState,
   nextState: FinanceState,
-): Promise<FinanceWorkspace> {
+): Promise<{ workspace: FinanceWorkspace; state: FinanceState }> {
   const profiles = await syncProfiles(workspace, nextState.people);
   const months = await syncMonths(workspace.householdId, workspace.months, nextState.months);
   const profileIdByName = new Map(profiles.map((profile) => [profile.name, profile.id]));
   const monthIdByKey = new Map(months.map((month) => [monthKey(month.period), month.id]));
 
   await syncBudgets(workspace.householdId, nextState, profileIdByName, monthIdByKey);
-  await syncExpenses(
+  const expenseVersions = await syncExpenses(
     workspace.householdId,
     previousState,
     nextState,
     profileIdByName,
     monthIdByKey,
   );
-  await syncPriorities(
+  const priorityVersions = await syncPriorities(
     workspace.householdId,
     previousState,
     nextState,
@@ -531,7 +566,10 @@ export async function saveRemoteFinance(
     monthIdByKey,
   );
 
-  return { householdId: workspace.householdId, profiles, months };
+  return {
+    workspace: { householdId: workspace.householdId, profiles, months },
+    state: applyConfirmedVersions(nextState, expenseVersions, priorityVersions),
+  };
 }
 
 /**
@@ -565,57 +603,97 @@ export function diffById<T extends { id: string }>(
 
 type VersionedTable = "expenses" | "priorities" | "finance_months";
 type VersionedRow = Record<string, string | number | boolean | null | string[]> & { id: string };
+interface VersionedRef {
+  id: string;
+  version: number;
+}
+
+/**
+ * "Unknown version" fallback — REMOVAL PLAN (P0-02A follow-up):
+ * As of the version-propagation fix (saveRemoteFinance now returns the
+ * confirmed state with server-assigned versions merged in, and syncQueue
+ * confirms that returned state instead of the raw locally-edited one — see
+ * applyConfirmedVersions below), every row that goes through a normal
+ * create-then-edit cycle gets its `version` populated immediately after the
+ * write that created it. This fallback should now only fire for a client
+ * tab that's been open since before this feature shipped, or a genuine bug —
+ * it is no longer expected to be a normal, frequent path. It logs
+ * console.warn every time it's hit specifically so that stays observable.
+ * Once a production rollout has run for a few days with zero such warnings,
+ * remove the `expectedVersion === undefined` branches in updateVersionedRow
+ * and deleteVersionedRow entirely and make `expectedVersion` a required
+ * `number` — turning today's silent-if-unwatched gap into a compile-time
+ * guarantee that no versioned write can skip the check.
+ */
+function warnUnknownVersion(table: VersionedTable, id: string): void {
+  console.warn(
+    `[P0-02A] ${table} id=${id} written without a known version (unconditional fallback). ` +
+      "This should be rare post-rollout — see removal plan above updateVersionedRow.",
+  );
+}
 
 /**
  * Version-conditional UPDATE. When `expectedVersion` is known, the write is
  * scoped to `id = ? and version = ?` and bumps version by exactly 1; zero
  * rows affected means another write reached this row first, and that is
  * surfaced as a ConcurrencyConflictError rather than silently doing nothing.
- * When `expectedVersion` is unknown (e.g. a record created earlier in the
- * same session and never reloaded from the server — see P0-02A notes),
- * this falls back to an unconditional update by id, matching the previous
- * (pre-version) behavior exactly. Closing that gap needs either the sync
- * queue to round-trip server-assigned versions back into confirmed state,
- * or the P0-02B conflict UI — both out of scope for this step.
+ * Always reads back `id, version` so the caller can learn the row's current
+ * server version — including in the fallback path, where the write itself
+ * doesn't touch `version` but the read-back still teaches the caller what it
+ * is, partially self-healing an unknown version by the next write.
  */
 export async function updateVersionedRow(
   table: VersionedTable,
   row: VersionedRow,
   expectedVersion: number | undefined,
-): Promise<void> {
+): Promise<VersionedRef | null> {
   const { id, ...patch } = row;
   const payload: Record<string, string | number | boolean | null | string[]> = { ...patch };
-  if (expectedVersion !== undefined) payload.version = expectedVersion + 1;
+  if (expectedVersion !== undefined) {
+    payload.version = expectedVersion + 1;
+  } else {
+    warnUnknownVersion(table, id);
+  }
 
   let query = supabase.from(table).update(payload).eq("id", id);
   if (expectedVersion !== undefined) query = query.eq("version", expectedVersion);
-  const { data, error } = await query.select("id");
+  const { data, error } = await query.select("id, version");
   throwIfError(error);
-  if (expectedVersion !== undefined && (!data || data.length === 0)) {
+  const rows = (data || []) as VersionedRef[];
+  if (expectedVersion !== undefined && rows.length === 0) {
     throw new ConcurrencyConflictError(table, id);
   }
+  return rows[0] || null;
 }
 
-/** Version-conditional DELETE. Same semantics as updateVersionedRow above. */
+/**
+ * Version-conditional DELETE. Same conflict semantics as updateVersionedRow.
+ * When `expectedVersion` is known, also confirms that exactly the expected
+ * row (and no other) was removed — not just that "some" row matched.
+ */
 export async function deleteVersionedRow(
   table: VersionedTable,
   id: string,
   expectedVersion: number | undefined,
 ): Promise<void> {
+  if (expectedVersion === undefined) warnUnknownVersion(table, id);
+
   let query = supabase.from(table).delete().eq("id", id);
   if (expectedVersion !== undefined) query = query.eq("version", expectedVersion);
   const { data, error } = await query.select("id");
   throwIfError(error);
-  if (expectedVersion !== undefined && (!data || data.length === 0)) {
+  const rows = (data || []) as { id: string }[];
+  if (expectedVersion !== undefined && (rows.length !== 1 || rows[0].id !== id)) {
     throw new ConcurrencyConflictError(table, id);
   }
 }
 
-/** Plain batch INSERT — new rows always start at the column's `default 1`, never an app-supplied version. */
-async function insertRows(table: VersionedTable, rows: VersionedRow[]): Promise<void> {
-  if (!rows.length) return;
-  const { error } = await supabase.from(table).insert(rows);
+/** Plain batch INSERT — new rows always start at the column's `default 1`, never an app-supplied version. Reads back id+version so the caller learns the assigned version immediately. */
+async function insertRows(table: VersionedTable, rows: VersionedRow[]): Promise<VersionedRef[]> {
+  if (!rows.length) return [];
+  const { data, error } = await supabase.from(table).insert(rows).select("id, version");
   throwIfError(error);
+  return (data || []) as VersionedRef[];
 }
 
 /** Envelopes are a short, rarely-edited list, so a full live-diff replace is fine here. */
@@ -833,13 +911,19 @@ function buildExpenseRow(
   };
 }
 
-async function syncExpenses(
+/**
+ * Writes the expense diff and returns the server-confirmed version of every
+ * row this call created or updated (id -> version). The caller merges this
+ * into the state that becomes the new sync base, so the *next* save already
+ * knows the right version — no reload required.
+ */
+export async function syncExpenses(
   householdId: string,
   previousState: FinanceState,
   state: FinanceState,
   profileIds: Map<string, string>,
   monthIds: Map<string, string>,
-): Promise<void> {
+): Promise<Map<string, number>> {
   const fallbackProfileId = profileIds.values().next().value as string | undefined;
   const previousExpenses = Object.values(previousState.months).flatMap((month) => month.expenses);
   const previousById = new Map(previousExpenses.map((expense) => [expense.id, expense]));
@@ -870,13 +954,18 @@ async function syncExpenses(
     }
   }
 
-  await insertRows("expenses", toInsert);
+  const versions = new Map<string, number>();
+  for (const inserted of await insertRows("expenses", toInsert)) {
+    versions.set(inserted.id, inserted.version);
+  }
   for (const { row, expectedVersion } of toUpdate) {
-    await updateVersionedRow("expenses", row, expectedVersion);
+    const written = await updateVersionedRow("expenses", row, expectedVersion);
+    if (written) versions.set(written.id, written.version);
   }
   for (const id of deletedIds) {
     await deleteVersionedRow("expenses", validId(id), previousById.get(id)?.version);
   }
+  return versions;
 }
 
 function buildPriorityRow(
@@ -899,13 +988,14 @@ function buildPriorityRow(
   };
 }
 
-async function syncPriorities(
+/** Same contract as syncExpenses above, for priorities. */
+export async function syncPriorities(
   householdId: string,
   previousState: FinanceState,
   state: FinanceState,
   profileIds: Map<string, string>,
   monthIds: Map<string, string>,
-): Promise<void> {
+): Promise<Map<string, number>> {
   const fallbackProfileId = profileIds.values().next().value as string | undefined;
   const previousPriorities = Object.values(previousState.months).flatMap(
     (month) => month.priorities,
@@ -937,11 +1027,16 @@ async function syncPriorities(
     }
   }
 
-  await insertRows("priorities", toInsert);
+  const versions = new Map<string, number>();
+  for (const inserted of await insertRows("priorities", toInsert)) {
+    versions.set(inserted.id, inserted.version);
+  }
   for (const { row, expectedVersion } of toUpdate) {
-    await updateVersionedRow("priorities", row, expectedVersion);
+    const written = await updateVersionedRow("priorities", row, expectedVersion);
+    if (written) versions.set(written.id, written.version);
   }
   for (const id of deletedIds) {
     await deleteVersionedRow("priorities", validId(id), previousById.get(id)?.version);
   }
+  return versions;
 }

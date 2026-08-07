@@ -1,8 +1,9 @@
 import { beforeEach, describe, expect, it, vi } from "vitest";
 
 import { ConcurrencyConflictError } from "./concurrency";
+import type { Expense, FinanceState } from "./types";
 
-const mockSupabase = { from: vi.fn() };
+const mockSupabase = { from: vi.fn(), rpc: vi.fn() };
 
 vi.mock("../supabase/client", () => ({ supabase: mockSupabase }));
 
@@ -10,17 +11,37 @@ vi.mock("../supabase/client", () => ({ supabase: mockSupabase }));
 // resolve its "../supabase/client" import before the mockSupabase declaration
 // above finishes initializing (ES module imports evaluate before any other
 // top-level statement), throwing a TDZ error inside the vi.mock factory.
-const { diffById, updateVersionedRow, deleteVersionedRow } = await import("./supabaseRepository");
+const {
+  diffById,
+  updateVersionedRow,
+  deleteVersionedRow,
+  syncExpenses,
+  syncPriorities,
+  applyConfirmedVersions,
+  loadRemoteFinance,
+} = await import("./supabaseRepository");
 
 /** A chainable query double: every builder method returns itself; select() resolves it. */
 function makeQuery(result: { data: unknown; error: unknown }) {
   const query = {
+    insert: vi.fn(() => query),
     update: vi.fn(() => query),
     delete: vi.fn(() => query),
     eq: vi.fn(() => query),
     select: vi.fn(() => Promise.resolve(result)),
   };
   return query;
+}
+
+function emptyState(monthKey: string, expenses: Expense[] = []): FinanceState {
+  return {
+    people: ["Minha casa"],
+    activePerson: "eu",
+    activeMonth: monthKey,
+    months: {
+      [monthKey]: { label: "Agosto", income: 0, houseContribution: 0, expenses, priorities: [] },
+    },
+  };
 }
 
 describe("diffById — created vs. updated vs. deleted classification", () => {
@@ -151,3 +172,282 @@ describe("deleteVersionedRow — optimistic concurrency on DELETE", () => {
 // real Supabase instance with two authenticated test users, which this
 // offline unit-test run cannot exercise. See migration SQL check below for
 // the automatable half of this guarantee (no policy touched by this change).
+
+const MONTH = "2026-08";
+const PROFILE_IDS = new Map([["Minha casa", "profile-1"]]);
+const MONTH_IDS = new Map([[MONTH, "month-1"]]);
+
+function makeExpense(overrides: Partial<Expense> = {}): Expense {
+  return {
+    id: "11111111-1111-4111-8111-111111111111",
+    name: "Aluguel",
+    category: "Moradia",
+    amount: 100,
+    status: "A pagar",
+    owner: "Minha casa",
+    date: "2026-08-05",
+    paymentMethod: "Pix",
+    note: "",
+    ...overrides,
+  };
+}
+
+describe("version propagation — a save's confirmed state carries server-assigned versions forward", () => {
+  beforeEach(() => {
+    mockSupabase.from.mockReset();
+  });
+
+  it("first update (version=1) receives version=2 back, and applyConfirmedVersions puts it on the state that becomes the new base", async () => {
+    const expense = makeExpense({ version: 1 });
+    const previousState = emptyState(MONTH, [expense]);
+    const nextState = emptyState(MONTH, [{ ...expense, amount: 150 }]);
+
+    const updateQuery = makeQuery({ data: [{ id: expense.id, version: 2 }], error: null });
+    mockSupabase.from.mockReturnValueOnce(updateQuery);
+
+    const expenseVersions = await syncExpenses(
+      "household-1",
+      previousState,
+      nextState,
+      PROFILE_IDS,
+      MONTH_IDS,
+    );
+
+    expect(expenseVersions.get(expense.id)).toBe(2);
+    expect(updateQuery.eq).toHaveBeenCalledWith("version", 1);
+    expect(updateQuery.update).toHaveBeenCalledWith(expect.objectContaining({ version: 2 }));
+
+    const confirmed = applyConfirmedVersions(nextState, expenseVersions, new Map());
+    expect(confirmed.months[MONTH].expenses[0].version).toBe(2);
+    // Untouched top-level fields keep object identity — this is a targeted patch, not a reload.
+    expect(confirmed.months[MONTH].label).toBe(previousState.months[MONTH].label);
+  });
+
+  it("a second edit in the same session, built on the confirmed v2 state, sends version=2 and receives version=3 — never falls back", async () => {
+    const expense = makeExpense({ version: 2 });
+    const confirmedAfterFirstSave = emptyState(MONTH, [expense]);
+    const secondEdit = emptyState(MONTH, [{ ...expense, amount: 200 }]);
+
+    const warnSpy = vi.spyOn(console, "warn").mockImplementation(() => undefined);
+    const updateQuery = makeQuery({ data: [{ id: expense.id, version: 3 }], error: null });
+    mockSupabase.from.mockReturnValueOnce(updateQuery);
+
+    const versions = await syncExpenses(
+      "household-1",
+      confirmedAfterFirstSave,
+      secondEdit,
+      PROFILE_IDS,
+      MONTH_IDS,
+    );
+
+    expect(versions.get(expense.id)).toBe(3);
+    expect(updateQuery.eq).toHaveBeenCalledWith("version", 2);
+    expect(warnSpy).not.toHaveBeenCalled(); // never dropped into the unknown-version fallback
+    warnSpy.mockRestore();
+  });
+
+  it("a device still holding the pre-update version (stale base) is rejected as a conflict, not silently overwritten", async () => {
+    const staleExpense = makeExpense({ version: 1 }); // the real DB row is already at version 2
+    const previousStateDeviceB = emptyState(MONTH, [staleExpense]);
+    const nextStateDeviceB = emptyState(MONTH, [{ ...staleExpense, amount: 999 }]);
+
+    const conflictQuery = makeQuery({ data: [], error: null }); // id+version=1 matches 0 rows
+    mockSupabase.from.mockReturnValueOnce(conflictQuery);
+
+    await expect(
+      syncExpenses("household-1", previousStateDeviceB, nextStateDeviceB, PROFILE_IDS, MONTH_IDS),
+    ).rejects.toThrow(ConcurrencyConflictError);
+  });
+
+  it("an inserted row's version (1) is known immediately, so the very next edit in the same session already carries it", async () => {
+    const created = makeExpense({ id: "22222222-2222-4222-8222-222222222222" });
+    const previousStateEmpty = emptyState(MONTH, []);
+    const nextStateCreate = emptyState(MONTH, [created]);
+
+    const insertQuery = makeQuery({ data: [{ id: created.id, version: 1 }], error: null });
+    mockSupabase.from.mockReturnValueOnce(insertQuery);
+
+    const createVersions = await syncExpenses(
+      "household-1",
+      previousStateEmpty,
+      nextStateCreate,
+      PROFILE_IDS,
+      MONTH_IDS,
+    );
+    expect(createVersions.get(created.id)).toBe(1);
+    expect(insertQuery.insert).toHaveBeenCalled();
+
+    const confirmedAfterCreate = applyConfirmedVersions(nextStateCreate, createVersions, new Map());
+    const editedNext = emptyState(MONTH, [
+      { ...confirmedAfterCreate.months[MONTH].expenses[0], amount: 85 },
+    ]);
+
+    const warnSpy = vi.spyOn(console, "warn").mockImplementation(() => undefined);
+    const updateQuery = makeQuery({ data: [{ id: created.id, version: 2 }], error: null });
+    mockSupabase.from.mockReturnValueOnce(updateQuery);
+
+    await syncExpenses("household-1", confirmedAfterCreate, editedNext, PROFILE_IDS, MONTH_IDS);
+    expect(updateQuery.eq).toHaveBeenCalledWith("version", 1); // not the fallback path
+    expect(warnSpy).not.toHaveBeenCalled();
+    warnSpy.mockRestore();
+  });
+
+  it("deleting a row at its current known version succeeds; deleting one whose version is already stale conflicts", async () => {
+    const expense = makeExpense({ version: 5 });
+    const previousState = emptyState(MONTH, [expense]);
+    const nextStateDeleted = emptyState(MONTH, []);
+
+    const deleteQuery = makeQuery({ data: [{ id: expense.id }], error: null });
+    mockSupabase.from.mockReturnValueOnce(deleteQuery);
+    await syncExpenses("household-1", previousState, nextStateDeleted, PROFILE_IDS, MONTH_IDS);
+    expect(deleteQuery.eq).toHaveBeenCalledWith("version", 5);
+
+    const staleDeleteQuery = makeQuery({ data: [], error: null });
+    mockSupabase.from.mockReturnValueOnce(staleDeleteQuery);
+    await expect(
+      syncExpenses("household-1", previousState, nextStateDeleted, PROFILE_IDS, MONTH_IDS),
+    ).rejects.toThrow(ConcurrencyConflictError);
+  });
+
+  it("applyConfirmedVersions is a no-op passthrough when nothing was written (no insert/update calls)", () => {
+    const state = emptyState(MONTH, [makeExpense({ version: 1 })]);
+    expect(applyConfirmedVersions(state, new Map(), new Map())).toBe(state);
+  });
+
+  it("syncPriorities propagates versions the same way as syncExpenses", async () => {
+    const previousState: FinanceState = {
+      ...emptyState(MONTH),
+      months: {
+        [MONTH]: {
+          label: "Agosto",
+          income: 0,
+          houseContribution: 0,
+          expenses: [],
+          priorities: [
+            {
+              id: "33333333-3333-4333-8333-333333333333",
+              name: "Viagem",
+              amount: 5000,
+              rank: 1,
+              status: "A pagar",
+              responsavel: "Minha casa",
+              version: 1,
+            },
+          ],
+        },
+      },
+    };
+    const nextState: FinanceState = {
+      ...previousState,
+      months: {
+        [MONTH]: {
+          ...previousState.months[MONTH],
+          priorities: [{ ...previousState.months[MONTH].priorities[0], amount: 6000 }],
+        },
+      },
+    };
+
+    const updateQuery = makeQuery({
+      data: [{ id: previousState.months[MONTH].priorities[0].id, version: 2 }],
+      error: null,
+    });
+    mockSupabase.from.mockReturnValueOnce(updateQuery);
+
+    const priorityVersions = await syncPriorities(
+      "household-1",
+      previousState,
+      nextState,
+      PROFILE_IDS,
+      MONTH_IDS,
+    );
+    expect(priorityVersions.get(previousState.months[MONTH].priorities[0].id)).toBe(2);
+    expect(updateQuery.eq).toHaveBeenCalledWith("version", 1);
+  });
+});
+
+describe("loadRemoteFinance — the DB's version column is read back onto Expense/Priority", () => {
+  beforeEach(() => {
+    mockSupabase.from.mockReset();
+    mockSupabase.rpc.mockReset();
+  });
+
+  it("a freshly loaded expense carries version=1 straight from the initial select, no extra round trip needed", async () => {
+    mockSupabase.rpc.mockResolvedValue({ data: "household-1", error: null });
+
+    const tableRows: Record<string, unknown> = {
+      app_users: { display_name: "Junior" },
+      household_members: { household_id: "household-1" },
+      financial_profiles: [
+        {
+          id: "profile-1",
+          household_id: "household-1",
+          name: "Minha casa",
+          kind: "household",
+          sort_order: 0,
+          active: true,
+        },
+      ],
+      finance_months: [
+        {
+          id: "month-1",
+          household_id: "household-1",
+          period: "2026-08-01",
+          label: "Agosto",
+          income: 0,
+          house_contribution: 0,
+          planned: false,
+          version: 1,
+        },
+      ],
+      profile_budgets: [],
+      expenses: [
+        {
+          id: "expense-1",
+          month_id: "month-1",
+          owner_profile_id: "profile-1",
+          paid_by_profile_id: "profile-1",
+          description: "Aluguel",
+          entry_type: "expense",
+          category: "Moradia",
+          amount: 100,
+          status: "A pagar",
+          expense_date: "2026-08-05",
+          due_date: "2026-08-05",
+          competence: "2026-08-01",
+          payment_method: "Pix",
+          note: "",
+          recurring: false,
+          recurring_key: null,
+          installment_key: null,
+          installment_number: null,
+          installment_total: null,
+          created_at: "2026-08-01T00:00:00Z",
+          version: 1,
+        },
+      ],
+      priorities: [],
+      envelopes: [],
+    };
+
+    mockSupabase.from.mockImplementation((table: string) => {
+      const data = tableRows[table];
+      const query = {
+        select: vi.fn(() => query),
+        eq: vi.fn(() => query),
+        order: vi.fn(() => query),
+        limit: vi.fn(() => query),
+        maybeSingle: vi.fn(() => Promise.resolve({ data, error: null })),
+        then: (resolve: (value: { data: unknown; error: null }) => void) =>
+          resolve({ data, error: null }),
+      };
+      return query;
+    });
+
+    const user = { id: "user-1", email: "junior@example.com", user_metadata: {} } as Parameters<
+      typeof loadRemoteFinance
+    >[0];
+    const loaded = await loadRemoteFinance(user);
+
+    expect(loaded.state.months["2026-08"].expenses[0].version).toBe(1);
+  });
+});
