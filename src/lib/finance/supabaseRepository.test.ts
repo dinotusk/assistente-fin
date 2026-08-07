@@ -1,6 +1,6 @@
 import { beforeEach, describe, expect, it, vi } from "vitest";
 
-import { ConcurrencyConflictError } from "./concurrency";
+import { WriteNotAppliedError } from "./concurrency";
 import type { Expense, FinanceState } from "./types";
 
 const mockSupabase = { from: vi.fn(), rpc: vi.fn() };
@@ -88,12 +88,26 @@ describe("updateVersionedRow — optimistic concurrency on UPDATE", () => {
     expect(query.eq).toHaveBeenCalledWith("version", 3);
   });
 
-  it("known version, stale (0 rows affected): throws ConcurrencyConflictError instead of silently overwriting", async () => {
+  it("known version, stale (0 rows affected): throws WriteNotAppliedError instead of silently overwriting", async () => {
     const query = makeQuery({ data: [], error: null });
     mockSupabase.from.mockReturnValue(query);
 
     await expect(updateVersionedRow("expenses", { id: "e1", amount: 50 }, 3)).rejects.toThrow(
-      ConcurrencyConflictError,
+      WriteNotAppliedError,
+    );
+  });
+
+  it("the error message never claims a specific cause (another device, deletion, or RLS) — zero rows is genuinely ambiguous", async () => {
+    const query = makeQuery({ data: [], error: null });
+    mockSupabase.from.mockReturnValue(query);
+
+    await expect(updateVersionedRow("expenses", { id: "e1", amount: 50 }, 3)).rejects.toThrow(
+      /alterado, removido, ou nao esta mais acessivel/,
+    );
+    // Regression guard: this used to falsely assert "outro dispositivo alterou este registro",
+    // which isn't true when the real cause is RLS hiding the row or a deletion.
+    await expect(updateVersionedRow("expenses", { id: "e1", amount: 50 }, 3)).rejects.not.toThrow(
+      /outro dispositivo/,
     );
   });
 
@@ -108,7 +122,7 @@ describe("updateVersionedRow — optimistic concurrency on UPDATE", () => {
     expect(query.eq).toHaveBeenCalledWith("id", "e1");
   });
 
-  it("two writes racing on the same base version: the first wins, the second is rejected as a conflict", async () => {
+  it("two writes racing on the same base version: the first wins, the second gets WriteNotAppliedError", async () => {
     const winner = makeQuery({ data: [{ id: "e1" }], error: null });
     mockSupabase.from.mockReturnValueOnce(winner);
     await updateVersionedRow("expenses", { id: "e1", amount: 10 }, 1);
@@ -117,7 +131,7 @@ describe("updateVersionedRow — optimistic concurrency on UPDATE", () => {
     const loser = makeQuery({ data: [], error: null });
     mockSupabase.from.mockReturnValueOnce(loser);
     await expect(updateVersionedRow("expenses", { id: "e1", amount: 20 }, 1)).rejects.toThrow(
-      ConcurrencyConflictError,
+      WriteNotAppliedError,
     );
   });
 
@@ -142,13 +156,11 @@ describe("deleteVersionedRow — optimistic concurrency on DELETE", () => {
     expect(query.eq).toHaveBeenCalledWith("version", 2);
   });
 
-  it("known version, stale (0 rows affected): throws ConcurrencyConflictError", async () => {
+  it("known version, stale (0 rows affected): throws WriteNotAppliedError", async () => {
     const query = makeQuery({ data: [], error: null });
     mockSupabase.from.mockReturnValue(query);
 
-    await expect(deleteVersionedRow("priorities", "p1", 2)).rejects.toThrow(
-      ConcurrencyConflictError,
-    );
+    await expect(deleteVersionedRow("priorities", "p1", 2)).rejects.toThrow(WriteNotAppliedError);
   });
 
   it("unknown version: deletes unconditionally by id, matching pre-version behavior", async () => {
@@ -167,11 +179,17 @@ describe("deleteVersionedRow — optimistic concurrency on DELETE", () => {
 // the same WHERE clause, evaluated after RLS's own is_household_member(...)
 // predicate. A user on household A can no longer overwrite household B's row
 // by guessing an id + version than they could before (RLS already forbade
-// that unconditionally). This is reasoned from the unchanged, live policy
-// definitions rather than empirically re-tested here; doing that requires a
-// real Supabase instance with two authenticated test users, which this
-// offline unit-test run cannot exercise. See migration SQL check below for
-// the automatable half of this guarantee (no policy touched by this change).
+// that unconditionally).
+//
+// This was confirmed empirically against a real Supabase project with two
+// disposable test users/households: a cross-household UPDATE/DELETE with the
+// *correct* version still affected zero rows, identical in shape to a
+// stale-version conflict (no error, empty result). That confirmed finding is
+// exactly why the thrown error is WriteNotAppliedError, not something that
+// claims "another device changed this" — this offline suite can't reproduce
+// two real authenticated sessions, so it only asserts the error stays
+// neutral (see updateVersionedRow/deleteVersionedRow tests above); it does
+// not re-derive the RLS finding itself.
 
 const MONTH = "2026-08";
 const PROFILE_IDS = new Map([["Minha casa", "profile-1"]]);
@@ -246,7 +264,7 @@ describe("version propagation — a save's confirmed state carries server-assign
     warnSpy.mockRestore();
   });
 
-  it("a device still holding the pre-update version (stale base) is rejected as a conflict, not silently overwritten", async () => {
+  it("a device still holding the pre-update version (stale base) is rejected, not silently overwritten", async () => {
     const staleExpense = makeExpense({ version: 1 }); // the real DB row is already at version 2
     const previousStateDeviceB = emptyState(MONTH, [staleExpense]);
     const nextStateDeviceB = emptyState(MONTH, [{ ...staleExpense, amount: 999 }]);
@@ -256,7 +274,7 @@ describe("version propagation — a save's confirmed state carries server-assign
 
     await expect(
       syncExpenses("household-1", previousStateDeviceB, nextStateDeviceB, PROFILE_IDS, MONTH_IDS),
-    ).rejects.toThrow(ConcurrencyConflictError);
+    ).rejects.toThrow(WriteNotAppliedError);
   });
 
   it("an inserted row's version (1) is known immediately, so the very next edit in the same session already carries it", async () => {
@@ -292,7 +310,7 @@ describe("version propagation — a save's confirmed state carries server-assign
     warnSpy.mockRestore();
   });
 
-  it("deleting a row at its current known version succeeds; deleting one whose version is already stale conflicts", async () => {
+  it("deleting a row at its current known version succeeds; deleting one whose version is already stale is rejected", async () => {
     const expense = makeExpense({ version: 5 });
     const previousState = emptyState(MONTH, [expense]);
     const nextStateDeleted = emptyState(MONTH, []);
@@ -306,7 +324,7 @@ describe("version propagation — a save's confirmed state carries server-assign
     mockSupabase.from.mockReturnValueOnce(staleDeleteQuery);
     await expect(
       syncExpenses("household-1", previousState, nextStateDeleted, PROFILE_IDS, MONTH_IDS),
-    ).rejects.toThrow(ConcurrencyConflictError);
+    ).rejects.toThrow(WriteNotAppliedError);
   });
 
   it("applyConfirmedVersions is a no-op passthrough when nothing was written (no insert/update calls)", () => {

@@ -3,7 +3,7 @@ import type { User } from "@supabase/supabase-js";
 import { AI_CONSENT_VERSION } from "./aiConsent";
 import { formatMonthLabel } from "./calc";
 import { VIEW_ME } from "./constants";
-import { ConcurrencyConflictError } from "./concurrency";
+import { WriteNotAppliedError } from "./concurrency";
 import type { ActiveUser, EnvelopeRule, Expense, FinanceState, MonthData, Priority } from "./types";
 import { supabase } from "../supabase/client";
 
@@ -634,13 +634,16 @@ function warnUnknownVersion(table: VersionedTable, id: string): void {
 
 /**
  * Version-conditional UPDATE. When `expectedVersion` is known, the write is
- * scoped to `id = ? and version = ?` and bumps version by exactly 1; zero
- * rows affected means another write reached this row first, and that is
- * surfaced as a ConcurrencyConflictError rather than silently doing nothing.
- * Always reads back `id, version` so the caller can learn the row's current
- * server version — including in the fallback path, where the write itself
- * doesn't touch `version` but the read-back still teaches the caller what it
- * is, partially self-healing an unknown version by the next write.
+ * scoped to `id = ? and version = ?` and bumps version by exactly 1. Zero
+ * rows affected throws WriteNotAppliedError rather than silently doing
+ * nothing — but that zero-rows result is itself ambiguous (stale version,
+ * row deleted, or RLS hiding the row from this user all look identical; see
+ * WriteNotAppliedError's doc comment), so the error deliberately does not
+ * claim a specific cause. Always reads back `id, version` so the caller can
+ * learn the row's current server version — including in the fallback path,
+ * where the write itself doesn't touch `version` but the read-back still
+ * teaches the caller what it is, partially self-healing an unknown version
+ * by the next write.
  */
 export async function updateVersionedRow(
   table: VersionedTable,
@@ -661,15 +664,16 @@ export async function updateVersionedRow(
   throwIfError(error);
   const rows = (data || []) as VersionedRef[];
   if (expectedVersion !== undefined && rows.length === 0) {
-    throw new ConcurrencyConflictError(table, id);
+    throw new WriteNotAppliedError(table, id);
   }
   return rows[0] || null;
 }
 
 /**
- * Version-conditional DELETE. Same conflict semantics as updateVersionedRow.
- * When `expectedVersion` is known, also confirms that exactly the expected
- * row (and no other) was removed — not just that "some" row matched.
+ * Version-conditional DELETE. Same zero-rows-is-ambiguous semantics as
+ * updateVersionedRow — see WriteNotAppliedError's doc comment. When
+ * `expectedVersion` is known, also confirms that exactly the expected row
+ * (and no other) was removed — not just that "some" row matched.
  */
 export async function deleteVersionedRow(
   table: VersionedTable,
@@ -684,7 +688,7 @@ export async function deleteVersionedRow(
   throwIfError(error);
   const rows = (data || []) as { id: string }[];
   if (expectedVersion !== undefined && (rows.length !== 1 || rows[0].id !== id)) {
-    throw new ConcurrencyConflictError(table, id);
+    throw new WriteNotAppliedError(table, id);
   }
 }
 
