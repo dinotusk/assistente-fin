@@ -3,6 +3,7 @@ import type { User } from "@supabase/supabase-js";
 import { AI_CONSENT_VERSION } from "./aiConsent";
 import { formatMonthLabel } from "./calc";
 import { VIEW_ME } from "./constants";
+import { ConcurrencyConflictError } from "./concurrency";
 import type { ActiveUser, EnvelopeRule, Expense, FinanceState, MonthData, Priority } from "./types";
 import { supabase } from "../supabase/client";
 
@@ -23,6 +24,7 @@ interface MonthRow {
   income: number | string;
   house_contribution: number | string;
   planned: boolean;
+  version: number;
 }
 
 interface BudgetRow {
@@ -52,6 +54,7 @@ interface ExpenseRow {
   installment_number: number | null;
   installment_total: number | null;
   created_at: string;
+  version: number;
 }
 
 interface PriorityRow {
@@ -64,6 +67,7 @@ interface PriorityRow {
   priority: number;
   status: Priority["status"];
   created_at: string;
+  version: number;
 }
 
 interface EnvelopeRow {
@@ -320,7 +324,7 @@ export async function loadRemoteFinance(user: User): Promise<LoadedFinance> {
       .order("sort_order"),
     supabase
       .from("finance_months")
-      .select("id, household_id, period, label, income, house_contribution, planned")
+      .select("id, household_id, period, label, income, house_contribution, planned, version")
       .eq("household_id", householdId)
       .order("period"),
     supabase
@@ -330,14 +334,14 @@ export async function loadRemoteFinance(user: User): Promise<LoadedFinance> {
     supabase
       .from("expenses")
       .select(
-        "id, month_id, owner_profile_id, paid_by_profile_id, description, entry_type, category, amount, status, expense_date, due_date, competence, payment_method, note, recurring, recurring_key, installment_key, installment_number, installment_total, created_at",
+        "id, month_id, owner_profile_id, paid_by_profile_id, description, entry_type, category, amount, status, expense_date, due_date, competence, payment_method, note, recurring, recurring_key, installment_key, installment_number, installment_total, created_at, version",
       )
       .eq("household_id", householdId)
       .order("expense_date"),
     supabase
       .from("priorities")
       .select(
-        "id, month_id, profile_id, description, target_amount, saved_amount, priority, status, created_at",
+        "id, month_id, profile_id, description, target_amount, saved_amount, priority, status, created_at, version",
       )
       .eq("household_id", householdId)
       .order("priority"),
@@ -403,6 +407,7 @@ export async function loadRemoteFinance(user: User): Promise<LoadedFinance> {
           installmentNumber: expense.installment_number || undefined,
           installmentTotal: expense.installment_total || undefined,
           createdAt: expense.created_at,
+          version: expense.version,
         }));
       const monthPriorities: Priority[] = priorities
         .filter((priority) => priority.month_id === remoteMonth.id)
@@ -416,6 +421,7 @@ export async function loadRemoteFinance(user: User): Promise<LoadedFinance> {
           responsavel:
             profileNames.get(priority.profile_id) || activeProfiles[0]?.name || "Minha casa",
           createdAt: priority.created_at,
+          version: priority.version,
         }));
       const profileBudgets = Object.fromEntries(
         budgets
@@ -484,7 +490,7 @@ async function createEmptyMonth(householdId: string, key: string): Promise<Month
       house_contribution: 0,
       planned: false,
     })
-    .select("id, household_id, period, label, income, house_contribution, planned")
+    .select("id, household_id, period, label, income, house_contribution, planned, version")
     .single();
   throwIfError(error);
   return data as MonthRow;
@@ -533,19 +539,83 @@ export async function saveRemoteFinance(
  * Deliberately does NOT reconcile against a live DB read — a device only
  * knows about entities it has locally, so it must never delete rows it
  * simply hasn't loaded yet (e.g. one just added by another device).
+ * Splits changes into `created` (id absent from `previous`, so it must go
+ * through a plain INSERT and rely on the column's `default 1` for version)
+ * vs. `updated` (id already existed, so it can carry an expected version).
  */
-function diffById<T extends { id: string }>(
+export function diffById<T extends { id: string }>(
   previous: T[],
   next: T[],
-): { changed: T[]; deletedIds: string[] } {
+): { created: T[]; updated: T[]; deletedIds: string[] } {
   const previousById = new Map(previous.map((item) => [item.id, item]));
   const nextIds = new Set(next.map((item) => item.id));
-  const changed = next.filter((item) => {
+  const created: T[] = [];
+  const updated: T[] = [];
+  for (const item of next) {
     const before = previousById.get(item.id);
-    return !before || JSON.stringify(before) !== JSON.stringify(item);
-  });
+    if (!before) {
+      created.push(item);
+    } else if (JSON.stringify(before) !== JSON.stringify(item)) {
+      updated.push(item);
+    }
+  }
   const deletedIds = previous.filter((item) => !nextIds.has(item.id)).map((item) => item.id);
-  return { changed, deletedIds };
+  return { created, updated, deletedIds };
+}
+
+type VersionedTable = "expenses" | "priorities" | "finance_months";
+type VersionedRow = Record<string, string | number | boolean | null | string[]> & { id: string };
+
+/**
+ * Version-conditional UPDATE. When `expectedVersion` is known, the write is
+ * scoped to `id = ? and version = ?` and bumps version by exactly 1; zero
+ * rows affected means another write reached this row first, and that is
+ * surfaced as a ConcurrencyConflictError rather than silently doing nothing.
+ * When `expectedVersion` is unknown (e.g. a record created earlier in the
+ * same session and never reloaded from the server — see P0-02A notes),
+ * this falls back to an unconditional update by id, matching the previous
+ * (pre-version) behavior exactly. Closing that gap needs either the sync
+ * queue to round-trip server-assigned versions back into confirmed state,
+ * or the P0-02B conflict UI — both out of scope for this step.
+ */
+export async function updateVersionedRow(
+  table: VersionedTable,
+  row: VersionedRow,
+  expectedVersion: number | undefined,
+): Promise<void> {
+  const { id, ...patch } = row;
+  const payload: Record<string, string | number | boolean | null | string[]> = { ...patch };
+  if (expectedVersion !== undefined) payload.version = expectedVersion + 1;
+
+  let query = supabase.from(table).update(payload).eq("id", id);
+  if (expectedVersion !== undefined) query = query.eq("version", expectedVersion);
+  const { data, error } = await query.select("id");
+  throwIfError(error);
+  if (expectedVersion !== undefined && (!data || data.length === 0)) {
+    throw new ConcurrencyConflictError(table, id);
+  }
+}
+
+/** Version-conditional DELETE. Same semantics as updateVersionedRow above. */
+export async function deleteVersionedRow(
+  table: VersionedTable,
+  id: string,
+  expectedVersion: number | undefined,
+): Promise<void> {
+  let query = supabase.from(table).delete().eq("id", id);
+  if (expectedVersion !== undefined) query = query.eq("version", expectedVersion);
+  const { data, error } = await query.select("id");
+  throwIfError(error);
+  if (expectedVersion !== undefined && (!data || data.length === 0)) {
+    throw new ConcurrencyConflictError(table, id);
+  }
+}
+
+/** Plain batch INSERT — new rows always start at the column's `default 1`, never an app-supplied version. */
+async function insertRows(table: VersionedTable, rows: VersionedRow[]): Promise<void> {
+  if (!rows.length) return;
+  const { error } = await supabase.from(table).insert(rows);
+  throwIfError(error);
 }
 
 /** Envelopes are a short, rarely-edited list, so a full live-diff replace is fine here. */
@@ -636,37 +706,70 @@ async function syncMonths(
   months: Record<string, MonthData>,
 ): Promise<MonthRow[]> {
   const byKey = new Map(existing.map((month) => [monthKey(month.period), month]));
-  const rows = Object.entries(months).map(([key, month]) => ({
-    id: byKey.get(key)?.id || crypto.randomUUID(),
-    household_id: householdId,
-    period: periodFromKey(key),
-    label: month.label || formatMonthLabel(key),
-    income: month.income,
-    house_contribution: month.houseContribution,
-    planned: Boolean(month.planned),
-  }));
-  const { data, error } = await supabase
-    .from("finance_months")
-    .upsert(rows, { onConflict: "id" })
-    .select("id, household_id, period, label, income, house_contribution, planned");
-  throwIfError(error);
+
+  const toInsert: VersionedRow[] = [];
+  const toUpdate: Array<{ row: VersionedRow; expectedVersion: number | undefined }> = [];
+
+  for (const [key, month] of Object.entries(months)) {
+    const existingRow = byKey.get(key);
+    const row: VersionedRow = {
+      id: existingRow?.id || crypto.randomUUID(),
+      household_id: householdId,
+      period: periodFromKey(key),
+      label: month.label || formatMonthLabel(key),
+      income: month.income,
+      house_contribution: month.houseContribution,
+      planned: Boolean(month.planned),
+    };
+    if (!existingRow) {
+      toInsert.push(row);
+      continue;
+    }
+    const changed =
+      existingRow.label !== row.label ||
+      numberValue(existingRow.income) !== row.income ||
+      numberValue(existingRow.house_contribution) !== row.house_contribution ||
+      existingRow.planned !== row.planned;
+    if (changed) {
+      toUpdate.push({ row, expectedVersion: existingRow.version });
+    }
+  }
+
+  await insertRows("finance_months", toInsert);
+  for (const { row, expectedVersion } of toUpdate) {
+    await updateVersionedRow("finance_months", row, expectedVersion);
+  }
 
   // Cascades to that month's budgets/expenses/priorities (FK ON DELETE CASCADE).
   const keptKeys = new Set(Object.keys(months));
-  const staleIds = existing
-    .filter((row) => !keptKeys.has(monthKey(row.period)))
-    .map((row) => row.id);
-  if (staleIds.length) {
-    const { error: deleteError } = await supabase
-      .from("finance_months")
-      .delete()
-      .in("id", staleIds);
-    throwIfError(deleteError);
+  const staleMonths = existing.filter((row) => !keptKeys.has(monthKey(row.period)));
+  for (const staleMonth of staleMonths) {
+    await deleteVersionedRow("finance_months", staleMonth.id, staleMonth.version);
   }
 
+  // Re-fetched (rather than assembled in-memory) so the returned rows always
+  // carry the authoritative, current version — including for rows this call
+  // didn't touch at all.
+  const { data, error } = await supabase
+    .from("finance_months")
+    .select("id, household_id, period, label, income, house_contribution, planned, version")
+    .eq("household_id", householdId)
+    .order("period");
+  throwIfError(error);
   return data as MonthRow[];
 }
 
+/**
+ * KNOWN RISK (P0-02A, not fixed in this step): unlike expenses/priorities/
+ * finance_months, this deletes every budget row for the affected months and
+ * reinserts them from scratch on every save. Two concurrent saves against
+ * the same month can race here — last write wins with no conflict detection
+ * — regardless of a `version` column existing. profile_budgets was
+ * deliberately left without one (see the P0-02A migration) because a column
+ * alone wouldn't fix this delete-all/reinsert-all pattern; that needs its
+ * own follow-up (e.g. switching to per-row upserts keyed on the existing
+ * (month_id, profile_id) primary key) before OCC here would mean anything.
+ */
 async function syncBudgets(
   householdId: string,
   state: FinanceState,
@@ -696,6 +799,40 @@ async function syncBudgets(
   throwIfError(error);
 }
 
+function buildExpenseRow(
+  householdId: string,
+  monthId: string,
+  ownerId: string,
+  paidById: string,
+  expense: Expense,
+): VersionedRow {
+  expense.id = validId(expense.id);
+  return {
+    id: expense.id,
+    household_id: householdId,
+    month_id: monthId,
+    owner_profile_id: ownerId,
+    paid_by_profile_id: paidById,
+    description: expense.name,
+    entry_type: expense.type || "expense",
+    category: expense.category,
+    amount: expense.amount,
+    status: expense.status,
+    expense_date: expense.date,
+    due_date: expense.dueDate || expense.date,
+    competence: `${expense.competence || expense.date.slice(0, 7)}-01`,
+    payment_method: expense.paymentMethod,
+    note: expense.note || "",
+    recurring: Boolean(expense.recurring),
+    recurring_key:
+      expense.recurringKey && isUuid(expense.recurringKey) ? expense.recurringKey : null,
+    installment_key:
+      expense.installmentKey && isUuid(expense.installmentKey) ? expense.installmentKey : null,
+    installment_number: expense.installmentNumber || null,
+    installment_total: expense.installmentTotal || null,
+  };
+}
+
 async function syncExpenses(
   householdId: string,
   previousState: FinanceState,
@@ -705,53 +842,61 @@ async function syncExpenses(
 ): Promise<void> {
   const fallbackProfileId = profileIds.values().next().value as string | undefined;
   const previousExpenses = Object.values(previousState.months).flatMap((month) => month.expenses);
+  const previousById = new Map(previousExpenses.map((expense) => [expense.id, expense]));
   const nextExpenses = Object.entries(state.months).flatMap(([key, month]) =>
     month.expenses.map((expense) => ({ key, expense })),
   );
-  const { changed, deletedIds } = diffById(
+  const { created, updated, deletedIds } = diffById(
     previousExpenses,
     nextExpenses.map(({ expense }) => expense),
   );
-  const changedIds = new Set(changed.map((expense) => expense.id));
+  const createdIds = new Set(created.map((expense) => expense.id));
+  const updatedIds = new Set(updated.map((expense) => expense.id));
 
-  const rows = nextExpenses
-    .filter(({ expense }) => changedIds.has(expense.id))
-    .flatMap(({ key, expense }) => {
-      const monthId = monthIds.get(key);
-      const ownerId = profileIds.get(expense.owner) || fallbackProfileId;
-      if (!monthId || !ownerId) return [];
-      const paidById = profileIds.get(expense.paidBy || expense.owner) || ownerId;
-      expense.id = validId(expense.id);
-      return [
-        {
-          id: expense.id,
-          household_id: householdId,
-          month_id: monthId,
-          owner_profile_id: ownerId,
-          paid_by_profile_id: paidById,
-          description: expense.name,
-          entry_type: expense.type || "expense",
-          category: expense.category,
-          amount: expense.amount,
-          status: expense.status,
-          expense_date: expense.date,
-          due_date: expense.dueDate || expense.date,
-          competence: `${expense.competence || expense.date.slice(0, 7)}-01`,
-          payment_method: expense.paymentMethod,
-          note: expense.note || "",
-          recurring: Boolean(expense.recurring),
-          recurring_key:
-            expense.recurringKey && isUuid(expense.recurringKey) ? expense.recurringKey : null,
-          installment_key:
-            expense.installmentKey && isUuid(expense.installmentKey)
-              ? expense.installmentKey
-              : null,
-          installment_number: expense.installmentNumber || null,
-          installment_total: expense.installmentTotal || null,
-        },
-      ];
-    });
-  await upsertAndDelete("expenses", rows, deletedIds.map(validId));
+  const toInsert: VersionedRow[] = [];
+  const toUpdate: Array<{ row: VersionedRow; expectedVersion: number | undefined }> = [];
+  for (const { key, expense } of nextExpenses) {
+    if (!createdIds.has(expense.id) && !updatedIds.has(expense.id)) continue;
+    const monthId = monthIds.get(key);
+    const ownerId = profileIds.get(expense.owner) || fallbackProfileId;
+    if (!monthId || !ownerId) continue;
+    const paidById = profileIds.get(expense.paidBy || expense.owner) || ownerId;
+    const originalId = expense.id;
+    const row = buildExpenseRow(householdId, monthId, ownerId, paidById, expense);
+    if (createdIds.has(originalId)) {
+      toInsert.push(row);
+    } else {
+      toUpdate.push({ row, expectedVersion: previousById.get(originalId)?.version });
+    }
+  }
+
+  await insertRows("expenses", toInsert);
+  for (const { row, expectedVersion } of toUpdate) {
+    await updateVersionedRow("expenses", row, expectedVersion);
+  }
+  for (const id of deletedIds) {
+    await deleteVersionedRow("expenses", validId(id), previousById.get(id)?.version);
+  }
+}
+
+function buildPriorityRow(
+  householdId: string,
+  monthId: string,
+  profileId: string,
+  priority: Priority,
+): VersionedRow {
+  priority.id = validId(priority.id);
+  return {
+    id: priority.id,
+    household_id: householdId,
+    month_id: monthId,
+    profile_id: profileId,
+    description: priority.name,
+    target_amount: priority.amount,
+    saved_amount: priority.saved || 0,
+    priority: priority.rank,
+    status: priority.status,
+  };
 }
 
 async function syncPriorities(
@@ -765,50 +910,38 @@ async function syncPriorities(
   const previousPriorities = Object.values(previousState.months).flatMap(
     (month) => month.priorities,
   );
+  const previousById = new Map(previousPriorities.map((priority) => [priority.id, priority]));
   const nextPriorities = Object.entries(state.months).flatMap(([key, month]) =>
     month.priorities.map((priority) => ({ key, priority })),
   );
-  const { changed, deletedIds } = diffById(
+  const { created, updated, deletedIds } = diffById(
     previousPriorities,
     nextPriorities.map(({ priority }) => priority),
   );
-  const changedIds = new Set(changed.map((priority) => priority.id));
+  const createdIds = new Set(created.map((priority) => priority.id));
+  const updatedIds = new Set(updated.map((priority) => priority.id));
 
-  const rows = nextPriorities
-    .filter(({ priority }) => changedIds.has(priority.id))
-    .flatMap(({ key, priority }) => {
-      const monthId = monthIds.get(key);
-      const profileId = profileIds.get(priority.responsavel) || fallbackProfileId;
-      if (!monthId || !profileId) return [];
-      priority.id = validId(priority.id);
-      return [
-        {
-          id: priority.id,
-          household_id: householdId,
-          month_id: monthId,
-          profile_id: profileId,
-          description: priority.name,
-          target_amount: priority.amount,
-          saved_amount: priority.saved || 0,
-          priority: priority.rank,
-          status: priority.status,
-        },
-      ];
-    });
-  await upsertAndDelete("priorities", rows, deletedIds.map(validId));
-}
-
-async function upsertAndDelete(
-  table: "expenses" | "priorities",
-  rows: Array<Record<string, string | number | boolean | null | string[]>>,
-  deleteIds: string[],
-): Promise<void> {
-  if (rows.length) {
-    const { error } = await supabase.from(table).upsert(rows, { onConflict: "id" });
-    throwIfError(error);
+  const toInsert: VersionedRow[] = [];
+  const toUpdate: Array<{ row: VersionedRow; expectedVersion: number | undefined }> = [];
+  for (const { key, priority } of nextPriorities) {
+    if (!createdIds.has(priority.id) && !updatedIds.has(priority.id)) continue;
+    const monthId = monthIds.get(key);
+    const profileId = profileIds.get(priority.responsavel) || fallbackProfileId;
+    if (!monthId || !profileId) continue;
+    const originalId = priority.id;
+    const row = buildPriorityRow(householdId, monthId, profileId, priority);
+    if (createdIds.has(originalId)) {
+      toInsert.push(row);
+    } else {
+      toUpdate.push({ row, expectedVersion: previousById.get(originalId)?.version });
+    }
   }
-  if (deleteIds.length) {
-    const { error } = await supabase.from(table).delete().in("id", deleteIds);
-    throwIfError(error);
+
+  await insertRows("priorities", toInsert);
+  for (const { row, expectedVersion } of toUpdate) {
+    await updateVersionedRow("priorities", row, expectedVersion);
+  }
+  for (const id of deletedIds) {
+    await deleteVersionedRow("priorities", validId(id), previousById.get(id)?.version);
   }
 }

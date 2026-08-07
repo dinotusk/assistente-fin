@@ -25,6 +25,8 @@ export interface Expense {
   installmentNumber?: number;
   installmentTotal?: number;
   createdAt?: string;
+  /** Optimistic-concurrency token from the DB row. Absent for a not-yet-synced local record. */
+  version?: number;
 }
 
 export interface Priority {
@@ -36,6 +38,8 @@ export interface Priority {
   responsavel: string;
   saved?: number;
   createdAt?: string;
+  /** Optimistic-concurrency token from the DB row. Absent for a not-yet-synced local record. */
+  version?: number;
 }
 
 export interface MonthData {
