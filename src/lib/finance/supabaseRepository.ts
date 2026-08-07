@@ -28,9 +28,11 @@ interface MonthRow {
 }
 
 interface BudgetRow {
+  household_id: string;
   month_id: string;
   profile_id: string;
   amount: number | string;
+  version: number;
 }
 
 interface ExpenseRow {
@@ -81,6 +83,8 @@ export interface FinanceWorkspace {
   householdId: string;
   profiles: ProfileRow[];
   months: MonthRow[];
+  /** Internal-only, like MonthRow — never exposed via MonthData.profileBudgets. */
+  budgets: BudgetRow[];
 }
 
 export interface LoadedFinance {
@@ -329,7 +333,7 @@ export async function loadRemoteFinance(user: User): Promise<LoadedFinance> {
       .order("period"),
     supabase
       .from("profile_budgets")
-      .select("month_id, profile_id, amount")
+      .select("household_id, month_id, profile_id, amount, version")
       .eq("household_id", householdId),
     supabase
       .from("expenses")
@@ -463,7 +467,7 @@ export async function loadRemoteFinance(user: User): Promise<LoadedFinance> {
       activeMonth,
       months: stateMonths,
     },
-    workspace: { householdId, profiles, months },
+    workspace: { householdId, profiles, months, budgets },
     envelopes,
   };
 }
@@ -550,7 +554,13 @@ export async function saveRemoteFinance(
   const profileIdByName = new Map(profiles.map((profile) => [profile.name, profile.id]));
   const monthIdByKey = new Map(months.map((month) => [monthKey(month.period), month.id]));
 
-  await syncBudgets(workspace.householdId, nextState, profileIdByName, monthIdByKey);
+  const budgets = await syncBudgets(
+    workspace.householdId,
+    nextState,
+    profileIdByName,
+    monthIdByKey,
+    workspace.budgets,
+  );
   const expenseVersions = await syncExpenses(
     workspace.householdId,
     previousState,
@@ -567,7 +577,7 @@ export async function saveRemoteFinance(
   );
 
   return {
-    workspace: { householdId: workspace.householdId, profiles, months },
+    workspace: { householdId: workspace.householdId, profiles, months, budgets },
     state: applyConfirmedVersions(nextState, expenseVersions, priorityVersions),
   };
 }
@@ -698,6 +708,112 @@ async function insertRows(table: VersionedTable, rows: VersionedRow[]): Promise<
   const { data, error } = await supabase.from(table).insert(rows).select("id, version");
   throwIfError(error);
   return (data || []) as VersionedRef[];
+}
+
+/**
+ * profile_budgets-only versioned write helpers.
+ *
+ * Deliberately NOT sharing insertRows/updateVersionedRow/deleteVersionedRow
+ * above: this table has no `id` column (its identity is the composite
+ * (month_id, profile_id) primary key), so reusing those would mean changing
+ * their signature — and therefore every expenses/priorities/finance_months
+ * call site — for a shape only this one table needs. Duplicating the small
+ * amount of logic keeps this table's optimistic-concurrency support fully
+ * isolated: zero risk of regressing the other three tables' already-proven
+ * OCC behavior.
+ */
+
+export function budgetIdentity(monthId: string, profileId: string): string {
+  return `${monthId}:${profileId}`;
+}
+
+/**
+ * INSERT for a brand-new (month_id, profile_id) pair — version starts at the
+ * column's `default 1`. Two devices racing to create the same budget line
+ * hit the composite primary key: Postgres rejects the loser with SQLSTATE
+ * 23505 (unique_violation on profile_budgets_pkey), confirmed empirically
+ * against the real database, including with two genuinely concurrent
+ * inserts. That's converted to the same neutral WriteNotAppliedError the
+ * update/delete paths already throw — never the raw SQL message or
+ * constraint name.
+ */
+export async function insertBudgetRow(row: {
+  household_id: string;
+  month_id: string;
+  profile_id: string;
+  amount: number;
+}): Promise<void> {
+  const { error } = await supabase.from("profile_budgets").insert(row);
+  if (!error) return;
+  if (error.code === "23505") {
+    throw new WriteNotAppliedError("profile_budgets", budgetIdentity(row.month_id, row.profile_id));
+  }
+  throwIfError(error);
+}
+
+/**
+ * Version-conditional UPDATE keyed by (month_id, profile_id) instead of an
+ * `id`. Same zero-rows-is-ambiguous semantics as updateVersionedRow above —
+ * see WriteNotAppliedError's doc comment. `expectedVersion` unknown falls
+ * back to an unconditional update, matching pre-OCC behavior; this should be
+ * rare in practice since workspace.budgets is fully refreshed after every
+ * sync (see syncBudgets), unlike expenses/priorities which rely on a
+ * different propagation path.
+ */
+export async function updateVersionedBudget(
+  monthId: string,
+  profileId: string,
+  amount: number,
+  expectedVersion: number | undefined,
+): Promise<void> {
+  const payload: Record<string, number> = { amount };
+  if (expectedVersion !== undefined) {
+    payload.version = expectedVersion + 1;
+  } else {
+    console.warn(
+      `[P0-02C] profile_budgets ${budgetIdentity(monthId, profileId)} written without a known version (unconditional fallback).`,
+    );
+  }
+
+  let query = supabase
+    .from("profile_budgets")
+    .update(payload)
+    .eq("month_id", monthId)
+    .eq("profile_id", profileId);
+  if (expectedVersion !== undefined) query = query.eq("version", expectedVersion);
+  const { data, error } = await query.select("month_id, profile_id");
+  throwIfError(error);
+  if (expectedVersion !== undefined && (!data || data.length === 0)) {
+    throw new WriteNotAppliedError("profile_budgets", budgetIdentity(monthId, profileId));
+  }
+}
+
+/** Version-conditional DELETE keyed by (month_id, profile_id). Same semantics as deleteVersionedRow above. */
+export async function deleteVersionedBudget(
+  monthId: string,
+  profileId: string,
+  expectedVersion: number | undefined,
+): Promise<void> {
+  if (expectedVersion === undefined) {
+    console.warn(
+      `[P0-02C] profile_budgets ${budgetIdentity(monthId, profileId)} deleted without a known version (unconditional fallback).`,
+    );
+  }
+
+  let query = supabase
+    .from("profile_budgets")
+    .delete()
+    .eq("month_id", monthId)
+    .eq("profile_id", profileId);
+  if (expectedVersion !== undefined) query = query.eq("version", expectedVersion);
+  const { data, error } = await query.select("month_id, profile_id");
+  throwIfError(error);
+  const rows = (data || []) as { month_id: string; profile_id: string }[];
+  const matchedExpected =
+    rows.length === 1 && rows[0].month_id === monthId && rows[0].profile_id === profileId;
+  if (expectedVersion !== undefined && !matchedExpected) {
+    throw new WriteNotAppliedError("profile_budgets", budgetIdentity(monthId, profileId));
+  }
 }
 
 /** Envelopes are a short, rarely-edited list, so a full live-diff replace is fine here. */
@@ -842,43 +958,70 @@ async function syncMonths(
 }
 
 /**
- * KNOWN RISK (P0-02A, not fixed in this step): unlike expenses/priorities/
- * finance_months, this deletes every budget row for the affected months and
- * reinserts them from scratch on every save. Two concurrent saves against
- * the same month can race here — last write wins with no conflict detection
- * — regardless of a `version` column existing. profile_budgets was
- * deliberately left without one (see the P0-02A migration) because a column
- * alone wouldn't fix this delete-all/reinsert-all pattern; that needs its
- * own follow-up (e.g. switching to per-row upserts keyed on the existing
- * (month_id, profile_id) primary key) before OCC here would mean anything.
+ * Syncs profile_budgets incrementally (P0-02A follow-up, P0-02C): diffs
+ * `nextState`'s budgets against `existingBudgets` — always
+ * `workspace.budgets`, itself a full re-select after every prior sync, so it
+ * doubles as both the version source and the "did this actually change"
+ * source — and writes only created/updated/deleted rows. Untouched budgets
+ * get zero requests.
+ *
+ * This replaces the previous delete-all-then-reinsert-all, which rewrote
+ * every month's budgets in the household on every save regardless of what
+ * the user touched, and could silently lose a concurrent device's write
+ * with no conflict signal at all (see the P0-02A/P0-02C planning notes).
  */
-async function syncBudgets(
+export async function syncBudgets(
   householdId: string,
-  state: FinanceState,
+  nextState: FinanceState,
   profileIds: Map<string, string>,
   monthIds: Map<string, string>,
-): Promise<void> {
-  const targetMonthIds = [...monthIds.values()];
-  if (targetMonthIds.length) {
-    const { error } = await supabase
-      .from("profile_budgets")
-      .delete()
-      .in("month_id", targetMonthIds);
-    throwIfError(error);
-  }
+  existingBudgets: BudgetRow[],
+): Promise<BudgetRow[]> {
+  const existingByKey = new Map(
+    existingBudgets.map((budget) => [budgetIdentity(budget.month_id, budget.profile_id), budget]),
+  );
 
-  const rows = Object.entries(state.months).flatMap(([key, month]) =>
+  const nextEntries = Object.entries(nextState.months).flatMap(([key, month]) =>
     Object.entries(month.profileBudgets || {}).flatMap(([profileName, amount]) => {
       const monthId = monthIds.get(key);
       const profileId = profileIds.get(profileName);
-      return monthId && profileId
-        ? [{ household_id: householdId, month_id: monthId, profile_id: profileId, amount }]
-        : [];
+      return monthId && profileId ? [{ monthId, profileId, amount }] : [];
     }),
   );
-  if (!rows.length) return;
-  const { error } = await supabase.from("profile_budgets").insert(rows);
+  const nextKeys = new Set(
+    nextEntries.map((entry) => budgetIdentity(entry.monthId, entry.profileId)),
+  );
+
+  for (const entry of nextEntries) {
+    const key = budgetIdentity(entry.monthId, entry.profileId);
+    const existing = existingByKey.get(key);
+    if (!existing) {
+      await insertBudgetRow({
+        household_id: householdId,
+        month_id: entry.monthId,
+        profile_id: entry.profileId,
+        amount: entry.amount,
+      });
+    } else if (numberValue(existing.amount) !== entry.amount) {
+      await updateVersionedBudget(entry.monthId, entry.profileId, entry.amount, existing.version);
+    }
+    // Unchanged: no write at all — this is the fix for "touches unrelated budgets".
+  }
+
+  for (const existing of existingBudgets) {
+    if (!nextKeys.has(budgetIdentity(existing.month_id, existing.profile_id))) {
+      await deleteVersionedBudget(existing.month_id, existing.profile_id, existing.version);
+    }
+  }
+
+  // Re-fetched (rather than assembled in-memory) so the returned rows always
+  // carry the authoritative, current version — same pattern as syncMonths.
+  const { data, error } = await supabase
+    .from("profile_budgets")
+    .select("household_id, month_id, profile_id, amount, version")
+    .eq("household_id", householdId);
   throwIfError(error);
+  return (data || []) as BudgetRow[];
 }
 
 function buildExpenseRow(
