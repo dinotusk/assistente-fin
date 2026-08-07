@@ -49,12 +49,18 @@ async function getAuthenticatedUserId(request: Request): Promise<string | null> 
   return data.user.id;
 }
 
-/** Service-role client for the two checks below — never exposed to, or reachable from, the client bundle. */
+/**
+ * Service-role client for the two checks below — never exposed to, or reachable
+ * from, the client bundle. SUPABASE_SECRET_KEY is the official Vercel<->Supabase
+ * integration's name for this credential and is preferred; SUPABASE_SERVICE_ROLE_KEY
+ * is kept as a temporary fallback for environments still using the older manual
+ * setup (see .env.example).
+ */
 function getServiceRoleClient(): SupabaseAdmin | null {
-  const serviceRoleKey = process.env.SUPABASE_SERVICE_ROLE_KEY;
-  if (!serviceRoleKey) return null;
+  const secretKey = process.env.SUPABASE_SECRET_KEY || process.env.SUPABASE_SERVICE_ROLE_KEY;
+  if (!secretKey) return null;
   const supabaseUrl = process.env.VITE_SUPABASE_URL || "https://cvsefuukfmdfaajjlpmi.supabase.co";
-  return createClient(supabaseUrl, serviceRoleKey);
+  return createClient(supabaseUrl, secretKey);
 }
 
 interface ConsentRow {
@@ -72,7 +78,9 @@ interface ConsentRow {
 async function hasActiveConsent(userId: string): Promise<boolean> {
   const admin = getServiceRoleClient();
   if (!admin) {
-    console.error("Consent check skipped: SUPABASE_SERVICE_ROLE_KEY nao configurada");
+    console.error(
+      "Consent check skipped: SUPABASE_SECRET_KEY/SUPABASE_SERVICE_ROLE_KEY nao configurada",
+    );
     return false;
   }
   const { data, error } = await admin
@@ -93,7 +101,9 @@ async function hasActiveConsent(userId: string): Promise<boolean> {
 async function checkRateLimit(userId: string): Promise<boolean> {
   const admin = getServiceRoleClient();
   if (!admin) {
-    console.error("Rate limit check skipped: SUPABASE_SERVICE_ROLE_KEY nao configurada");
+    console.error(
+      "Rate limit check skipped: SUPABASE_SECRET_KEY/SUPABASE_SERVICE_ROLE_KEY nao configurada",
+    );
     return false;
   }
   const { data, error } = await admin.rpc("check_and_log_ai_rate_limit", {

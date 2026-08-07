@@ -211,14 +211,25 @@ describe("handleGeminiChatRequest", () => {
       expect(mockSupabase.rpc).not.toHaveBeenCalled();
     });
 
-    it("fails closed when SUPABASE_SERVICE_ROLE_KEY is not configured", async () => {
+    it("fails closed when neither SUPABASE_SECRET_KEY nor SUPABASE_SERVICE_ROLE_KEY is configured", async () => {
       // Explicit empty string, not unstubAllEnvs() — that would revert to whatever
       // the real host environment has set, which this test can't control or trust.
       vi.stubEnv("SUPABASE_SERVICE_ROLE_KEY", "");
+      vi.stubEnv("SUPABASE_SECRET_KEY", "");
       mockSupabase.auth.getUser.mockResolvedValue({ data: { user: { id: "u1" } }, error: null });
       const handle = await importHandler();
       const response = await handle(makeRequest({ question: "oi", context: VALID_CONTEXT }));
       expect(response.status).toBe(403);
+    });
+
+    it("works from SUPABASE_SECRET_KEY alone (the official Vercel<->Supabase integration's name), with no SUPABASE_SERVICE_ROLE_KEY set", async () => {
+      vi.stubEnv("SUPABASE_SERVICE_ROLE_KEY", "");
+      vi.stubEnv("SUPABASE_SECRET_KEY", "the-secret-key");
+      mockSupabase.auth.getUser.mockResolvedValue({ data: { user: { id: "u1" } }, error: null });
+      const handle = await importHandler();
+      const response = await handle(makeRequest({ question: "oi", context: VALID_CONTEXT }));
+      // Reaches (and passes) the consent check instead of failing closed at 403.
+      expect(response.status).not.toBe(403);
     });
   });
 

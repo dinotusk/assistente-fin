@@ -61,7 +61,12 @@ export const Route = createFileRoute("/api/push/send-reminders")({
 
         const vapidPublicKey = process.env.VITE_VAPID_PUBLIC_KEY;
         const vapidPrivateKey = process.env.VAPID_PRIVATE_KEY;
-        const serviceRoleKey = process.env.SUPABASE_SERVICE_ROLE_KEY;
+        // SUPABASE_SECRET_KEY is the official Vercel<->Supabase integration's name
+        // for this credential and is preferred; SUPABASE_SERVICE_ROLE_KEY is kept
+        // as a temporary fallback for environments still using the older manual
+        // setup (see .env.example).
+        const serviceRoleKey =
+          process.env.SUPABASE_SECRET_KEY || process.env.SUPABASE_SERVICE_ROLE_KEY;
         const supabaseUrl =
           process.env.VITE_SUPABASE_URL || "https://cvsefuukfmdfaajjlpmi.supabase.co";
         if (!vapidPublicKey || !vapidPrivateKey || !serviceRoleKey) {
