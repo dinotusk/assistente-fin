@@ -47,7 +47,7 @@ export function AuthScreen() {
       await loginWithGoogle();
     } catch (error) {
       setFeedback(
-        error instanceof Error ? error.message : "Nao foi possivel continuar com o Google agora.",
+        error instanceof Error ? error.message : "Não foi possível continuar com o Google agora.",
       );
       setGoogleLoading(false);
     }
@@ -79,7 +79,11 @@ export function AuthScreen() {
         await login(name.trim() || normalizedEmail, normalizedEmail, password);
       }
     } catch (error) {
-      setFeedback(error instanceof Error ? error.message : "Nao foi possivel continuar agora.");
+      setFeedback(
+        error instanceof Error
+          ? error.message
+          : "Não foi possível continuar agora. Confira seus dados e tente de novo.",
+      );
     } finally {
       setLoading(false);
     }

@@ -44,7 +44,7 @@ import {
 import { Segmented } from "./ui";
 
 const titles: Record<ViewKey, string> = {
-  assistant: "Início inteligente",
+  assistant: "Aval",
   dashboard: "Painel",
   transactions: "Gastos",
   priorities: "Prioridades",
@@ -111,7 +111,11 @@ export function AppHome() {
       await importData(file);
       setProfileMenuOpen(false);
     } catch (error) {
-      toast.error(error instanceof Error ? error.message : "Nao consegui importar esse arquivo.");
+      toast.error(
+        error instanceof Error
+          ? error.message
+          : "Não consegui importar esse arquivo. Confira se é um JSON, XLS ou XLSX válido.",
+      );
     } finally {
       e.target.value = "";
     }
@@ -137,7 +141,7 @@ export function AppHome() {
       </div>
       <HeaderMenuButton
         icon={<Settings className="h-4 w-4" />}
-        label="Configuracoes"
+        label="Configurações"
         onClick={() => {
           setView("settings");
           setProfileMenuOpen(false);
@@ -408,7 +412,7 @@ export function AppHome() {
                   type="button"
                   onClick={() => setProfileMenuOpen((value) => !value)}
                   className="hero-gradient press focus-ring flex h-11 w-11 shrink-0 items-center justify-center rounded-[0.95rem] text-sm font-bold text-primary-foreground shadow-primary"
-                  aria-label="Abrir opcoes do perfil"
+                  aria-label="Abrir opções do perfil"
                 >
                   {initials}
                 </button>
@@ -442,8 +446,8 @@ function HideValuesToggle({ hidden, onClick }: { hidden: boolean; onClick: () =>
       type="button"
       onClick={onClick}
       aria-pressed={hidden}
-      aria-label={hidden ? "Mostrar valores" : "Ocultar valores"}
-      title={hidden ? "Mostrar valores" : "Ocultar valores"}
+      aria-label={hidden ? "Desativar modo privado" : "Ativar modo privado"}
+      title={hidden ? "Desativar modo privado" : "Ativar modo privado"}
       className={`press focus-ring flex h-11 w-11 shrink-0 items-center justify-center rounded-[0.95rem] border border-white/12 bg-white/[0.07] transition-colors ${
         hidden ? "text-primary" : "text-muted-foreground hover:text-foreground"
       }`}

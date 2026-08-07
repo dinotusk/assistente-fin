@@ -52,9 +52,13 @@ export function SettingsView({
     if (!file) return;
     try {
       await importData(file);
-      toast.success("Importacao concluida. Confira o mes e a visao selecionada.");
+      toast.success("Importação concluída. Confira o mês e a visão selecionada.");
     } catch (error) {
-      toast.error(error instanceof Error ? error.message : "Nao consegui importar esse arquivo.");
+      toast.error(
+        error instanceof Error
+          ? error.message
+          : "Não consegui importar esse arquivo. Confira se é um JSON, XLS ou XLSX válido.",
+      );
     } finally {
       e.target.value = "";
     }
@@ -79,7 +83,7 @@ export function SettingsView({
         {
           icon: Users,
           title: "Perfis financeiros",
-          desc: "Adicione, remova ou renomeie as visoes do orçamento.",
+          desc: "Adicione, remova ou renomeie as visões do orçamento.",
           action: onEditPeople,
         },
         {

@@ -52,7 +52,11 @@ export function DashboardView() {
         <BudgetRing percent={usedPct} overBudget={overBudget} size={64} />
         <div className="relative min-w-0">
           <span className="text-xs font-semibold uppercase tracking-[0.05em] text-muted-foreground">
-            {view === VIEW_SPOUSE ? "Repasse do mês" : "Orçamento do mês"}
+            {view === VIEW_ME
+              ? "Renda do mês"
+              : view === VIEW_SPOUSE
+                ? "Repasse do mês"
+                : "Orçamento do mês"}
           </span>
           <strong className="tnum mt-0.5 block font-display text-[1.9rem] leading-none text-foreground">
             {money(budget)}

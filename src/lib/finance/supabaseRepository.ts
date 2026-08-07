@@ -143,7 +143,7 @@ export async function registerWithSupabase(input: AuthInput, inviteCode?: string
   });
   throwIfError(error);
 
-  if (!data.user) throw new Error("Nao foi possivel criar o usuario.");
+  if (!data.user) throw new Error("Não foi possível criar o usuário.");
   if (!data.session) {
     throw new Error("Cadastro criado. Confirme o e-mail e depois entre no aplicativo.");
   }

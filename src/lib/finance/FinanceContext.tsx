@@ -181,7 +181,7 @@ export function FinanceProvider({ children }: { children: ReactNode }) {
           setAuthError(
             error instanceof Error
               ? error.message
-              : "Nao foi possivel conectar. Verifique sua internet.",
+              : "Não foi possível conectar. Verifique sua internet.",
           );
         }
       })

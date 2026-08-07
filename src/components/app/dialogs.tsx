@@ -387,9 +387,9 @@ export function MonthDialog({
   }
 
   return (
-    <SheetShell open={open} onOpenChange={onOpenChange} title="Editar mes">
+    <SheetShell open={open} onOpenChange={onOpenChange} title="Editar mês">
       <form onSubmit={submit} className="flex flex-col gap-4">
-        <Field label="Nome do mes">
+        <Field label="Nome do mês">
           <TextInput value={label} onChange={(e) => setLabel(e.target.value)} required />
         </Field>
 
@@ -415,7 +415,7 @@ export function MonthDialog({
           </button>
         </div>
 
-        <Field label={`Orcamento (${state.people[0] || "Perfil 1"})`}>
+        <Field label={`Renda do mês (${state.people[0] || "Perfil 1"})`}>
           <TextInput
             type="number"
             inputMode="decimal"
@@ -427,7 +427,7 @@ export function MonthDialog({
           />
         </Field>
         {state.people[1] ? (
-          <Field label={`Orcamento (${state.people[1]})`}>
+          <Field label={`Repasse do mês (${state.people[1]})`}>
             <TextInput
               type="number"
               inputMode="decimal"
@@ -439,7 +439,7 @@ export function MonthDialog({
           </Field>
         ) : null}
         {state.people.slice(2).map((person) => (
-          <Field key={person} label={`Orcamento (${person})`}>
+          <Field key={person} label={`Orçamento do mês (${person})`}>
             <TextInput
               type="number"
               inputMode="decimal"
@@ -512,7 +512,7 @@ export function PeopleDialog({
     <SheetShell open={open} onOpenChange={onOpenChange} title="Perfis financeiros">
       <form onSubmit={submit} className="flex flex-col gap-4">
         <p className="text-sm text-muted-foreground">
-          Crie as visoes que deseja acompanhar no filtro superior. Os gastos existentes continuam
+          Crie as visões que deseja acompanhar no filtro superior. Os gastos existentes continuam
           preservados.
         </p>
         {people.map((person, index) => (
@@ -1046,8 +1046,13 @@ export function BankImportDialog({
       ) : (
         <div className="flex flex-col gap-3">
           <p className="text-sm text-muted-foreground">
-            {candidates.length} lançamento(s) prontos para revisão
-            {skippedCount > 0 ? ` · ${skippedCount} ignorado(s) por já existir(em)` : ""}.
+            {candidates.length === 1
+              ? "1 lançamento pronto para revisão"
+              : `${candidates.length} lançamentos prontos para revisão`}
+            {skippedCount > 0
+              ? ` · ${skippedCount === 1 ? "1 ignorado" : `${skippedCount} ignorados`} por já existir${skippedCount === 1 ? "" : "em"}`
+              : ""}
+            .
           </p>
           {candidates.map((item) => (
             <div key={item.id} className="rounded-2xl bg-secondary p-3.5">

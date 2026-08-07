@@ -135,7 +135,8 @@ export function TransactionsView({
       {rows.length === 0 ? (
         filtersActive ? (
           <p className="card-surface p-6 text-center text-sm text-muted-foreground">
-            Nenhum gasto encontrado para esses filtros.
+            Nenhum gasto encontrado para esses filtros. Ajuste a busca ou altere os filtros para ver
+            outros lançamentos.
           </p>
         ) : (
           <div className="card-surface flex flex-col items-center px-4 py-10 text-center">
