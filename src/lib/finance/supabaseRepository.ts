@@ -57,6 +57,7 @@ interface ExpenseRow {
   installment_total: number | null;
   created_at: string;
   version: number;
+  bank_transaction_id: string | null;
 }
 
 interface PriorityRow {
@@ -338,7 +339,7 @@ export async function loadRemoteFinance(user: User): Promise<LoadedFinance> {
     supabase
       .from("expenses")
       .select(
-        "id, month_id, owner_profile_id, paid_by_profile_id, description, entry_type, category, amount, status, expense_date, due_date, competence, payment_method, note, recurring, recurring_key, installment_key, installment_number, installment_total, created_at, version",
+        "id, month_id, owner_profile_id, paid_by_profile_id, description, entry_type, category, amount, status, expense_date, due_date, competence, payment_method, note, recurring, recurring_key, installment_key, installment_number, installment_total, created_at, version, bank_transaction_id",
       )
       .eq("household_id", householdId)
       .order("expense_date"),
@@ -412,6 +413,7 @@ export async function loadRemoteFinance(user: User): Promise<LoadedFinance> {
           installmentTotal: expense.installment_total || undefined,
           createdAt: expense.created_at,
           version: expense.version,
+          bankTransactionId: expense.bank_transaction_id || undefined,
         }));
       const monthPriorities: Priority[] = priorities
         .filter((priority) => priority.month_id === remoteMonth.id)
@@ -702,11 +704,23 @@ export async function deleteVersionedRow(
   }
 }
 
-/** Plain batch INSERT — new rows always start at the column's `default 1`, never an app-supplied version. Reads back id+version so the caller learns the assigned version immediately. */
-async function insertRows(table: VersionedTable, rows: VersionedRow[]): Promise<VersionedRef[]> {
+/**
+ * Plain batch INSERT — new rows always start at the column's `default 1`,
+ * never an app-supplied version. Reads back id+version so the caller learns
+ * the assigned version immediately. `mapError` lets a specific caller
+ * translate a known constraint violation into a neutral error instead of
+ * the raw Postgres message reaching the UI — same pattern already used by
+ * insertBudgetRow for profile_budgets_pkey — without changing behavior for
+ * callers that don't pass one (priorities, finance_months unaffected).
+ */
+async function insertRows(
+  table: VersionedTable,
+  rows: VersionedRow[],
+  mapError?: (error: { message: string; code?: string }) => Error,
+): Promise<VersionedRef[]> {
   if (!rows.length) return [];
   const { data, error } = await supabase.from(table).insert(rows).select("id, version");
-  throwIfError(error);
+  if (error) throw mapError ? mapError(error) : new Error(error.message);
   return (data || []) as VersionedRef[];
 }
 
@@ -1055,6 +1069,13 @@ function buildExpenseRow(
       expense.installmentKey && isUuid(expense.installmentKey) ? expense.installmentKey : null,
     installment_number: expense.installmentNumber || null,
     installment_total: expense.installmentTotal || null,
+    // Only ever carries a value that came from a bank import (see
+    // BankImportDialog) — never generated here, never derived from a
+    // fingerprint. `buildExpenseRow` is the row shape for BOTH insert and
+    // update (see syncExpenses below), so this also covers Etapa 3: editing
+    // any other field of an already-imported expense re-sends its existing
+    // bankTransactionId unchanged instead of dropping it.
+    bank_transaction_id: expense.bankTransactionId || null,
   };
 }
 
@@ -1102,7 +1123,12 @@ export async function syncExpenses(
   }
 
   const versions = new Map<string, number>();
-  for (const inserted of await insertRows("expenses", toInsert)) {
+  const insertedExpenses = await insertRows("expenses", toInsert, (error) =>
+    error.code === "23505" && error.message.includes("bank_transaction_id")
+      ? new WriteNotAppliedError("expenses", "bank_transaction_id")
+      : new Error(error.message),
+  );
+  for (const inserted of insertedExpenses) {
     versions.set(inserted.id, inserted.version);
   }
   for (const { row, expectedVersion } of toUpdate) {

@@ -1,5 +1,6 @@
 import { beforeEach, describe, expect, it, vi } from "vitest";
 
+import { isDuplicate } from "./bankImport";
 import { WriteNotAppliedError } from "./concurrency";
 import type { Expense, FinanceState } from "./types";
 
@@ -467,5 +468,239 @@ describe("loadRemoteFinance — the DB's version column is read back onto Expens
     const loaded = await loadRemoteFinance(user);
 
     expect(loaded.state.months["2026-08"].expenses[0].version).toBe(1);
+  });
+});
+
+describe("P0-IMPORT-1 — bank_transaction_id load/insert/update", () => {
+  beforeEach(() => {
+    mockSupabase.from.mockReset();
+    mockSupabase.rpc.mockReset();
+  });
+
+  function baseExpenseRow(overrides: Record<string, unknown> = {}) {
+    return {
+      id: "expense-1",
+      month_id: "month-1",
+      owner_profile_id: "profile-1",
+      paid_by_profile_id: "profile-1",
+      description: "Padaria",
+      entry_type: "expense",
+      category: "Alimentação",
+      amount: 8.5,
+      status: "A pagar",
+      expense_date: "2026-08-05",
+      due_date: "2026-08-05",
+      competence: "2026-08-01",
+      payment_method: "Pix",
+      note: "",
+      recurring: false,
+      recurring_key: null,
+      installment_key: null,
+      installment_number: null,
+      installment_total: null,
+      created_at: "2026-08-01T00:00:00Z",
+      version: 1,
+      bank_transaction_id: null,
+      ...overrides,
+    };
+  }
+
+  function mockLoadRemoteFinanceWith(expenseRow: Record<string, unknown>) {
+    mockSupabase.rpc.mockResolvedValue({ data: "household-1", error: null });
+    const tableRows: Record<string, unknown> = {
+      app_users: { display_name: "Junior" },
+      household_members: { household_id: "household-1" },
+      financial_profiles: [
+        {
+          id: "profile-1",
+          household_id: "household-1",
+          name: "Minha casa",
+          kind: "household",
+          sort_order: 0,
+          active: true,
+        },
+      ],
+      finance_months: [
+        {
+          id: "month-1",
+          household_id: "household-1",
+          period: "2026-08-01",
+          label: "Agosto",
+          income: 0,
+          house_contribution: 0,
+          planned: false,
+          version: 1,
+        },
+      ],
+      profile_budgets: [],
+      expenses: [expenseRow],
+      priorities: [],
+      envelopes: [],
+    };
+    mockSupabase.from.mockImplementation((table: string) => {
+      const data = tableRows[table];
+      const query = {
+        select: vi.fn(() => query),
+        eq: vi.fn(() => query),
+        order: vi.fn(() => query),
+        limit: vi.fn(() => query),
+        maybeSingle: vi.fn(() => Promise.resolve({ data, error: null })),
+        then: (resolve: (value: { data: unknown; error: null }) => void) =>
+          resolve({ data, error: null }),
+      };
+      return query;
+    });
+  }
+
+  async function loadExpense0() {
+    const user = { id: "user-1", email: "junior@example.com", user_metadata: {} } as Parameters<
+      typeof loadRemoteFinance
+    >[0];
+    const loaded = await loadRemoteFinance(user);
+    return loaded.state.months["2026-08"].expenses[0];
+  }
+
+  it("1/6. loadRemoteFinance hydrates bank_transaction_id as Expense.bankTransactionId", async () => {
+    mockLoadRemoteFinanceWith(baseExpenseRow({ bank_transaction_id: "FITID-A" }));
+    const expense = await loadExpense0();
+    expect(expense.bankTransactionId).toBe("FITID-A");
+  });
+
+  it("2. a null bank_transaction_id (manual expense) loads fine, with no invented fallback", async () => {
+    mockLoadRemoteFinanceWith(baseExpenseRow({ bank_transaction_id: null }));
+    const expense = await loadExpense0();
+    expect(expense.bankTransactionId).toBeUndefined();
+  });
+
+  it("3. inserting a bank-imported expense sends bank_transaction_id to Supabase", async () => {
+    const expense = makeExpense({ bankTransactionId: "FITID-B" });
+    const insertQuery = makeQuery({ data: [{ id: expense.id, version: 1 }], error: null });
+    mockSupabase.from.mockReturnValueOnce(insertQuery);
+
+    await syncExpenses(
+      "household-1",
+      emptyState(MONTH, []),
+      emptyState(MONTH, [expense]),
+      PROFILE_IDS,
+      MONTH_IDS,
+    );
+
+    expect(insertQuery.insert).toHaveBeenCalledWith([
+      expect.objectContaining({ bank_transaction_id: "FITID-B" }),
+    ]);
+  });
+
+  it("4. inserting a manual expense (no bankTransactionId) never invents one — sends null", async () => {
+    const expense = makeExpense(); // no bankTransactionId
+    const insertQuery = makeQuery({ data: [{ id: expense.id, version: 1 }], error: null });
+    mockSupabase.from.mockReturnValueOnce(insertQuery);
+
+    await syncExpenses(
+      "household-1",
+      emptyState(MONTH, []),
+      emptyState(MONTH, [expense]),
+      PROFILE_IDS,
+      MONTH_IDS,
+    );
+
+    expect(insertQuery.insert).toHaveBeenCalledWith([
+      expect.objectContaining({ bank_transaction_id: null }),
+    ]);
+  });
+
+  it("5. editing name/amount/date/owner/category/status of an imported expense re-sends the SAME bankTransactionId, never drops it", async () => {
+    const original = makeExpense({ version: 3, bankTransactionId: "FITID-C" });
+    const edited = { ...original, amount: 42, category: "Outros", status: "Pago" as const };
+    const updateQuery = makeQuery({ data: [{ id: original.id, version: 4 }], error: null });
+    mockSupabase.from.mockReturnValueOnce(updateQuery);
+
+    await syncExpenses(
+      "household-1",
+      emptyState(MONTH, [original]),
+      emptyState(MONTH, [edited]),
+      PROFILE_IDS,
+      MONTH_IDS,
+    );
+
+    expect(updateQuery.update).toHaveBeenCalledWith(
+      expect.objectContaining({ bank_transaction_id: "FITID-C", amount: 42, status: "Pago" }),
+    );
+  });
+
+  it("7/8. after a (simulated) reload, two transactions with different fitIds sharing date/amount/description stay distinct, and the same fitId is still deduped", async () => {
+    // "existing" built exactly the way BankImportDialog builds it in production —
+    // now correctly carrying bankTransactionId because loadRemoteFinance hydrates it.
+    mockLoadRemoteFinanceWith(baseExpenseRow({ bank_transaction_id: "FITID-A" }));
+    const reloadedExpense = await loadExpense0();
+    const existingAfterReload = [
+      {
+        date: reloadedExpense.date,
+        amount: reloadedExpense.amount,
+        name: reloadedExpense.name,
+        fitId: reloadedExpense.bankTransactionId,
+      },
+    ];
+
+    const genuinelyDifferent = {
+      date: reloadedExpense.date,
+      amount: reloadedExpense.amount,
+      type: "expense" as const,
+      description: reloadedExpense.name,
+      fitId: "FITID-B",
+    };
+    const sameTransactionAgain = {
+      date: reloadedExpense.date,
+      amount: reloadedExpense.amount,
+      type: "expense" as const,
+      description: reloadedExpense.name,
+      fitId: "FITID-A",
+    };
+
+    expect(isDuplicate(genuinelyDifferent, existingAfterReload)).toBe(false); // must survive
+    expect(isDuplicate(sameTransactionAgain, existingAfterReload)).toBe(true); // must dedupe
+  });
+
+  it("9. reimporting the same statement after reload does not duplicate (fingerprint still catches it even for entries without a hydrated fitId)", async () => {
+    mockLoadRemoteFinanceWith(baseExpenseRow({ bank_transaction_id: "FITID-A" }));
+    const reloadedExpense = await loadExpense0();
+    const existingAfterReload = [
+      {
+        date: reloadedExpense.date,
+        amount: reloadedExpense.amount,
+        name: reloadedExpense.name,
+        fitId: reloadedExpense.bankTransactionId,
+      },
+    ];
+    const reimportedSameFile = {
+      date: reloadedExpense.date,
+      amount: reloadedExpense.amount,
+      type: "expense" as const,
+      description: reloadedExpense.name,
+      fitId: "FITID-A",
+    };
+    expect(isDuplicate(reimportedSameFile, existingAfterReload)).toBe(true);
+  });
+
+  it("10. a bank_transaction_id unique-constraint violation on insert surfaces as a neutral WriteNotAppliedError, never the raw Postgres message", async () => {
+    const expense = makeExpense({ bankTransactionId: "FITID-DUP" });
+    const insertQuery = makeQuery({
+      data: null,
+      error: {
+        message:
+          'duplicate key value violates unique constraint "expenses_household_bank_transaction_id_key"',
+        code: "23505",
+      },
+    });
+    mockSupabase.from.mockReturnValueOnce(insertQuery);
+
+    const rejection = syncExpenses(
+      "household-1",
+      emptyState(MONTH, []),
+      emptyState(MONTH, [expense]),
+      PROFILE_IDS,
+      MONTH_IDS,
+    );
+    await expect(rejection).rejects.toThrow(WriteNotAppliedError);
+    await expect(rejection).rejects.not.toThrow(/constraint|duplicate key|postgres/i);
   });
 });
