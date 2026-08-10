@@ -11,8 +11,9 @@ import {
   normalizeText,
   profileId,
   sum,
+  summarizeImport,
 } from "./calc";
-import type { Expense, MonthData } from "./types";
+import type { Expense, ImportSummary, MonthData } from "./types";
 
 function makeExpense(overrides: Partial<Expense>): Expense {
   return {
@@ -203,5 +204,43 @@ describe("calc", () => {
   it("threads the month key through to daysLeft", () => {
     expect(calc(month, VIEW_ALL, "2026-06").daysLeft).toBe(0);
     expect(calc(month, VIEW_ALL, "2026-07").daysLeft).toBe(17);
+  });
+});
+
+describe("summarizeImport", () => {
+  function makeSummary(overrides: Partial<ImportSummary>): ImportSummary {
+    return { importedExpenses: 0, importedPriorities: 0, skipped: [], duplicates: 0, ...overrides };
+  }
+
+  it("reports the real added count when there are new items", () => {
+    expect(summarizeImport(makeSummary({ importedExpenses: 2 }))).toBe(
+      "Importação concluída. 2 lançamentos adicionados.",
+    );
+    expect(summarizeImport(makeSummary({ importedExpenses: 1 }))).toBe(
+      "Importação concluída. 1 lançamento adicionado.",
+    );
+  });
+
+  it("says every item already existed when nothing new but duplicates were found", () => {
+    expect(summarizeImport(makeSummary({ duplicates: 34 }))).toBe(
+      "Todos os lançamentos deste arquivo já estavam importados.",
+    );
+  });
+
+  it("falls back to a generic empty message when there's nothing added and nothing duplicated either", () => {
+    expect(summarizeImport(makeSummary({}))).toBe("Nenhum lançamento novo foi adicionado.");
+  });
+
+  it("still appends the skipped-owner note regardless of which added/duplicate branch applies", () => {
+    expect(
+      summarizeImport(
+        makeSummary({
+          duplicates: 5,
+          skipped: [{ reason: "unresolved_owner", ownerRaw: "João", description: "Presente" }],
+        }),
+      ),
+    ).toBe(
+      "Todos os lançamentos deste arquivo já estavam importados. 1 lançamento não foi importado por responsável desconhecido (João).",
+    );
   });
 });

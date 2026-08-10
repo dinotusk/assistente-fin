@@ -287,7 +287,9 @@ export function summarizeImport(summary: ImportSummary): string {
   const total = summary.importedExpenses + summary.importedPriorities;
   const parts: string[] = [
     total === 0
-      ? "Importação concluída, mas nenhum lançamento novo foi adicionado."
+      ? summary.duplicates > 0
+        ? "Todos os lançamentos deste arquivo já estavam importados."
+        : "Nenhum lançamento novo foi adicionado."
       : total === 1
         ? "Importação concluída. 1 lançamento adicionado."
         : `Importação concluída. ${total} lançamentos adicionados.`,

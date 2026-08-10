@@ -370,6 +370,197 @@ describe("P0-IMPORT-1 Etapa 5 — unresolved owner is flagged, never silently re
   });
 });
 
+describe("import summary counts real additions after dedupe, not owner-resolved rows", () => {
+  it("reimporting your own unchanged export reports 0 added, not the number of rows that resolved an owner", async () => {
+    // baseState() is both the render's initial state AND the file being
+    // imported — every row in it already exists, so this is exactly the
+    // "re-import your own export" round trip.
+    setImportFile(JSON.stringify(baseState()));
+    await renderReadyHarness();
+    await clickImportAndWait();
+
+    const summary = JSON.parse(screen.getByTestId("result").textContent!.slice("resolved:".length));
+    expect(summary.importedExpenses).toBe(0);
+    expect(summary.duplicates).toBeGreaterThan(0);
+    // and the data itself never grew — no duplicate rows were persisted.
+    expect(readState().months[MONTH_A].expenses).toHaveLength(1);
+    expect(readState().months[MONTH_B].expenses).toHaveLength(1);
+  });
+
+  it("an existing expense (A) plus a file with A (duplicate) + B + C reports exactly 2 added, not 3", async () => {
+    const backup: FinanceState = {
+      people: ["Maria", "Oziel"],
+      activePerson: "me",
+      activeMonth: MONTH_A,
+      months: {
+        [MONTH_A]: {
+          label: "Agosto 2026",
+          income: 5000,
+          houseContribution: 1000,
+          expenses: [
+            // A — exact duplicate of baseState()'s "Aluguel" (same name/amount/date/owner)
+            {
+              id: "a-from-file",
+              name: "Aluguel",
+              category: "Casa",
+              amount: 1200,
+              status: "Pago",
+              owner: "Maria",
+              date: `${MONTH_A}-01`,
+              paymentMethod: "Pix",
+              note: "",
+            },
+            // B — new
+            {
+              id: "b-from-file",
+              name: "Luz",
+              category: "Casa",
+              amount: 200,
+              status: "A pagar",
+              owner: "Maria",
+              date: `${MONTH_A}-10`,
+              paymentMethod: "Pix",
+              note: "",
+            },
+            // C — new
+            {
+              id: "c-from-file",
+              name: "Gás",
+              category: "Casa",
+              amount: 80,
+              status: "A pagar",
+              owner: "Oziel",
+              date: `${MONTH_A}-10`,
+              paymentMethod: "Pix",
+              note: "",
+            },
+          ],
+          priorities: [],
+        },
+      },
+    };
+    setImportFile(JSON.stringify(backup));
+    await renderReadyHarness();
+    await clickImportAndWait();
+
+    const summary = JSON.parse(screen.getByTestId("result").textContent!.slice("resolved:".length));
+    expect(summary.importedExpenses).toBe(2);
+    expect(summary.duplicates).toBe(1);
+    // existing-a + Luz + Gás — the duplicate "Aluguel" from the file never became a 4th row.
+    expect(readState().months[MONTH_A].expenses).toHaveLength(3);
+  });
+
+  it("a row skipped for unresolved owner is never counted as added, even when other rows in the same file are", async () => {
+    const backup: FinanceState = {
+      people: ["Maria", "Oziel"],
+      activePerson: "me",
+      activeMonth: MONTH_A,
+      months: {
+        [MONTH_A]: {
+          label: "Agosto 2026",
+          income: 1,
+          houseContribution: 0,
+          expenses: [
+            {
+              id: "known",
+              name: "Luz",
+              category: "Casa",
+              amount: 200,
+              status: "A pagar",
+              owner: "Maria",
+              date: `${MONTH_A}-10`,
+              paymentMethod: "Pix",
+              note: "",
+            },
+            {
+              id: "unknown",
+              name: "Presente",
+              category: "Outros",
+              amount: 50,
+              status: "Pago",
+              owner: "João", // not a real profile in this household
+              date: `${MONTH_A}-05`,
+              paymentMethod: "Pix",
+              note: "",
+            },
+          ],
+          priorities: [],
+        },
+      },
+    };
+    setImportFile(JSON.stringify(backup));
+    await renderReadyHarness();
+    await clickImportAndWait();
+
+    const summary = JSON.parse(screen.getByTestId("result").textContent!.slice("resolved:".length));
+    expect(summary.importedExpenses).toBe(1); // only "Luz" — "Presente" is skipped, not counted either way
+    expect(summary.skipped).toEqual([
+      { reason: "unresolved_owner", ownerRaw: "João", description: "Presente" },
+    ]);
+  });
+
+  it("priorities follow the exact same real-count rule as expenses", async () => {
+    const initial = baseState();
+    initial.months[MONTH_A].priorities = [
+      {
+        id: "existing-priority",
+        name: "Aluguel",
+        amount: 1200,
+        rank: 1,
+        status: "A pagar",
+        responsavel: "Maria",
+        saved: 0,
+        createdAt: new Date(0).toISOString(),
+      },
+    ];
+    const backup: FinanceState = {
+      people: ["Maria", "Oziel"],
+      activePerson: "me",
+      activeMonth: MONTH_A,
+      months: {
+        [MONTH_A]: {
+          label: "Agosto 2026",
+          income: 1,
+          houseContribution: 0,
+          expenses: [],
+          priorities: [
+            // duplicate of the existing priority (same name/amount/responsavel)
+            {
+              id: "dup-from-file",
+              name: "Aluguel",
+              amount: 1200,
+              rank: 1,
+              status: "A pagar",
+              responsavel: "Maria",
+              saved: 0,
+              createdAt: "",
+            },
+            // new
+            {
+              id: "new-from-file",
+              name: "Viagem",
+              amount: 500,
+              rank: 2,
+              status: "A pagar",
+              responsavel: "Oziel",
+              saved: 0,
+              createdAt: "",
+            },
+          ],
+        },
+      },
+    };
+    setImportFile(JSON.stringify(backup));
+    await renderReadyHarness(initial);
+    await clickImportAndWait();
+
+    const summary = JSON.parse(screen.getByTestId("result").textContent!.slice("resolved:".length));
+    expect(summary.importedPriorities).toBe(1);
+    expect(summary.duplicates).toBe(1);
+    expect(readState().months[MONTH_A].priorities).toHaveLength(2);
+  });
+});
+
 describe("P0-IMPORT-1 Etapa 1 — success only after the remote write actually confirms", () => {
   it("importData does not resolve until saveRemoteFinance resolves", async () => {
     let resolveWrite: (() => void) | undefined;

@@ -101,4 +101,6 @@ export interface ImportSummary {
   importedExpenses: number;
   importedPriorities: number;
   skipped: ImportSkippedRow[];
+  /** Rows that resolved a valid owner but were already present (deduped away) — not counted in importedExpenses/importedPriorities. */
+  duplicates: number;
 }

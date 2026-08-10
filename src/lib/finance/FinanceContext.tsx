@@ -793,7 +793,8 @@ async function importSpreadsheet(
   }
   return {
     state: { ...state, months },
-    summary: { importedExpenses: imported, importedPriorities, skipped },
+    // duplicates not computed for this path yet (out of scope for this round) — imported/importedPriorities here still count pre-dedupe rows, same limitation this fix removed from the backup path.
+    summary: { importedExpenses: imported, importedPriorities, skipped, duplicates: 0 },
   };
 }
 
@@ -926,6 +927,7 @@ function mergeBackupPayload(
   const skipped: ImportSkippedRow[] = [];
   let importedExpenses = 0;
   let importedPriorities = 0;
+  let duplicates = 0;
 
   Object.entries(payload.months || {}).forEach(([monthKey, monthData]) => {
     const rawExpenses = Array.isArray(monthData?.expenses) ? monthData.expenses : [];
@@ -965,8 +967,13 @@ function mergeBackupPayload(
       resolvedPriorities.push(normalizeImportedPriority(record, owner));
     });
 
-    importedExpenses += resolvedExpenses.length;
-    importedPriorities += resolvedPriorities.length;
+    // Count real additions after dedupe, not the number of owner-resolved
+    // rows the file had — those are the same thing only the first time a
+    // file is imported. Re-importing an unchanged backup must report 0
+    // added, even though every row still resolves a valid owner.
+    const beforeExpenseCount = months[monthKey]?.expenses.length ?? 0;
+    const beforePriorityCount = months[monthKey]?.priorities.length ?? 0;
+
     months[monthKey] = mergeMonthData(months[monthKey], monthKey, {
       income: Number(monthData?.income) || undefined,
       houseContribution: Number(monthData?.houseContribution) || undefined,
@@ -975,11 +982,22 @@ function mergeBackupPayload(
       expenses: resolvedExpenses,
       priorities: resolvedPriorities,
     });
+
+    // Clamped at 0: dedupeExpenses/dedupePriorities can in principle collapse
+    // a pre-existing duplicate pair already in `current` (from manual entry,
+    // never deduped) independently of this import — that must never read as
+    // a negative "added" count.
+    const addedExpenses = Math.max(0, months[monthKey].expenses.length - beforeExpenseCount);
+    const addedPriorities = Math.max(0, months[monthKey].priorities.length - beforePriorityCount);
+    importedExpenses += addedExpenses;
+    importedPriorities += addedPriorities;
+    duplicates +=
+      resolvedExpenses.length - addedExpenses + (resolvedPriorities.length - addedPriorities);
   });
 
   return {
     state: { ...state, months },
-    summary: { importedExpenses, importedPriorities, skipped },
+    summary: { importedExpenses, importedPriorities, skipped, duplicates },
   };
 }
 
@@ -1067,7 +1085,8 @@ function importJsonPayload(
   }
   return {
     state: { ...state, months },
-    summary: { importedExpenses: imported, importedPriorities: 0, skipped },
+    // duplicates not computed for this path yet (out of scope for this round) — see importSpreadsheet.
+    summary: { importedExpenses: imported, importedPriorities: 0, skipped, duplicates: 0 },
   };
 }
 
