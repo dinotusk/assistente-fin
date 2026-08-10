@@ -771,6 +771,7 @@ async function importSpreadsheet(
   const skipped: ImportSkippedRow[] = [];
   let imported = 0;
   let importedPriorities = 0;
+  let duplicates = 0;
 
   workbook.SheetNames.forEach((sheetName) => {
     const sheet = workbook.Sheets[sheetName];
@@ -779,22 +780,33 @@ async function importSpreadsheet(
     const parsed = extractFinanceFromRows(rows, monthKey, state.people);
     skipped.push(...parsed.skipped);
     if (!parsed.expenses.length && !parsed.priorities.length && !parsed.income) return;
-    imported += parsed.expenses.length;
-    importedPriorities += parsed.priorities.length;
+
+    // Same real-count rule as mergeBackupPayload: a row with a valid owner
+    // that already exists must not be reported as "added" just because it
+    // resolved — count what actually grew the array, after dedupe.
+    const beforeExpenseCount = months[monthKey]?.expenses.length ?? 0;
+    const beforePriorityCount = months[monthKey]?.priorities.length ?? 0;
+
     months[monthKey] = mergeMonthData(months[monthKey], monthKey, {
       income: parsed.income || undefined,
       expenses: parsed.expenses,
       priorities: parsed.priorities,
     });
+
+    const addedExpenses = Math.max(0, months[monthKey].expenses.length - beforeExpenseCount);
+    const addedPriorities = Math.max(0, months[monthKey].priorities.length - beforePriorityCount);
+    imported += addedExpenses;
+    importedPriorities += addedPriorities;
+    duplicates +=
+      parsed.expenses.length - addedExpenses + (parsed.priorities.length - addedPriorities);
   });
 
-  if (!imported && !importedPriorities && !skipped.length) {
+  if (!imported && !importedPriorities && !skipped.length && !duplicates) {
     throw new Error("Nenhum gasto encontrado na planilha");
   }
   return {
     state: { ...state, months },
-    // duplicates not computed for this path yet (out of scope for this round) — imported/importedPriorities here still count pre-dedupe rows, same limitation this fix removed from the backup path.
-    summary: { importedExpenses: imported, importedPriorities, skipped, duplicates: 0 },
+    summary: { importedExpenses: imported, importedPriorities, skipped, duplicates },
   };
 }
 
@@ -1059,6 +1071,7 @@ function importJsonPayload(
   const months = { ...state.months };
   const skipped: ImportSkippedRow[] = [];
   let imported = 0;
+  let duplicates = 0;
   collectJsonRows(payload).forEach((row) => {
     const result = expenseFromRecord(row, state.activeMonth, state.people);
     if (result.kind === "skip") return;
@@ -1073,20 +1086,24 @@ function importJsonPayload(
     const { expense } = result;
     const monthKey = monthKeyFromRecord(row, expense.date, state.activeMonth);
     const current = months[monthKey] || emptyMonth(monthKey);
-    imported += 1;
-    months[monthKey] = {
-      ...current,
-      expenses: dedupeExpenses([...current.expenses, expense]),
-    };
+    const mergedExpenses = dedupeExpenses([...current.expenses, expense]);
+    // Same real-count rule as mergeBackupPayload/importSpreadsheet: a
+    // resolved row that dedupe collapses back to an already-existing
+    // expense is a duplicate, not an addition.
+    if (mergedExpenses.length > current.expenses.length) {
+      imported += 1;
+    } else {
+      duplicates += 1;
+    }
+    months[monthKey] = { ...current, expenses: mergedExpenses };
   });
 
-  if (!imported && !skipped.length) {
+  if (!imported && !skipped.length && !duplicates) {
     throw new Error("Formato invalido ou nenhum gasto encontrado");
   }
   return {
     state: { ...state, months },
-    // duplicates not computed for this path yet (out of scope for this round) — see importSpreadsheet.
-    summary: { importedExpenses: imported, importedPriorities: 0, skipped, duplicates: 0 },
+    summary: { importedExpenses: imported, importedPriorities: 0, skipped, duplicates },
   };
 }
 

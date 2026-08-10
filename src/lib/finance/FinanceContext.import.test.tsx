@@ -108,6 +108,12 @@ function Harness() {
       <button
         data-testid="import-btn"
         onClick={() => {
+          // Cleared synchronously on click, not just initialized once: a test
+          // that clicks import twice (e.g. reimporting the same file) needs
+          // `result` to go empty->non-empty on EACH click, since clickImportAndWait
+          // only waits for "not empty" — without this reset, the second click's
+          // wait would trivially pass on the first click's still-unconsumed value.
+          setResult("");
           const file = (window as unknown as { __importFile: File }).__importFile;
           importData(file).then(
             (summary) => setResult(`resolved:${JSON.stringify(summary)}`),
@@ -561,6 +567,67 @@ describe("import summary counts real additions after dedupe, not owner-resolved 
   });
 });
 
+describe("the same real-count rule applies to row-list JSON import ({ gastos: [...] })", () => {
+  it("an existing expense (A) plus a file with A (duplicate) + B + C reports 2 added, 1 duplicate", async () => {
+    setImportFile(
+      JSON.stringify({
+        gastos: [
+          { descricao: "Aluguel", valor: 1200, responsavel: "Maria", data: `${MONTH_A}-01` }, // A — duplicate
+          { descricao: "Luz", valor: 200, responsavel: "Maria", data: `${MONTH_A}-10` }, // B — new
+          { descricao: "Gás", valor: 80, responsavel: "Oziel", data: `${MONTH_A}-10` }, // C — new
+        ],
+      }),
+    );
+    await renderReadyHarness();
+    await clickImportAndWait();
+
+    const summary = JSON.parse(screen.getByTestId("result").textContent!.slice("resolved:".length));
+    expect(summary.importedExpenses).toBe(2);
+    expect(summary.duplicates).toBe(1);
+    expect(readState().months[MONTH_A].expenses).toHaveLength(3);
+  });
+
+  it("reimporting the exact same row-list file reports 0 added and every row as a duplicate", async () => {
+    const payload = {
+      gastos: [
+        { descricao: "Aluguel", valor: 1200, responsavel: "Maria", data: `${MONTH_A}-01` },
+        { descricao: "Luz", valor: 200, responsavel: "Maria", data: `${MONTH_A}-10` },
+        { descricao: "Gás", valor: 80, responsavel: "Oziel", data: `${MONTH_A}-10` },
+      ],
+    };
+    setImportFile(JSON.stringify(payload));
+    await renderReadyHarness();
+    await clickImportAndWait(); // first import: adds Luz and Gás
+
+    setImportFile(JSON.stringify(payload));
+    await clickImportAndWait(); // reimport of the identical file
+
+    const summary = JSON.parse(screen.getByTestId("result").textContent!.slice("resolved:".length));
+    expect(summary.importedExpenses).toBe(0);
+    expect(summary.duplicates).toBe(3);
+    expect(readState().months[MONTH_A].expenses).toHaveLength(3);
+  });
+
+  it("a row with an unresolved owner is never counted as added, even when other rows in the same file are", async () => {
+    setImportFile(
+      JSON.stringify({
+        gastos: [
+          { descricao: "Luz", valor: 200, responsavel: "Maria", data: `${MONTH_A}-10` },
+          { descricao: "Presente", valor: 50, responsavel: "João", data: `${MONTH_A}-05` },
+        ],
+      }),
+    );
+    await renderReadyHarness();
+    await clickImportAndWait();
+
+    const summary = JSON.parse(screen.getByTestId("result").textContent!.slice("resolved:".length));
+    expect(summary.importedExpenses).toBe(1); // only "Luz"
+    expect(summary.skipped).toEqual([
+      { reason: "unresolved_owner", ownerRaw: "João", description: "Presente" },
+    ]);
+  });
+});
+
 describe("P0-IMPORT-1 Etapa 1 — success only after the remote write actually confirms", () => {
   it("importData does not resolve until saveRemoteFinance resolves", async () => {
     let resolveWrite: (() => void) | undefined;
@@ -696,5 +763,58 @@ describe("P0-IMPORT-1 Etapa 2 — the same merge protection applies to spreadshe
     expect(summary.skipped).toEqual([
       { reason: "unresolved_owner", ownerRaw: "João", description: "Presente" },
     ]);
+  });
+
+  it("an existing expense (A) plus a spreadsheet with A (duplicate) + B + C reports 2 added, 1 duplicate", async () => {
+    const buffer = buildXlsx(
+      [
+        ["Item", "Valor", "Categoria", "Status", "Responsavel", "Data"],
+        ["Aluguel", 1200, "Casa", "Pago", "Maria", "01/08/2026"], // A — duplicate of baseState()'s "Aluguel"
+        ["Luz", 200, "Casa", "A pagar", "Maria", "10/08/2026"], // B — new
+        ["Gás", 80, "Casa", "A pagar", "Oziel", "10/08/2026"], // C — new
+      ],
+      "Agosto 2026",
+    );
+    setImportBinaryFile(
+      buffer,
+      "planilha.xlsx",
+      "application/vnd.openxmlformats-officedocument.spreadsheetml.sheet",
+    );
+    await renderReadyHarness();
+    await clickImportAndWait();
+
+    const summary = JSON.parse(screen.getByTestId("result").textContent!.slice("resolved:".length));
+    expect(summary.importedExpenses).toBe(2);
+    expect(summary.duplicates).toBe(1);
+    // existing-a + Luz + Gás — the duplicate "Aluguel" row never became a 4th expense.
+    expect(readState().months[MONTH_A].expenses).toHaveLength(3);
+  });
+
+  it("reimporting the exact same spreadsheet reports 0 added and every row as a duplicate", async () => {
+    const rows: unknown[][] = [
+      ["Item", "Valor", "Categoria", "Status", "Responsavel", "Data"],
+      ["Aluguel", 1200, "Casa", "Pago", "Maria", "01/08/2026"],
+      ["Luz", 200, "Casa", "A pagar", "Maria", "10/08/2026"],
+      ["Gás", 80, "Casa", "A pagar", "Oziel", "10/08/2026"],
+    ];
+    setImportBinaryFile(
+      buildXlsx(rows, "Agosto 2026"),
+      "planilha.xlsx",
+      "application/vnd.openxmlformats-officedocument.spreadsheetml.sheet",
+    );
+    await renderReadyHarness();
+    await clickImportAndWait(); // first import: adds Luz and Gás
+
+    setImportBinaryFile(
+      buildXlsx(rows, "Agosto 2026"),
+      "planilha.xlsx",
+      "application/vnd.openxmlformats-officedocument.spreadsheetml.sheet",
+    );
+    await clickImportAndWait(); // reimport of the identical file
+
+    const summary = JSON.parse(screen.getByTestId("result").textContent!.slice("resolved:".length));
+    expect(summary.importedExpenses).toBe(0);
+    expect(summary.duplicates).toBe(3);
+    expect(readState().months[MONTH_A].expenses).toHaveLength(3); // unchanged from after the first import
   });
 });
