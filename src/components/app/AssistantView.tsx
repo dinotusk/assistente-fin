@@ -25,7 +25,14 @@ import {
   sum,
   viewLabelForPeople,
 } from "@/lib/finance/calc";
-import { answerLocally, askGemini, buildAiContext } from "@/lib/finance/ai";
+import {
+  type AiFailureReason,
+  answerLocally,
+  askGemini,
+  buildAiContext,
+  describeFallback,
+  GeminiRequestError,
+} from "@/lib/finance/ai";
 import { hasAiConsent } from "@/lib/finance/aiConsent";
 import { lookupLearnedCategory } from "@/lib/finance/learnedCategories";
 import { paymentMethods, VIEW_ALL, VIEW_ME, VIEW_SPOUSE } from "@/lib/finance/constants";
@@ -45,9 +52,20 @@ import { TextArea } from "./forms";
 import { AvalMark, BudgetRing, Sparkline } from "./ui";
 
 interface Message {
+  /** Either a Vigia's name, or (for an "ai" message answered locally) the fallback
+   *  reason label from describeFallback — same visual slot, both mean "this bubble
+   *  isn't a plain Gemini reply, read the label." Absent on a normal Gemini answer. */
   sender?: string;
   role: "user" | "ai";
   text: string;
+}
+
+/** Dev-only, console-only visibility into which path answered a question — never
+ *  sent anywhere, never rendered, stripped from production builds by the DEV check. */
+type AiInteractionSource = "gemini" | "local_fallback" | "command";
+function logAiInteraction(source: AiInteractionSource, reason?: AiFailureReason): void {
+  if (!import.meta.env.DEV) return;
+  console.debug(`[Aval:AI] source=${source}${reason ? ` reason=${reason}` : ""}`);
 }
 
 interface AssistantViewProps {
@@ -151,6 +169,7 @@ export function AssistantView({
     if (!question || busy) return;
     const commandAnswer = handleAssistantCommand(question);
     if (commandAnswer) {
+      logAiInteraction("command");
       setMessages((m) => [
         ...m,
         { role: "user", text: question },
@@ -170,14 +189,23 @@ export function AssistantView({
       { role: "ai", text: "Analisando seus dados..." },
     ]);
     let answer: string;
+    let fallbackLabel: string | undefined;
     try {
       answer = await askGemini(question, buildAiContext(state));
-    } catch {
+      logAiInteraction("gemini");
+    } catch (error) {
+      const reason = error instanceof GeminiRequestError ? error.reason : "unavailable";
       answer = answerLocally(question, state);
+      fallbackLabel = describeFallback(reason);
+      logAiInteraction("local_fallback", reason);
     }
     setMessages((m) => {
       const next = [...m];
-      next[next.length - 1] = { role: "ai", text: hideValues ? maskMoneyInText(answer) : answer };
+      next[next.length - 1] = {
+        role: "ai",
+        sender: fallbackLabel,
+        text: hideValues ? maskMoneyInText(answer) : answer,
+      };
       return next;
     });
     setBusy(false);

@@ -154,35 +154,76 @@ function sum(items: { amount?: number }[]): number {
 }
 
 /**
- * Call the secure Gemini backend; throws if unavailable so callers can fall back.
- * Hard-blocks without consent and validates the outgoing payload — this is the last
- * line of defense even though the caller (AssistantView) is expected to gate the UI
- * before ever reaching this call.
+ * Why askGemini failed, coarse enough for the UI to pick an honest fallback framing
+ * without parsing error message strings (which are just display copy, not a stable
+ * contract). "consent" covers both "never granted" and "granted locally but the
+ * server says revoked/out of date" — the caller doesn't need to tell those apart.
+ */
+export type AiFailureReason = "consent" | "rate_limit" | "unavailable";
+
+/** Thrown by askGemini for every failure path, always carrying a classified `reason`. */
+export class GeminiRequestError extends Error {
+  readonly reason: AiFailureReason;
+  constructor(message: string, reason: AiFailureReason) {
+    super(message);
+    this.name = "GeminiRequestError";
+    this.reason = reason;
+  }
+}
+
+/** Short, honest label shown above a fallback answer — never implies it's a full Gemini reply. */
+const FALLBACK_LABELS: Record<AiFailureReason, string> = {
+  consent: "Resposta local — consentimento de IA pendente",
+  rate_limit: "Resposta local — limite de perguntas atingido",
+  unavailable: "Resposta local — IA temporariamente indisponível",
+};
+
+export function describeFallback(reason: AiFailureReason): string {
+  return FALLBACK_LABELS[reason];
+}
+
+/**
+ * Call the secure Gemini backend; throws GeminiRequestError (always classified) if
+ * unavailable so callers can fall back with an honest, specific reason instead of a
+ * generic catch-all. Hard-blocks without consent and validates the outgoing payload —
+ * this is the last line of defense even though the caller (AssistantView) is expected
+ * to gate the UI before ever reaching this call.
  */
 export async function askGemini(question: string, context: unknown): Promise<string> {
   if (!hasAiConsent()) {
-    throw new Error("Consentimento de IA necessario");
+    throw new GeminiRequestError("Consentimento de IA necessario", "consent");
   }
   const validated = validateAiChatRequest({ question, context });
   if (!validated.ok) {
-    throw new Error(validated.error);
+    throw new GeminiRequestError(validated.error, "unavailable");
   }
 
   const { data: sessionData } = await supabase.auth.getSession();
   const token = sessionData.session?.access_token;
-  if (!token) throw new Error("Sessao nao encontrada");
+  if (!token) throw new GeminiRequestError("Sessao nao encontrada", "unavailable");
 
-  const response = await fetch("/api/gemini-chat", {
-    method: "POST",
-    headers: { "Content-Type": "application/json", Authorization: `Bearer ${token}` },
-    body: JSON.stringify(validated.value),
-  });
+  let response: Response;
+  try {
+    response = await fetch("/api/gemini-chat", {
+      method: "POST",
+      headers: { "Content-Type": "application/json", Authorization: `Bearer ${token}` },
+      body: JSON.stringify(validated.value),
+    });
+  } catch (networkError) {
+    throw new GeminiRequestError(
+      networkError instanceof Error ? networkError.message : "Falha de rede",
+      "unavailable",
+    );
+  }
+
   const data = await response.json().catch(() => ({}));
   if (!response.ok) {
     const message = typeof data?.error === "string" ? data.error : "Assistente indisponivel";
     console.warn("Gemini backend unavailable:", message);
-    throw new Error(message);
+    const reason: AiFailureReason =
+      response.status === 403 ? "consent" : response.status === 429 ? "rate_limit" : "unavailable";
+    throw new GeminiRequestError(message, reason);
   }
-  if (!data.answer) throw new Error("Resposta vazia");
+  if (!data.answer) throw new GeminiRequestError("Resposta vazia", "unavailable");
   return data.answer as string;
 }

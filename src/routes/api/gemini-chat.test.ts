@@ -323,3 +323,125 @@ describe("handleGeminiChatRequest", () => {
     expect(json).toEqual({ answer: "Voce esta dentro do orcamento." });
   });
 });
+
+/**
+ * P0-05B round 1 — tests the system prompt's CONTRACT (which instructions it gives
+ * the model), never literal Gemini output, which nothing here can observe or control.
+ * "Como está meu mês?" / "Quanto ainda posso gastar?" / "O que está pesando mais?" /
+ * "Como estão minhas metas?" are the four representative questions from the audit's
+ * quality gaps — used here just as realistic inputs, not as anything we assert a
+ * specific reply to.
+ */
+describe("buildPrompt — the quality-of-answer contract given to Gemini", () => {
+  async function importBuildPrompt() {
+    const mod = await import("./gemini-chat");
+    return mod.buildPrompt;
+  }
+
+  const REPRESENTATIVE_QUESTIONS = [
+    "Como está meu mês?",
+    "Quanto ainda posso gastar?",
+    "O que está pesando mais?",
+    "Como estão minhas metas?",
+  ];
+
+  it.each(REPRESENTATIVE_QUESTIONS)(
+    "embeds the exact question verbatim, for %s",
+    async (question) => {
+      const buildPrompt = await importBuildPrompt();
+      const prompt = buildPrompt(question, VALID_CONTEXT);
+      expect(prompt).toContain(question);
+    },
+  );
+
+  it.each(REPRESENTATIVE_QUESTIONS)(
+    "instructs answering the real question first, for %s",
+    async (question) => {
+      const buildPrompt = await importBuildPrompt();
+      const prompt = buildPrompt(question, VALID_CONTEXT);
+      expect(prompt).toMatch(/responda primeiro.{0,40}diretamente.{0,40}pergunta/i);
+    },
+  );
+
+  it("instructs adaptive depth — short for objective questions, developed for analysis — instead of a flat length rule", async () => {
+    const buildPrompt = await importBuildPrompt();
+    const prompt = buildPrompt("oi", VALID_CONTEXT);
+    expect(prompt).toMatch(/adapte a profundidade/i);
+    expect(prompt).toMatch(/pergunta objetiva.{0,60}curta/i);
+    expect(prompt).toMatch(/analise.{0,80}desenvolvida|desenvolvida.{0,80}analise/i);
+  });
+
+  it("no longer forces every reply to be short — the old blanket brevity instruction is gone", async () => {
+    const buildPrompt = await importBuildPrompt();
+    const prompt = buildPrompt("oi", VALID_CONTEXT);
+    expect(prompt).not.toMatch(/responda de forma curta/i);
+    expect(prompt).not.toMatch(/use frases curtas/i);
+  });
+
+  it("no longer forces a mandatory closing summary on every answer", async () => {
+    const buildPrompt = await importBuildPrompt();
+    const prompt = buildPrompt("oi", VALID_CONTEXT);
+    expect(prompt).not.toMatch(/termine com um resumo/i);
+    expect(prompt).toMatch(/nao force um resumo final/i);
+  });
+
+  it("instructs using concrete numbers from the context when relevant", async () => {
+    const buildPrompt = await importBuildPrompt();
+    const prompt = buildPrompt("Quanto ainda posso gastar?", VALID_CONTEXT);
+    expect(prompt).toMatch(/numeros relevantes.{0,60}contexto.{0,20}use-os/is);
+  });
+
+  it("still forbids inventing data not present in the context (protection preserved)", async () => {
+    const buildPrompt = await importBuildPrompt();
+    const prompt = buildPrompt("oi", VALID_CONTEXT);
+    expect(prompt).toMatch(/nunca invente numeros.{0,120}contexto/is);
+  });
+
+  it("instructs saying explicitly what it can't conclude instead of guessing, when data is missing", async () => {
+    const buildPrompt = await importBuildPrompt();
+    const prompt = buildPrompt("oi", VALID_CONTEXT);
+    expect(prompt).toMatch(/diga explicitamente o que voce nao consegue concluir/i);
+  });
+
+  it("instructs offering a practical, actionable recommendation with a brief reason — not a generic tip", async () => {
+    const buildPrompt = await importBuildPrompt();
+    const prompt = buildPrompt("O que está pesando mais?", VALID_CONTEXT);
+    expect(prompt).toMatch(/explique brevemente o motivo/i);
+    expect(prompt).toMatch(/pratico e acionavel/i);
+    expect(prompt).toMatch(/nunca uma dica generica/i);
+  });
+
+  it("never lets high-risk financial guidance read as an absolute guarantee", async () => {
+    const buildPrompt = await importBuildPrompt();
+    const prompt = buildPrompt("oi", VALID_CONTEXT);
+    expect(prompt).toMatch(/nao fale como se fosse certeza absoluta/i);
+    expect(prompt).toMatch(/nao.{0,20}garantia/i);
+  });
+
+  it("forbids rigid headings like Resposta/Diagnóstico/Recomendação — the reply must read as conversation", async () => {
+    const buildPrompt = await importBuildPrompt();
+    const prompt = buildPrompt("oi", VALID_CONTEXT);
+    expect(prompt).toMatch(/nao existe estrutura fixa obrigatoria/i);
+    expect(prompt).not.toMatch(/diagnostico:/i);
+  });
+
+  it("keeps the Markdown/formatting protections — the app renders plain text only", async () => {
+    const buildPrompt = await importBuildPrompt();
+    const prompt = buildPrompt("oi", VALID_CONTEXT);
+    expect(prompt).toMatch(/nao use markdown/i);
+    expect(prompt).toMatch(/asteriscos/i);
+    expect(prompt).toMatch(/listas com marcadores/i);
+  });
+
+  it("keeps the 'planejamento' handling instruction unchanged", async () => {
+    const buildPrompt = await importBuildPrompt();
+    const prompt = buildPrompt("oi", VALID_CONTEXT);
+    expect(prompt).toMatch(/planejamento.{0,20}true.{0,80}previsao/is);
+  });
+
+  it("still embeds the financial context as-is, without adding or dropping fields", async () => {
+    const buildPrompt = await importBuildPrompt();
+    const prompt = buildPrompt("oi", VALID_CONTEXT);
+    expect(prompt).toContain(JSON.stringify(VALID_CONTEXT, null, 2));
+  });
+});
