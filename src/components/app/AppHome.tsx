@@ -18,6 +18,13 @@ import { VIEW_ALL, VIEW_ME, VIEW_SPOUSE } from "@/lib/finance/constants";
 import { useFinance } from "@/lib/finance/FinanceContext";
 import type { ViewKey } from "@/lib/finance/types";
 
+import {
+  AccountDialog,
+  ChangePasswordDialog,
+  MembersDialog,
+  PersonalDataDialog,
+  SecurityDialog,
+} from "./AccountDialogs";
 import { AiConsentDialog } from "./AiConsentDialog";
 import { AssistantView } from "./AssistantView";
 import { ConflictDialog } from "./ConflictDialog";
@@ -100,6 +107,11 @@ export function AppHome() {
   const [envelopesOpen, setEnvelopesOpen] = useState(false);
   const [pushOpen, setPushOpen] = useState(false);
   const [aiConsentOpen, setAiConsentOpen] = useState(false);
+  const [accountOpen, setAccountOpen] = useState(false);
+  const [personalDataOpen, setPersonalDataOpen] = useState(false);
+  const [securityOpen, setSecurityOpen] = useState(false);
+  const [changePasswordOpen, setChangePasswordOpen] = useState(false);
+  const [membersOpen, setMembersOpen] = useState(false);
   const [profileMenuOpen, setProfileMenuOpen] = useState(false);
   const importRef = useRef<HTMLInputElement>(null);
   const initials = getInitials(activeUser?.name || "Aval");
@@ -258,6 +270,8 @@ export function AppHome() {
       )}
       {view === "settings" && (
         <SettingsView
+          onOpenAccount={() => setAccountOpen(true)}
+          onOpenMembers={() => setMembersOpen(true)}
           onEditPeople={() => setPeopleOpen(true)}
           onEditMonth={() => setMonthOpen(true)}
           onEditCategories={() => setCategoriesOpen(true)}
@@ -305,6 +319,22 @@ export function AppHome() {
       <EnvelopesDialog open={envelopesOpen} onOpenChange={setEnvelopesOpen} />
       <PushNotificationsDialog open={pushOpen} onOpenChange={setPushOpen} />
       <AiConsentDialog open={aiConsentOpen} onOpenChange={setAiConsentOpen} mode="manage" />
+      <AccountDialog
+        open={accountOpen}
+        onOpenChange={setAccountOpen}
+        onOpenPersonalData={() => setPersonalDataOpen(true)}
+        onOpenSecurity={() => setSecurityOpen(true)}
+        onOpenMembers={() => setMembersOpen(true)}
+        onOpenAiConsent={() => setAiConsentOpen(true)}
+      />
+      <PersonalDataDialog open={personalDataOpen} onOpenChange={setPersonalDataOpen} />
+      <SecurityDialog
+        open={securityOpen}
+        onOpenChange={setSecurityOpen}
+        onOpenChangePassword={() => setChangePasswordOpen(true)}
+      />
+      <ChangePasswordDialog open={changePasswordOpen} onOpenChange={setChangePasswordOpen} />
+      <MembersDialog open={membersOpen} onOpenChange={setMembersOpen} />
       <ConflictDialog
         open={Boolean(writeConflict)}
         onRefresh={refreshAfterConflict}

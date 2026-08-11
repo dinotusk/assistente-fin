@@ -294,6 +294,23 @@ export async function loginWithGoogle(): Promise<void> {
   throwIfError(error);
 }
 
+/**
+ * P0-FRONTEND-1C.1: changes the password for the currently signed-in user.
+ * No "current password" field — Supabase's updateUser doesn't require one
+ * (an already-authenticated session is itself the proof of identity), and
+ * this never signs the session out.
+ */
+export async function updatePassword(newPassword: string): Promise<void> {
+  const { error } = await supabase.auth.updateUser({ password: newPassword });
+  throwIfError(error);
+}
+
+/** Which auth providers are linked to the current session's own account — never another user's. */
+export async function getLinkedProviders(): Promise<string[]> {
+  const user = await getAuthenticatedUser();
+  return (user?.identities || []).map((identity) => identity.provider);
+}
+
 export async function loadRemoteFinance(user: User): Promise<LoadedFinance> {
   const metadataName = String(
     user.user_metadata?.display_name ||
@@ -462,7 +479,7 @@ export async function loadRemoteFinance(user: User): Promise<LoadedFinance> {
   const people = activeProfiles.map((profile) => profile.name);
 
   return {
-    user: { id: user.id, name: displayName },
+    user: { id: user.id, name: displayName, email: user.email ?? null },
     state: {
       people,
       activePerson: readSessionPreference("activePerson") || VIEW_ME,
@@ -483,6 +500,44 @@ async function findHouseholdId(): Promise<string> {
   throwIfError(error);
   if (!data?.household_id) throw new Error("Nenhuma casa financeira encontrada para este usuario.");
   return String(data.household_id);
+}
+
+export interface HouseholdMemberRow {
+  userId: string;
+  role: string;
+  joinedAt: string;
+  isSelf: boolean;
+}
+
+/**
+ * Read-only membership list (P0-FRONTEND-1C.1). `household_members` RLS lets
+ * any member read every row for their own household — so user_id/role/joined
+ * date for every member is available. Name and e-mail are NOT: `app_users`
+ * RLS only lets a user read their own row (`id = auth.uid()`), and
+ * `auth.users` isn't exposed via the API at all — so those two fields are
+ * only ever filled in for the caller's own row (isSelf), by the caller,
+ * never fetched here for anyone else. No migration/RPC was added to change
+ * that this round — see the P0-FRONTEND-1C audit's "arquitetura" section.
+ */
+export async function listHouseholdMembers(): Promise<HouseholdMemberRow[]> {
+  const { data: userData, error: userError } = await supabase.auth.getUser();
+  throwIfError(userError);
+  const selfId = userData.user?.id;
+  const householdId = await findHouseholdId();
+
+  const { data, error } = await supabase
+    .from("household_members")
+    .select("user_id, role, created_at")
+    .eq("household_id", householdId)
+    .order("created_at", { ascending: true });
+  throwIfError(error);
+
+  return (data || []).map((row) => ({
+    userId: String(row.user_id),
+    role: String(row.role),
+    joinedAt: String(row.created_at),
+    isSelf: row.user_id === selfId,
+  }));
 }
 
 async function createEmptyMonth(householdId: string, key: string): Promise<MonthRow> {

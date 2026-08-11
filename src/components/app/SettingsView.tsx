@@ -12,9 +12,13 @@ import {
   Landmark,
   Eye,
   UserPlus,
+  UserRound,
+  UsersRound,
   LogIn,
   Bell,
   ShieldCheck,
+  FileText,
+  Info,
 } from "lucide-react";
 import { toast } from "sonner";
 
@@ -23,7 +27,13 @@ import { useFinance } from "@/lib/finance/FinanceContext";
 
 import { Panel, PanelHead } from "./ui";
 
+/** No package.json "version" field exists to read at build time — this is the
+ *  one place that number lives. Bump it by hand alongside meaningful releases. */
+const APP_VERSION = "0.1.0";
+
 export function SettingsView({
+  onOpenAccount,
+  onOpenMembers,
   onEditPeople,
   onEditMonth,
   onEditCategories,
@@ -34,6 +44,8 @@ export function SettingsView({
   onPushNotifications,
   onAiConsent,
 }: {
+  onOpenAccount: () => void;
+  onOpenMembers: () => void;
   onEditPeople: () => void;
   onEditMonth: () => void;
   onEditCategories: () => void;
@@ -67,8 +79,25 @@ export function SettingsView({
 
   const sections: { label: string; rows: SettingsRow[] }[] = [
     {
-      label: "Dados",
+      label: "Conta",
       rows: [
+        {
+          icon: UserRound,
+          title: "Minha conta",
+          desc: "Nome, e-mail, segurança e acesso.",
+          action: onOpenAccount,
+        },
+      ],
+    },
+    {
+      label: "Casa",
+      rows: [
+        {
+          icon: UsersRound,
+          title: "Membros",
+          desc: "Veja quem está na sua casa e o papel de cada um.",
+          action: onOpenMembers,
+        },
         {
           icon: UserPlus,
           title: "Convidar para a casa",
@@ -87,6 +116,11 @@ export function SettingsView({
           desc: "Adicione, remova ou renomeie as visões do orçamento.",
           action: onEditPeople,
         },
+      ],
+    },
+    {
+      label: "Dados",
+      rows: [
         {
           icon: CalendarCog,
           title: "Mês atual",
@@ -110,12 +144,6 @@ export function SettingsView({
           title: "Notificações push",
           desc: "Avisos de contas vencendo e orçamento no seu aparelho, mesmo com o app fechado.",
           action: onPushNotifications,
-        },
-        {
-          icon: ShieldCheck,
-          title: "Assistente de IA",
-          desc: "Veja o que é enviado ao Gemini e revogue o consentimento quando quiser.",
-          action: onAiConsent,
         },
         {
           icon: Download,
@@ -144,7 +172,36 @@ export function SettingsView({
       ],
     },
     {
-      label: "Conta",
+      label: "Assistente de IA",
+      rows: [
+        {
+          icon: ShieldCheck,
+          title: "Assistente de IA",
+          desc: "Veja o que é enviado ao Gemini e revogue o consentimento quando quiser.",
+          action: onAiConsent,
+        },
+      ],
+    },
+    {
+      label: "Sobre",
+      rows: [
+        {
+          icon: FileText,
+          title: "Termos e privacidade",
+          desc: "Como tratamos seus dados.",
+          action: () => window.open("/termos", "_blank", "noopener,noreferrer"),
+        },
+        {
+          icon: Info,
+          title: "Versão do app",
+          desc: `Aval v${APP_VERSION}`,
+          action: () => {},
+          interactive: false,
+        },
+      ],
+    },
+    {
+      label: "Ações",
       rows: [
         {
           icon: LogOut,
@@ -159,7 +216,11 @@ export function SettingsView({
 
   return (
     <div className="flex flex-col gap-4">
-      <div className="card-surface hero-texture relative flex flex-col items-center overflow-hidden px-4 py-6 text-center">
+      <button
+        type="button"
+        onClick={onOpenAccount}
+        className="card-surface hero-texture press focus-ring relative flex flex-col items-center overflow-hidden px-4 py-6 text-center"
+      >
         <div className="pointer-events-none absolute -left-12 -top-16 h-44 w-44 rounded-full bg-primary/10 blur-3xl" />
         <div className="hero-gradient relative flex h-24 w-24 items-center justify-center rounded-full font-display text-2xl font-bold text-primary-foreground shadow-primary">
           {initials}
@@ -167,6 +228,9 @@ export function SettingsView({
         <h1 className="relative mt-3 font-display text-[1.6rem] tracking-tight text-foreground">
           {activeUser?.name || "Perfil"}
         </h1>
+        <span className="relative text-sm text-muted-foreground">
+          {activeUser?.email || "E-mail não disponível"}
+        </span>
         <div className="relative mt-4 grid w-full grid-cols-2 gap-2.5">
           <div className="panel-flat p-3 text-left">
             <Rocket className="h-4 w-4 text-primary" strokeWidth={2} />
@@ -181,7 +245,7 @@ export function SettingsView({
             <span className="text-[13px] text-muted-foreground">Perfis ativos</span>
           </div>
         </div>
-      </div>
+      </button>
 
       <Panel>
         <PanelHead title="Configurações" hint="dados e acesso" />
@@ -198,29 +262,47 @@ export function SettingsView({
               <span className="px-1 text-xs font-bold uppercase tracking-wide text-muted-foreground">
                 {section.label}
               </span>
-              {section.rows.map(({ icon: Icon, title, desc, action, danger }) => (
-                <button
-                  key={title}
-                  type="button"
-                  onClick={action}
-                  className="press focus-ring hover-lift group flex items-center gap-3 rounded-2xl bg-secondary p-3.5 text-left hover:bg-card"
-                >
-                  <span
-                    className={`flex h-11 w-11 shrink-0 items-center justify-center rounded-2xl bg-card ${danger ? "text-destructive" : "text-primary"}`}
-                  >
-                    <Icon className="h-5 w-5" strokeWidth={2} />
-                  </span>
-                  <span className="min-w-0 flex-1">
-                    <strong className="block text-sm font-bold text-foreground">{title}</strong>
-                    <span className="block text-[12px] leading-snug text-muted-foreground">
-                      {desc}
-                    </span>
-                  </span>
-                  <ChevronRight
-                    className={`h-4 w-4 shrink-0 transition-transform duration-200 group-hover:translate-x-0.5 ${danger ? "text-destructive/60" : "text-muted-foreground"}`}
-                  />
-                </button>
-              ))}
+              {section.rows.map(
+                ({ icon: Icon, title, desc, action, danger, interactive = true }) =>
+                  interactive ? (
+                    <button
+                      key={title}
+                      type="button"
+                      onClick={action}
+                      className="press focus-ring hover-lift group flex items-center gap-3 rounded-2xl bg-secondary p-3.5 text-left hover:bg-card"
+                    >
+                      <span
+                        className={`flex h-11 w-11 shrink-0 items-center justify-center rounded-2xl bg-card ${danger ? "text-destructive" : "text-primary"}`}
+                      >
+                        <Icon className="h-5 w-5" strokeWidth={2} />
+                      </span>
+                      <span className="min-w-0 flex-1">
+                        <strong className="block text-sm font-bold text-foreground">{title}</strong>
+                        <span className="block text-[12px] leading-snug text-muted-foreground">
+                          {desc}
+                        </span>
+                      </span>
+                      <ChevronRight
+                        className={`h-4 w-4 shrink-0 transition-transform duration-200 group-hover:translate-x-0.5 ${danger ? "text-destructive/60" : "text-muted-foreground"}`}
+                      />
+                    </button>
+                  ) : (
+                    <div
+                      key={title}
+                      className="flex items-center gap-3 rounded-2xl bg-secondary p-3.5"
+                    >
+                      <span className="flex h-11 w-11 shrink-0 items-center justify-center rounded-2xl bg-card text-primary">
+                        <Icon className="h-5 w-5" strokeWidth={2} />
+                      </span>
+                      <span className="min-w-0 flex-1">
+                        <strong className="block text-sm font-bold text-foreground">{title}</strong>
+                        <span className="block text-[12px] leading-snug text-muted-foreground">
+                          {desc}
+                        </span>
+                      </span>
+                    </div>
+                  ),
+              )}
             </div>
           ))}
         </div>
@@ -242,4 +324,6 @@ interface SettingsRow {
   desc: string;
   action: () => void;
   danger?: boolean;
+  /** false renders a plain, non-interactive info row (no button, no chevron) — for display-only entries like the app version. Defaults to true. */
+  interactive?: boolean;
 }

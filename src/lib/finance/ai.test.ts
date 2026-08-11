@@ -345,6 +345,28 @@ describe("buildAiContext — selective context per intent (P0-05B round 2)", () 
   );
 });
 
+describe("P0-FRONTEND-1C.1 — ActiveUser.email can never leak into the AI context", () => {
+  it("buildAiContext's own signature never accepts an ActiveUser — only FinanceState and AiIntent", () => {
+    // Structural guarantee, not incidental: buildAiContext takes (state, intent)
+    // only, so activeUser.email (added this round) has no parameter to travel
+    // through even if a future caller tried to pass it.
+    expect(buildAiContext.length).toBe(2);
+  });
+
+  it("ai.ts never imports/references ActiveUser or an email field at all", async () => {
+    const { readFileSync } = await import("node:fs");
+    const { resolve } = await import("node:path");
+    const source = readFileSync(resolve(__dirname, "./ai.ts"), "utf8");
+    expect(source).not.toMatch(/ActiveUser/);
+    expect(source).not.toMatch(/\bemail\b/i);
+  });
+
+  it.each(ALL_INTENTS)("%s context never contains an e-mail-shaped string", (intent) => {
+    const serialized = JSON.stringify(buildAiContext(baseState(), intent));
+    expect(serialized).not.toMatch(/@/);
+  });
+});
+
 describe("askGemini — failure classification (so the UI can be honest about why it fell back)", () => {
   it("classifies missing local consent as 'consent' before ever touching the network", async () => {
     mockConsent.hasAiConsent.mockReturnValue(false);

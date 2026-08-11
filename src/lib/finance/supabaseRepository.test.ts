@@ -4,7 +4,11 @@ import { isDuplicate } from "./bankImport";
 import { WriteNotAppliedError } from "./concurrency";
 import type { Expense, FinanceState } from "./types";
 
-const mockSupabase = { from: vi.fn(), rpc: vi.fn() };
+const mockSupabase = {
+  from: vi.fn(),
+  rpc: vi.fn(),
+  auth: { getUser: vi.fn(), updateUser: vi.fn() },
+};
 
 vi.mock("../supabase/client", () => ({ supabase: mockSupabase }));
 
@@ -20,6 +24,9 @@ const {
   syncPriorities,
   applyConfirmedVersions,
   loadRemoteFinance,
+  updatePassword,
+  getLinkedProviders,
+  listHouseholdMembers,
 } = await import("./supabaseRepository");
 
 /** A chainable query double: every builder method returns itself; select() resolves it. */
@@ -702,5 +709,145 @@ describe("P0-IMPORT-1 — bank_transaction_id load/insert/update", () => {
     );
     await expect(rejection).rejects.toThrow(WriteNotAppliedError);
     await expect(rejection).rejects.not.toThrow(/constraint|duplicate key|postgres/i);
+  });
+});
+
+describe("P0-FRONTEND-1C.1 — ActiveUser.email, password change, providers, membership", () => {
+  beforeEach(() => {
+    mockSupabase.from.mockReset();
+    mockSupabase.rpc.mockReset();
+    mockSupabase.auth.getUser.mockReset();
+    mockSupabase.auth.updateUser.mockReset();
+  });
+
+  function mockWorkspaceTables() {
+    mockSupabase.rpc.mockResolvedValue({ data: "household-1", error: null });
+    const tableRows: Record<string, unknown> = {
+      app_users: { display_name: "Junior" },
+      household_members: { household_id: "household-1" },
+      financial_profiles: [
+        {
+          id: "profile-1",
+          household_id: "household-1",
+          name: "Minha casa",
+          kind: "household",
+          sort_order: 0,
+          active: true,
+        },
+      ],
+      finance_months: [
+        {
+          id: "month-1",
+          household_id: "household-1",
+          period: "2026-08-01",
+          label: "Agosto",
+          income: 0,
+          house_contribution: 0,
+          planned: false,
+          version: 1,
+        },
+      ],
+      profile_budgets: [],
+      expenses: [],
+      priorities: [],
+      envelopes: [],
+    };
+    mockSupabase.from.mockImplementation((table: string) => {
+      const data = tableRows[table];
+      const query = {
+        select: vi.fn(() => query),
+        eq: vi.fn(() => query),
+        order: vi.fn(() => query),
+        limit: vi.fn(() => query),
+        maybeSingle: vi.fn(() => Promise.resolve({ data, error: null })),
+        then: (resolve: (value: { data: unknown; error: null }) => void) =>
+          resolve({ data, error: null }),
+      };
+      return query;
+    });
+  }
+
+  it("loadRemoteFinance carries the real auth email into ActiveUser", async () => {
+    mockWorkspaceTables();
+    const user = { id: "user-1", email: "junior@example.com", user_metadata: {} } as Parameters<
+      typeof loadRemoteFinance
+    >[0];
+    const loaded = await loadRemoteFinance(user);
+    expect(loaded.user.email).toBe("junior@example.com");
+  });
+
+  it("loadRemoteFinance never throws when the auth user has no email — falls back to null, not a crash", async () => {
+    mockWorkspaceTables();
+    const user = {
+      id: "user-1",
+      email: undefined,
+      user_metadata: {},
+    } as unknown as Parameters<typeof loadRemoteFinance>[0];
+    const loaded = await loadRemoteFinance(user);
+    expect(loaded.user.email).toBeNull();
+  });
+
+  it("updatePassword calls supabase.auth.updateUser with only the new password", async () => {
+    mockSupabase.auth.updateUser.mockResolvedValue({ data: {}, error: null });
+    await updatePassword("nova-senha-123");
+    expect(mockSupabase.auth.updateUser).toHaveBeenCalledWith({ password: "nova-senha-123" });
+  });
+
+  it("updatePassword surfaces a Supabase error instead of swallowing it", async () => {
+    mockSupabase.auth.updateUser.mockResolvedValue({
+      data: null,
+      error: { message: "Password too weak" },
+    });
+    await expect(updatePassword("123")).rejects.toThrow("Password too weak");
+  });
+
+  it("getLinkedProviders reads the caller's own identities, never anyone else's", async () => {
+    mockSupabase.auth.getUser.mockResolvedValue({
+      data: { user: { id: "user-1", identities: [{ provider: "email" }, { provider: "google" }] } },
+      error: null,
+    });
+    await expect(getLinkedProviders()).resolves.toEqual(["email", "google"]);
+  });
+
+  it("getLinkedProviders returns an empty list rather than throwing when there are no identities", async () => {
+    mockSupabase.auth.getUser.mockResolvedValue({
+      data: { user: { id: "user-1", identities: undefined } },
+      error: null,
+    });
+    await expect(getLinkedProviders()).resolves.toEqual([]);
+  });
+
+  it("listHouseholdMembers marks only the caller's own row as isSelf, and never fetches names/emails of others", async () => {
+    mockSupabase.auth.getUser.mockResolvedValue({ data: { user: { id: "user-1" } }, error: null });
+    const membersQuery = {
+      select: vi.fn(() => membersQuery),
+      eq: vi.fn(() => membersQuery),
+      order: vi.fn(() =>
+        Promise.resolve({
+          data: [
+            { user_id: "user-1", role: "owner", created_at: "2026-07-26T00:00:00Z" },
+            { user_id: "user-2", role: "member", created_at: "2026-08-01T00:00:00Z" },
+          ],
+          error: null,
+        }),
+      ),
+    };
+    const householdQuery = {
+      select: vi.fn(() => householdQuery),
+      limit: vi.fn(() => householdQuery),
+      maybeSingle: vi.fn(() =>
+        Promise.resolve({ data: { household_id: "household-1" }, error: null }),
+      ),
+    };
+    let call = 0;
+    mockSupabase.from.mockImplementation(() => (call++ === 0 ? householdQuery : membersQuery));
+
+    const members = await listHouseholdMembers();
+    expect(members).toEqual([
+      { userId: "user-1", role: "owner", joinedAt: "2026-07-26T00:00:00Z", isSelf: true },
+      { userId: "user-2", role: "member", joinedAt: "2026-08-01T00:00:00Z", isSelf: false },
+    ]);
+    // No column requested here ever names/emails — select() is called with exactly this string.
+    expect(membersQuery.select).toHaveBeenCalledWith("user_id, role, created_at");
   });
 });

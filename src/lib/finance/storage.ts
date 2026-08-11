@@ -41,7 +41,7 @@ export function loadActiveUser(): ActiveUser | null {
     const saved = JSON.parse(localStorage.getItem(ACTIVE_PROFILE_KEY) || "null");
     if (!saved?.id) return null;
     const profile = getProfiles().find((item) => item.id === saved.id);
-    return profile ? { id: profile.id, name: profile.name } : null;
+    return profile ? { id: profile.id, name: profile.name, email: null } : null;
   } catch {
     return null;
   }

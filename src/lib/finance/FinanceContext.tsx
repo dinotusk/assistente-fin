@@ -26,6 +26,8 @@ import {
   createHouseholdInvite,
   getAiConsentStatus,
   getAuthenticatedUser,
+  getLinkedProviders,
+  listHouseholdMembers,
   loadRemoteFinance,
   loginWithGoogle as loginWithGoogleSupabase,
   loginWithSupabase,
@@ -40,7 +42,9 @@ import {
   saveRemoteEnvelopes,
   saveRemoteFinance,
   saveSessionPreference,
+  updatePassword,
   type AiConsentStatus,
+  type HouseholdMemberRow,
   type PushSubscriptionKeys,
   type FinanceWorkspace,
 } from "./supabaseRepository";
@@ -85,6 +89,12 @@ interface FinanceContextValue {
   saveAiConsent: () => Promise<void>;
   revokeAiConsent: () => Promise<void>;
   getAiConsentStatus: () => Promise<AiConsentStatus>;
+  /** No "current password" argument — an already-authenticated session is the proof of identity Supabase requires. */
+  updatePassword: (newPassword: string) => Promise<void>;
+  /** Providers linked to the caller's own account only (e.g. ["email", "google"]). */
+  getLinkedProviders: () => Promise<string[]>;
+  /** Read-only membership list for the caller's household — see supabaseRepository.listHouseholdMembers for what's available per member and why. */
+  listHouseholdMembers: () => Promise<HouseholdMemberRow[]>;
   setActiveMonth: (key: string) => void;
   setActivePerson: (view: string) => void;
   createNextMonth: () => string;
@@ -337,6 +347,16 @@ export function FinanceProvider({ children }: { children: ReactNode }) {
   const revokeAiConsentAction = useCallback((): Promise<void> => revokeAiConsent(), []);
   const getAiConsentStatusAction = useCallback(
     (): Promise<AiConsentStatus> => getAiConsentStatus(),
+    [],
+  );
+
+  const updatePasswordAction = useCallback(
+    (newPassword: string): Promise<void> => updatePassword(newPassword),
+    [],
+  );
+  const getLinkedProvidersAction = useCallback((): Promise<string[]> => getLinkedProviders(), []);
+  const listHouseholdMembersAction = useCallback(
+    (): Promise<HouseholdMemberRow[]> => listHouseholdMembers(),
     [],
   );
 
@@ -693,6 +713,9 @@ export function FinanceProvider({ children }: { children: ReactNode }) {
     saveAiConsent: saveAiConsentAction,
     revokeAiConsent: revokeAiConsentAction,
     getAiConsentStatus: getAiConsentStatusAction,
+    updatePassword: updatePasswordAction,
+    getLinkedProviders: getLinkedProvidersAction,
+    listHouseholdMembers: listHouseholdMembersAction,
     setActiveMonth,
     setActivePerson,
     createNextMonth,

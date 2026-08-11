@@ -77,6 +77,8 @@ export interface Profile {
 export interface ActiveUser {
   id: string;
   name: string;
+  /** From Supabase Auth (auth.users.email) — null on the rare account that has none. Never sent to the AI. */
+  email: string | null;
 }
 
 export interface EnvelopeRule {
