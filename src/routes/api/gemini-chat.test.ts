@@ -13,6 +13,7 @@ vi.mock("@supabase/supabase-js", () => ({
 }));
 
 const VALID_CONTEXT = {
+  tipo: "BALANCE",
   mes: "Agosto de 2026",
   planejamento: false,
   visao: "Tudo",
@@ -21,9 +22,6 @@ const VALID_CONTEXT = {
   pendente: 300,
   pago: 900,
   saldoRestante: 3800,
-  maiorCategoria: null,
-  gastos: [],
-  prioridades: [],
 };
 
 function makeRequest(body: unknown, headers: Record<string, string> = {}): Request {

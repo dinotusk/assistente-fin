@@ -30,6 +30,7 @@ import {
   answerLocally,
   askGemini,
   buildAiContext,
+  classifyAiIntent,
   describeFallback,
   GeminiRequestError,
 } from "@/lib/finance/ai";
@@ -191,7 +192,8 @@ export function AssistantView({
     let answer: string;
     let fallbackLabel: string | undefined;
     try {
-      answer = await askGemini(question, buildAiContext(state));
+      const intent = classifyAiIntent(question);
+      answer = await askGemini(question, buildAiContext(state, intent));
       logAiInteraction("gemini");
     } catch (error) {
       const reason = error instanceof GeminiRequestError ? error.reason : "unavailable";

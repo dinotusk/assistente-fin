@@ -4,6 +4,7 @@ import {
   budgetForView,
   currentUserName,
   expensesForView,
+  getCategoryTotals,
   money,
   normalizeText,
   priorityMatchesView,
@@ -15,10 +16,14 @@ import type { FinanceState } from "./types";
 import { supabase } from "../supabase/client";
 import { hasAiConsent } from "./aiConsent";
 import {
+  MAX_AI_CATEGORY_ITEMS,
   MAX_CONTEXT_ITEMS,
   MAX_CONTEXT_TEXT_LENGTH,
   validateAiChatRequest,
+  type AiBillEntry,
   type AiChatContext,
+  type AiGoalEntry,
+  type AiIntent,
 } from "./aiRequestValidation";
 
 /** Bounds a string to the context's shared text-size ceiling — same limit the server enforces. */
@@ -27,54 +32,214 @@ function clip(value: string): string {
 }
 
 /**
- * Builds the minimal context sent to the AI: only the numbers and the most relevant
- * gastos/prioridades for the active view, capped in count and per-field length. No
- * internal ids, emails, tokens or other technical metadata are included.
+ * Which slice of the question drives context selection — deliberately separate
+ * from `matchIntent`/`INTENT_KEYWORDS` below, which only feeds the offline
+ * fallback answer and has different categories. Local, synchronous, no network
+ * call. GENERAL is the safe default for anything ambiguous or unrecognized —
+ * never the old full-shape context, which is now the most expensive one, not
+ * the fallback one.
  */
-export function buildAiContext(state: FinanceState): AiChatContext {
+const AI_INTENT_PATTERNS: Array<{ intent: AiIntent; phrases: string[] }> = [
+  {
+    intent: "COMPARISON",
+    phrases: [
+      "mes passado",
+      "mes anterior",
+      "em relacao a",
+      "comparado",
+      "comparacao",
+      "cresceu",
+      "aumentou",
+      "diminuiu",
+    ],
+  },
+  {
+    intent: "BILLS",
+    phrases: [
+      "vence",
+      "vencimento",
+      "vencimentos",
+      "conta a pagar",
+      "contas a pagar",
+      "falta pagar",
+      "pendencia",
+      "pendencias",
+    ],
+  },
+  {
+    intent: "GOALS",
+    phrases: [
+      "meta",
+      "metas",
+      "prioridade",
+      "prioridades",
+      "posso comprar",
+      "consigo comprar",
+      "da pra comprar",
+    ],
+  },
+  {
+    intent: "EXPENSE_ANALYSIS",
+    phrases: [
+      "categoria",
+      "onde gastei",
+      "onde estou gastando",
+      "maior gasto",
+      "gastando mais",
+      "o que pesa",
+      "esta pesando",
+    ],
+  },
+  {
+    intent: "MONTH_OVERVIEW",
+    phrases: ["resumo", "como esta meu mes", "como esta o mes", "visao geral", "analise do mes"],
+  },
+  {
+    intent: "BALANCE",
+    phrases: [
+      "saldo",
+      "sobra",
+      "sobrou",
+      "disponivel",
+      "quanto tenho",
+      "posso gastar",
+      "meu limite",
+    ],
+  },
+];
+
+/** Local, synchronous, deterministic — never calls Gemini. Ties/ambiguity fall back to GENERAL. */
+export function classifyAiIntent(question: string): AiIntent {
+  const normalized = normalizeText(question);
+  const match = AI_INTENT_PATTERNS.find(({ phrases }) =>
+    phrases.some((phrase) => normalized.includes(phrase)),
+  );
+  return match?.intent ?? "GENERAL";
+}
+
+/** Shared numeric header every variant needs to know "what month/view this is about". */
+function buildBase(state: FinanceState) {
   const monthData = state.months[state.activeMonth];
   const view = state.activePerson;
-  const numbers = calc(monthData, view, state.activeMonth, state.people);
-  const currentExpenses = expensesForView(monthData, view, state.people)
-    .slice()
-    .sort((a, b) => Number(b.amount || 0) - Number(a.amount || 0))
-    .slice(0, MAX_CONTEXT_ITEMS)
-    .map((item) => ({
-      descricao: clip(item.name),
-      categoria: clip(item.category),
-      valor: Number(item.amount || 0),
-      status: clip(item.status),
-      responsavel: clip(item.owner),
-      data: item.date,
-      pagamento: clip(item.paymentMethod || "Pix"),
-    }));
-  const currentPriorities = monthData.priorities
-    .filter((item) => priorityMatchesView(item, view, state.people))
-    .slice()
-    .sort((a, b) => a.rank - b.rank || Number(b.amount || 0) - Number(a.amount || 0))
-    .slice(0, MAX_CONTEXT_ITEMS)
-    .map((item) => ({
-      descricao: clip(item.name),
-      valor: Number(item.amount || 0),
-      prioridade: item.rank,
-      status: clip(item.status),
-      responsavel: clip(item.responsavel || currentUserName()),
-    }));
   return {
-    mes: clip(monthData.label),
-    planejamento: Boolean(monthData.planned),
-    visao: clip(viewLabel(view)),
-    orcamento: budgetForView(monthData, view),
-    totalGasto: numbers.total,
-    pendente: numbers.pending,
-    pago: numbers.paid,
-    saldoRestante: numbers.free,
-    maiorCategoria: numbers.topCategory
-      ? { category: clip(numbers.topCategory.category), total: numbers.topCategory.total }
-      : null,
-    gastos: currentExpenses,
-    prioridades: currentPriorities,
+    monthData,
+    view,
+    base: {
+      mes: clip(monthData.label),
+      planejamento: Boolean(monthData.planned),
+      visao: clip(viewLabel(view)),
+    },
   };
+}
+
+function buildAggregates(
+  monthData: FinanceState["months"][string],
+  view: string,
+  state: FinanceState,
+) {
+  const numbers = calc(monthData, view, state.activeMonth, state.people);
+  return {
+    numbers,
+    aggregates: {
+      orcamento: budgetForView(monthData, view),
+      totalGasto: numbers.total,
+      pendente: numbers.pending,
+      pago: numbers.paid,
+      saldoRestante: numbers.free,
+    },
+  };
+}
+
+/**
+ * Builds only the context fields the classified intent actually needs (P0-05B
+ * round 2) — no more sending the full gastos/prioridades shape for every
+ * question. Still capped in count/length the same way, still carries no
+ * internal ids, emails, tokens or other technical metadata.
+ */
+export function buildAiContext(state: FinanceState, intent: AiIntent): AiChatContext {
+  const { monthData, view, base } = buildBase(state);
+  const { numbers, aggregates } = buildAggregates(monthData, view, state);
+
+  switch (intent) {
+    case "MONTH_OVERVIEW":
+      return {
+        tipo: "MONTH_OVERVIEW",
+        ...base,
+        ...aggregates,
+        maiorCategoria: numbers.topCategory
+          ? { category: clip(numbers.topCategory.category), total: numbers.topCategory.total }
+          : null,
+      };
+
+    case "EXPENSE_ANALYSIS":
+      return {
+        tipo: "EXPENSE_ANALYSIS",
+        ...base,
+        ...aggregates,
+        categorias: getCategoryTotals(monthData, view, state.people)
+          .slice(0, MAX_AI_CATEGORY_ITEMS)
+          .map((item) => ({ category: clip(item.category), total: item.total })),
+      };
+
+    case "GOALS": {
+      const metas: AiGoalEntry[] = monthData.priorities
+        .filter((item) => priorityMatchesView(item, view, state.people))
+        .slice()
+        .sort((a, b) => a.rank - b.rank || Number(b.amount || 0) - Number(a.amount || 0))
+        .slice(0, MAX_CONTEXT_ITEMS)
+        .map((item) => {
+          const valorAlvo = Number(item.amount || 0);
+          const entry: AiGoalEntry = {
+            descricao: clip(item.name),
+            valorAlvo,
+            prioridade: item.rank,
+            status: clip(item.status),
+            responsavel: clip(item.responsavel || currentUserName()),
+          };
+          // Only compute progress fields when `saved` genuinely exists — never
+          // invent a zero for a priority that never tracked savings at all.
+          if (typeof item.saved === "number" && Number.isFinite(item.saved)) {
+            entry.valorGuardado = item.saved;
+            entry.faltante = Math.max(0, valorAlvo - item.saved);
+            entry.progresso = valorAlvo > 0 ? Math.min(1, item.saved / valorAlvo) : 0;
+          }
+          return entry;
+        });
+      return { tipo: "GOALS", ...base, saldoRestante: numbers.free, metas };
+    }
+
+    case "BILLS": {
+      const contas: AiBillEntry[] = expensesForView(monthData, view, state.people)
+        .filter((item) => item.status === "A pagar")
+        .slice()
+        .sort((a, b) => (a.dueDate || a.date).localeCompare(b.dueDate || b.date))
+        .slice(0, MAX_CONTEXT_ITEMS)
+        .map((item) => {
+          const entry: AiBillEntry = {
+            descricao: clip(item.name),
+            categoria: clip(item.category),
+            valor: Number(item.amount || 0),
+            responsavel: clip(item.owner),
+            data: item.date,
+          };
+          if (item.dueDate) entry.dueDate = item.dueDate;
+          return entry;
+        });
+      return { tipo: "BILLS", ...base, contas };
+    }
+
+    case "BALANCE":
+      return { tipo: "BALANCE", ...base, ...aggregates };
+
+    case "COMPARISON":
+      // Round 2 deliberately sends only the current month — see the AiComparisonContext
+      // doc comment in aiRequestValidation.ts for why prior-month data is deferred.
+      return { tipo: "COMPARISON", ...base, ...aggregates };
+
+    case "GENERAL":
+    default:
+      return { tipo: "GENERAL", ...base, ...aggregates };
+  }
 }
 
 /** Offline heuristic answer — used when Gemini is unavailable. */

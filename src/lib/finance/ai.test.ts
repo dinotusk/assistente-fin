@@ -1,6 +1,7 @@
 import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
 
 import type { FinanceState } from "./types";
+import type { AiIntent } from "./aiRequestValidation";
 
 const mockSupabase = {
   auth: { getSession: vi.fn() },
@@ -12,8 +13,24 @@ vi.mock("./aiConsent", () => mockConsent);
 
 // Dynamic, not static: a static top-level import would resolve "../supabase/client"
 // before the mocks above finish initializing — see aiConsentRepository.test.ts.
-const { GeminiRequestError, askGemini, answerLocally, buildAiContext, describeFallback } =
-  await import("./ai");
+const {
+  GeminiRequestError,
+  askGemini,
+  answerLocally,
+  buildAiContext,
+  classifyAiIntent,
+  describeFallback,
+} = await import("./ai");
+
+const ALL_INTENTS: AiIntent[] = [
+  "BALANCE",
+  "MONTH_OVERVIEW",
+  "EXPENSE_ANALYSIS",
+  "GOALS",
+  "BILLS",
+  "COMPARISON",
+  "GENERAL",
+];
 
 function baseState(): FinanceState {
   return {
@@ -56,6 +73,18 @@ function baseState(): FinanceState {
             paymentMethod: "Pix",
             note: "",
           },
+          {
+            id: "expense-2",
+            name: "Internet",
+            category: "Casa",
+            amount: 150,
+            status: "A pagar",
+            owner: "Maria",
+            date: "2026-08-10",
+            dueDate: "2026-08-20",
+            paymentMethod: "Pix",
+            note: "",
+          },
         ],
         priorities: [
           {
@@ -66,6 +95,14 @@ function baseState(): FinanceState {
             status: "A pagar",
             responsavel: "Maria",
             saved: 300,
+          },
+          {
+            id: "priority-2",
+            name: "Viagem",
+            amount: 2000,
+            rank: 2,
+            status: "A pagar",
+            responsavel: "Maria",
           },
         ],
       },
@@ -89,71 +126,223 @@ afterEach(() => {
   vi.clearAllMocks();
 });
 
-describe("buildAiContext — privacy allowlist regression guard (P0-05B round 1: no new field added)", () => {
-  it("only ever produces the fields aiRequestValidation already allowlists — no new field slipped in", () => {
-    const context = buildAiContext(baseState());
+describe("classifyAiIntent — local, synchronous, deterministic", () => {
+  it.each([
+    ["Quanto ainda posso gastar?", "BALANCE"],
+    ["Qual o meu saldo?", "BALANCE"],
+    ["Como está meu mês?", "MONTH_OVERVIEW"],
+    ["Me dá um resumo do mês", "MONTH_OVERVIEW"],
+    ["O que está pesando mais?", "EXPENSE_ANALYSIS"],
+    ["Em qual categoria eu mais gastei?", "EXPENSE_ANALYSIS"],
+    ["Como estão minhas metas?", "GOALS"],
+    ["Posso comprar uma geladeira nova?", "GOALS"],
+    ["O que vence essa semana?", "BILLS"],
+    ["Quanto ainda falta pagar?", "BILLS"],
+    ["Gastei mais que o mês passado?", "COMPARISON"],
+    ["Comparado ao mês anterior, como estou?", "COMPARISON"],
+  ] as const)("classifies %s as %s", (question, expected) => {
+    expect(classifyAiIntent(question)).toBe(expected);
+  });
+
+  it("falls back to GENERAL for an unrecognized/ambiguous question", () => {
+    expect(classifyAiIntent("blablabla sem intent nenhum")).toBe("GENERAL");
+    expect(classifyAiIntent("oi")).toBe("GENERAL");
+  });
+
+  it("classifies every current AssistantView quick-reply shortcut as expected", () => {
+    expect(classifyAiIntent("Análise do mês")).toBe("MONTH_OVERVIEW");
+    expect(classifyAiIntent("Falta pagar")).toBe("BILLS");
+    expect(classifyAiIntent("Meu limite")).toBe("BALANCE");
+    expect(classifyAiIntent("Prioridades")).toBe("GOALS");
+  });
+});
+
+describe("buildAiContext — selective context per intent (P0-05B round 2)", () => {
+  it("BALANCE sends only the aggregate header — no gastos, no prioridades, no maiorCategoria", () => {
+    const context = buildAiContext(baseState(), "BALANCE");
     expect(Object.keys(context).sort()).toEqual(
       [
-        "gastos",
-        "maiorCategoria",
+        "tipo",
         "mes",
-        "orcamento",
-        "pago",
-        "pendente",
         "planejamento",
-        "prioridades",
-        "saldoRestante",
-        "totalGasto",
         "visao",
+        "orcamento",
+        "totalGasto",
+        "pendente",
+        "pago",
+        "saldoRestante",
       ].sort(),
     );
   });
 
-  it("each gasto entry only has the fields the schema allows — no id, no extra field", () => {
-    const context = buildAiContext(baseState());
-    for (const item of context.gastos) {
-      expect(Object.keys(item).sort()).toEqual(
-        ["categoria", "data", "descricao", "pagamento", "responsavel", "status", "valor"].sort(),
-      );
+  it("MONTH_OVERVIEW adds maiorCategoria but still excludes gastos/prioridades", () => {
+    const context = buildAiContext(baseState(), "MONTH_OVERVIEW");
+    expect(Object.keys(context).sort()).toEqual(
+      [
+        "tipo",
+        "mes",
+        "planejamento",
+        "visao",
+        "orcamento",
+        "totalGasto",
+        "pendente",
+        "pago",
+        "saldoRestante",
+        "maiorCategoria",
+      ].sort(),
+    );
+  });
+
+  it("EXPENSE_ANALYSIS returns a category breakdown, never individual expense fields", () => {
+    const context = buildAiContext(baseState(), "EXPENSE_ANALYSIS");
+    expect(context).toHaveProperty("categorias");
+    if ("categorias" in context) {
+      for (const entry of context.categorias) {
+        expect(Object.keys(entry).sort()).toEqual(["category", "total"].sort());
+      }
     }
-  });
-
-  it("each prioridade entry only has the fields the schema allows — no id, no `saved`", () => {
-    const context = buildAiContext(baseState());
-    for (const item of context.prioridades) {
-      expect(Object.keys(item).sort()).toEqual(
-        ["descricao", "prioridade", "responsavel", "status", "valor"].sort(),
-      );
-    }
-  });
-
-  it("never includes household_id, user_id, profile_id, expense_id, or any technical identifier", () => {
-    const context = buildAiContext(baseState());
     const serialized = JSON.stringify(context);
-    expect(serialized).not.toMatch(/household_id|user_id|profile_id|expense_id|"id":/i);
-    // the real expense/priority ids from baseState() must not appear anywhere
-    expect(serialized).not.toContain("expense-1");
-    expect(serialized).not.toContain("priority-1");
+    expect(serialized).not.toContain("descricao");
+    expect(serialized).not.toContain("responsavel");
+    expect(serialized).not.toContain("Aluguel");
   });
 
-  it("never includes an account name or email", () => {
-    const context = buildAiContext(baseState());
-    expect(JSON.stringify(context)).not.toMatch(/@/); // no email-shaped string anywhere
+  it("GOALS excludes gastos entirely and includes saldoRestante for affordability judgment", () => {
+    const context = buildAiContext(baseState(), "GOALS");
+    expect(Object.keys(context).sort()).toEqual(
+      ["tipo", "mes", "planejamento", "visao", "saldoRestante", "metas"].sort(),
+    );
+    expect(JSON.stringify(context)).not.toContain("Aluguel");
   });
 
-  it("never includes another month's data — only the active month crosses the boundary", () => {
-    const context = buildAiContext(baseState());
+  it("GOALS includes valorGuardado/faltante/progresso only for a priority that tracks saved", () => {
+    const context = buildAiContext(baseState(), "GOALS");
+    if (!("metas" in context)) throw new Error("expected GOALS context");
+    const withSaved = context.metas.find((m) => m.descricao === "Trocar geladeira");
+    const withoutSaved = context.metas.find((m) => m.descricao === "Viagem");
+    expect(withSaved).toMatchObject({ valorGuardado: 300, faltante: 1200 });
+    expect(withSaved?.progresso).toBeCloseTo(0.2);
+    expect(withoutSaved).not.toHaveProperty("valorGuardado");
+    expect(withoutSaved).not.toHaveProperty("faltante");
+    expect(withoutSaved).not.toHaveProperty("progresso");
+  });
+
+  it("BILLS includes only pending ('A pagar') expenses, sorted by dueDate/date", () => {
+    const context = buildAiContext(baseState(), "BILLS");
+    if (!("contas" in context)) throw new Error("expected BILLS context");
+    expect(context.contas.length).toBe(1);
+    expect(context.contas[0].descricao).toBe("Internet");
+    expect(context.contas[0].dueDate).toBe("2026-08-20");
+    // The paid "Aluguel" expense must never appear just to pad the context.
+    expect(JSON.stringify(context)).not.toContain("Aluguel");
+  });
+
+  it("BILLS omits dueDate for an entry whose Expense.dueDate is absent — still valid, no invented date", () => {
+    const state = baseState();
+    state.months["2026-08"].expenses[1].dueDate = undefined;
+    const context = buildAiContext(state, "BILLS");
+    if (!("contas" in context)) throw new Error("expected BILLS context");
+    expect(context.contas[0]).not.toHaveProperty("dueDate");
+  });
+
+  it("COMPARISON sends only current-month aggregates — no prior-month field at all", () => {
+    const context = buildAiContext(baseState(), "COMPARISON");
+    expect(Object.keys(context).sort()).toEqual(
+      [
+        "tipo",
+        "mes",
+        "planejamento",
+        "visao",
+        "orcamento",
+        "totalGasto",
+        "pendente",
+        "pago",
+        "saldoRestante",
+      ].sort(),
+    );
     const serialized = JSON.stringify(context);
+    expect(serialized).not.toContain("Julho");
     expect(serialized).not.toContain("Gasto de julho");
-    expect(serialized).not.toContain("Julho 2026");
   });
 
-  it("never serializes the raw FinanceState (no people array, no months map)", () => {
-    const context = buildAiContext(baseState()) as unknown as Record<string, unknown>;
-    expect(context).not.toHaveProperty("people");
-    expect(context).not.toHaveProperty("months");
-    expect(context).not.toHaveProperty("activeMonth");
+  it("GENERAL is the same safe minimal shape as BALANCE — never the old full shape", () => {
+    const context = buildAiContext(baseState(), "GENERAL");
+    expect(Object.keys(context).sort()).toEqual(
+      [
+        "tipo",
+        "mes",
+        "planejamento",
+        "visao",
+        "orcamento",
+        "totalGasto",
+        "pendente",
+        "pago",
+        "saldoRestante",
+      ].sort(),
+    );
   });
+
+  it("EXPENSE_ANALYSIS never exceeds the dedicated 13-category cap, even with every category populated", () => {
+    const state = baseState();
+    const categories = [
+      "Alimentação",
+      "Transporte",
+      "Casa",
+      "Gasto fixo",
+      "Saúde",
+      "Lazer",
+      "Educação",
+      "Cartões",
+      "Dívida",
+      "Empréstimo",
+      "Investimento",
+      "Livre",
+      "Outros",
+    ];
+    state.months["2026-08"].expenses = categories.map((category, i) => ({
+      id: `cat-expense-${i}`,
+      name: `Gasto ${category}`,
+      category,
+      amount: 50,
+      status: "Pago",
+      owner: "Maria",
+      date: "2026-08-01",
+      paymentMethod: "Pix",
+      note: "",
+    }));
+    const context = buildAiContext(state, "EXPENSE_ANALYSIS");
+    if (!("categorias" in context)) throw new Error("expected EXPENSE_ANALYSIS context");
+    expect(context.categorias.length).toBe(13);
+  });
+
+  describe.each(ALL_INTENTS)(
+    "privacy regression — %s never leaks technical identifiers",
+    (intent) => {
+      it("never includes household_id, user_id, profile_id, expense_id, email, or raw ids", () => {
+        const context = buildAiContext(baseState(), intent);
+        const serialized = JSON.stringify(context);
+        expect(serialized).not.toMatch(/household_id|user_id|profile_id|expense_id|"id":/i);
+        expect(serialized).not.toContain("expense-1");
+        expect(serialized).not.toContain("expense-2");
+        expect(serialized).not.toContain("priority-1");
+        expect(serialized).not.toContain("priority-2");
+        expect(serialized).not.toMatch(/@/);
+      });
+
+      it("never serializes the raw FinanceState (no people array, no months map)", () => {
+        const context = buildAiContext(baseState(), intent) as unknown as Record<string, unknown>;
+        expect(context).not.toHaveProperty("people");
+        expect(context).not.toHaveProperty("months");
+        expect(context).not.toHaveProperty("activeMonth");
+      });
+
+      it("never includes another month's data — only the active month crosses the boundary", () => {
+        const serialized = JSON.stringify(buildAiContext(baseState(), intent));
+        expect(serialized).not.toContain("Gasto de julho");
+        expect(serialized).not.toContain("Julho 2026");
+      });
+    },
+  );
 });
 
 describe("askGemini — failure classification (so the UI can be honest about why it fell back)", () => {
@@ -235,5 +424,5 @@ describe("answerLocally — never returns a blank fallback", () => {
 });
 
 function validContext() {
-  return buildAiContext(baseState());
+  return buildAiContext(baseState(), "GENERAL");
 }
