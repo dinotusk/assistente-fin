@@ -114,7 +114,29 @@ export function AppHome() {
   const [membersOpen, setMembersOpen] = useState(false);
   const [profileMenuOpen, setProfileMenuOpen] = useState(false);
   const importRef = useRef<HTMLInputElement>(null);
+  const profileMenuRef = useRef<HTMLDivElement>(null);
   const initials = getInitials(activeUser?.name || "Aval");
+
+  // The profile menu (mobile header avatar button, desktop SideNav footer
+  // button) is a plain conditionally-rendered popover, not a Radix primitive
+  // — it needs its own outside-tap/Escape dismissal instead of relying on one.
+  useEffect(() => {
+    if (!profileMenuOpen) return;
+    function handlePointerDown(event: PointerEvent) {
+      if (profileMenuRef.current && !profileMenuRef.current.contains(event.target as Node)) {
+        setProfileMenuOpen(false);
+      }
+    }
+    function handleKeyDown(event: KeyboardEvent) {
+      if (event.key === "Escape") setProfileMenuOpen(false);
+    }
+    document.addEventListener("pointerdown", handlePointerDown);
+    document.addEventListener("keydown", handleKeyDown);
+    return () => {
+      document.removeEventListener("pointerdown", handlePointerDown);
+      document.removeEventListener("keydown", handleKeyDown);
+    };
+  }, [profileMenuOpen]);
 
   async function onImport(e: React.ChangeEvent<HTMLInputElement>) {
     const file = e.target.files?.[0];
@@ -354,7 +376,7 @@ export function AppHome() {
             setProfileMenuOpen(false);
           }}
           footer={
-            <div className="relative">
+            <div className="relative" ref={profileMenuRef}>
               <button
                 type="button"
                 onClick={() => setProfileMenuOpen((value) => !value)}
@@ -438,7 +460,7 @@ export function AppHome() {
             </div>
             <div className="flex shrink-0 items-center gap-2">
               <HideValuesToggle hidden={hideValues} onClick={toggleHideValues} />
-              <div className="relative">
+              <div className="relative" ref={profileMenuRef}>
                 <button
                   type="button"
                   onClick={() => setProfileMenuOpen((value) => !value)}

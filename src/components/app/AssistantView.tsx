@@ -466,7 +466,7 @@ export function AssistantView({
             }
           }}
           placeholder="Converse com o Aval"
-          rows={2}
+          rows={3}
           className="!h-auto w-full resize-none !border-0 !bg-transparent !p-0 text-sm !shadow-none !ring-0 focus:!ring-0"
         />
         <div className="mt-2 flex items-center justify-between">

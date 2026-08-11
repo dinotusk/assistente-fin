@@ -75,7 +75,7 @@ export function SheetShell({
 }) {
   return (
     <Drawer open={open} onOpenChange={onOpenChange}>
-      <DrawerContent className="mx-auto flex max-h-[88svh] max-w-[440px] flex-col rounded-t-[1.75rem] border-border bg-card">
+      <DrawerContent className="mx-auto flex max-h-[88svh] max-w-[440px] flex-col rounded-t-2xl border-border bg-card">
         <DrawerHeader className="px-5 pb-1 pt-3 text-left">
           <DrawerTitle className="font-display text-2xl tracking-tight text-foreground">
             {title}
