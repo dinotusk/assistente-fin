@@ -104,21 +104,21 @@ interface FinanceContextValue {
     houseContribution: number,
     profileBudgets?: Record<string, number>,
     planned?: boolean,
-  ) => void;
-  deleteMonth: (key: string) => void;
-  savePeople: (people: string[]) => void;
-  saveExpense: (expense: Expense, id?: string) => void;
+  ) => Promise<void>;
+  deleteMonth: (key: string) => Promise<void>;
+  savePeople: (people: string[]) => Promise<void>;
+  saveExpense: (expense: Expense, id?: string) => Promise<void>;
   importExpenses: (expenses: Expense[]) => void;
-  deleteExpense: (id: string) => void;
-  duplicateExpense: (id: string) => void;
-  toggleExpenseStatus: (id: string) => void;
-  savePriority: (priority: Priority, id?: string) => void;
-  deletePriority: (id: string) => void;
-  togglePriorityStatus: (id: string) => void;
+  deleteExpense: (id: string) => Promise<void>;
+  duplicateExpense: (id: string) => Promise<void>;
+  toggleExpenseStatus: (id: string) => Promise<void>;
+  savePriority: (priority: Priority, id?: string) => Promise<void>;
+  deletePriority: (id: string) => Promise<void>;
+  togglePriorityStatus: (id: string) => Promise<void>;
   saveEnvelopes: (envelopes: EnvelopeRule[]) => void;
   exportData: () => void;
   importData: (file: File) => Promise<ImportSummary>;
-  resetSeed: () => void;
+  resetSeed: () => Promise<void>;
   /** Set when the last sync failed because a row changed/vanished under us (see WriteNotAppliedError). Null otherwise. */
   writeConflict: WriteConflict | null;
   /** Reloads remote state only (no page reload, no re-login) and clears writeConflict. The failed local edit is discarded. */
@@ -423,7 +423,7 @@ export function FinanceProvider({ children }: { children: ReactNode }) {
       houseContribution: number,
       profileBudgets: Record<string, number> = {},
       planned = false,
-    ) => {
+    ): Promise<void> => {
       const updated: MonthData = {
         ...month,
         label: label.trim(),
@@ -432,20 +432,26 @@ export function FinanceProvider({ children }: { children: ReactNode }) {
         profileBudgets,
         planned,
       };
-      persist({ ...state, months: { ...state.months, [state.activeMonth]: updated } });
+      return persist({ ...state, months: { ...state.months, [state.activeMonth]: updated } });
     },
     [state, month, persist],
   );
 
   const deleteMonth = useCallback(
-    (key: string) => {
+    (key: string): Promise<void> => {
       const remainingKeys = Object.keys(state.months).filter((item) => item !== key);
-      if (!remainingKeys.length) return; // always keep at least one month
+      if (!remainingKeys.length) return Promise.resolve(); // always keep at least one month
       const months = { ...state.months };
       delete months[key];
-      const activeMonth =
-        state.activeMonth === key ? remainingKeys.sort().at(-1)! : state.activeMonth;
-      persist({ ...state, months, activeMonth });
+      let activeMonth = state.activeMonth;
+      if (state.activeMonth === key) {
+        // Prefer the chronologically previous available month; if none exists
+        // (the deleted month was the earliest), fall back to the next one.
+        const sorted = remainingKeys.slice().sort();
+        const previous = sorted.filter((item) => item < key).at(-1);
+        activeMonth = previous ?? sorted[0];
+      }
+      return persist({ ...state, months, activeMonth });
     },
     [state, persist],
   );
@@ -503,30 +509,30 @@ export function FinanceProvider({ children }: { children: ReactNode }) {
       )
         ? state.activePerson
         : VIEW_ME;
-      persist({ ...state, people: newPeople, months, activePerson });
+      return persist({ ...state, people: newPeople, months, activePerson });
     },
     [state, persist],
   );
 
   const updateMonthExpenses = useCallback(
-    (updater: (expenses: Expense[]) => Expense[]) => {
+    (updater: (expenses: Expense[]) => Expense[]): Promise<void> => {
       const updated: MonthData = { ...month, expenses: updater(month.expenses) };
-      persist({ ...state, months: { ...state.months, [state.activeMonth]: updated } });
+      return persist({ ...state, months: { ...state.months, [state.activeMonth]: updated } });
     },
     [state, month, persist],
   );
 
   const saveExpense = useCallback(
-    (expense: Expense, id?: string) => {
+    (expense: Expense, id?: string): Promise<void> =>
       updateMonthExpenses((list) =>
         id ? list.map((item) => (item.id === id ? expense : item)) : [...list, expense],
-      );
-    },
+      ),
     [updateMonthExpenses],
   );
 
   const deleteExpense = useCallback(
-    (id: string) => updateMonthExpenses((list) => list.filter((item) => item.id !== id)),
+    (id: string): Promise<void> =>
+      updateMonthExpenses((list) => list.filter((item) => item.id !== id)),
     [updateMonthExpenses],
   );
 
@@ -546,7 +552,7 @@ export function FinanceProvider({ children }: { children: ReactNode }) {
   );
 
   const duplicateExpense = useCallback(
-    (id: string) =>
+    (id: string): Promise<void> =>
       updateMonthExpenses((list) => {
         const item = list.find((e) => e.id === id);
         if (!item) return list;
@@ -569,7 +575,7 @@ export function FinanceProvider({ children }: { children: ReactNode }) {
   );
 
   const toggleExpenseStatus = useCallback(
-    (id: string) =>
+    (id: string): Promise<void> =>
       updateMonthExpenses((list) =>
         list.map((item) =>
           item.id === id ? { ...item, status: item.status === "Pago" ? "A pagar" : "Pago" } : item,
@@ -579,29 +585,29 @@ export function FinanceProvider({ children }: { children: ReactNode }) {
   );
 
   const updateMonthPriorities = useCallback(
-    (updater: (priorities: Priority[]) => Priority[]) => {
+    (updater: (priorities: Priority[]) => Priority[]): Promise<void> => {
       const updated: MonthData = { ...month, priorities: updater(month.priorities) };
-      persist({ ...state, months: { ...state.months, [state.activeMonth]: updated } });
+      return persist({ ...state, months: { ...state.months, [state.activeMonth]: updated } });
     },
     [state, month, persist],
   );
 
   const savePriority = useCallback(
-    (priority: Priority, id?: string) => {
+    (priority: Priority, id?: string): Promise<void> =>
       updateMonthPriorities((list) =>
         id ? list.map((item) => (item.id === id ? priority : item)) : [...list, priority],
-      );
-    },
+      ),
     [updateMonthPriorities],
   );
 
   const deletePriority = useCallback(
-    (id: string) => updateMonthPriorities((list) => list.filter((item) => item.id !== id)),
+    (id: string): Promise<void> =>
+      updateMonthPriorities((list) => list.filter((item) => item.id !== id)),
     [updateMonthPriorities],
   );
 
   const togglePriorityStatus = useCallback(
-    (id: string) =>
+    (id: string): Promise<void> =>
       updateMonthPriorities((list) =>
         list.map((item) => {
           if (item.id !== id) return item;
@@ -687,8 +693,8 @@ export function FinanceProvider({ children }: { children: ReactNode }) {
       });
   }, []);
 
-  const resetSeed = useCallback(() => {
-    persist(migrateState(createSeedState(), activeUser?.name));
+  const resetSeed = useCallback((): Promise<void> => {
+    return persist(migrateState(createSeedState(), activeUser?.name));
   }, [persist, activeUser]);
 
   const value: FinanceContextValue = {

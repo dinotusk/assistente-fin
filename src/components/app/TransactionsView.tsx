@@ -21,6 +21,7 @@ import {
 import { useFinance, useMoney } from "@/lib/finance/FinanceContext";
 import type { Expense } from "@/lib/finance/types";
 
+import { ConfirmDialog } from "./ConfirmDialog";
 import { TextInput } from "./forms";
 import { StatusPill } from "./ui";
 
@@ -53,6 +54,8 @@ export function TransactionsView({
   const money = useMoney();
   const [term, setTerm] = useState("");
   const [filter, setFilter] = useState<FilterKey>("todos");
+  const [deletingId, setDeletingId] = useState<string | null>(null);
+  const deletingExpense = deletingId ? month.expenses.find((item) => item.id === deletingId) : null;
 
   const rows = useMemo(() => {
     const normalizedTerm = normalizeText(term);
@@ -213,7 +216,7 @@ export function TransactionsView({
                     <IconBtn onClick={() => duplicateExpense(item.id)} label="Duplicar">
                       <Copy className="h-4 w-4" />
                     </IconBtn>
-                    <IconBtn onClick={() => deleteExpense(item.id)} label="Excluir" danger>
+                    <IconBtn onClick={() => setDeletingId(item.id)} label="Excluir" danger>
                       <Trash2 className="h-4 w-4" />
                     </IconBtn>
                   </div>
@@ -223,6 +226,21 @@ export function TransactionsView({
           </div>
         ))
       )}
+
+      <ConfirmDialog
+        open={Boolean(deletingId)}
+        onOpenChange={(next) => {
+          if (!next) setDeletingId(null);
+        }}
+        title="Excluir gasto?"
+        description="Esse lançamento será removido deste mês."
+        confirmLabel="Excluir gasto"
+        busyLabel="Excluindo..."
+        onConfirm={async () => {
+          if (!deletingExpense) return;
+          await deleteExpense(deletingExpense.id);
+        }}
+      />
     </div>
   );
 }

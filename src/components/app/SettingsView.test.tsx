@@ -3,10 +3,22 @@
 // Assistente de IA/Sobre/Ações). This guards that every row that existed
 // before the reorg is still reachable, and that the two new rows (Minha
 // conta, Membros) are wired to their callbacks.
-import { cleanup, fireEvent, render, screen } from "@testing-library/react";
+import type { ReactNode } from "react";
+import { cleanup, fireEvent, render, screen, waitFor } from "@testing-library/react";
 import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
 
 import type { ActiveUser } from "@/lib/finance/types";
+
+// "Restaurar exemplo" now renders a real ConfirmDialog (via SheetShell ->
+// vaul Drawer) — mock at the Drawer layer, same approach used everywhere
+// else a real SheetShell needs to render inside jsdom.
+vi.mock("@/components/ui/drawer", () => ({
+  Drawer: ({ open, children }: { open: boolean; children: ReactNode }) =>
+    open ? <div>{children}</div> : null,
+  DrawerContent: ({ children }: { children: ReactNode }) => <div>{children}</div>,
+  DrawerHeader: ({ children }: { children: ReactNode }) => <div>{children}</div>,
+  DrawerTitle: ({ children }: { children: ReactNode }) => <h1>{children}</h1>,
+}));
 
 const mockFinance = {
   activeUser: { id: "user-1", name: "Oziel", email: "oziel@example.com" } as ActiveUser,
@@ -15,7 +27,7 @@ const mockFinance = {
   importData: vi
     .fn()
     .mockResolvedValue({ importedExpenses: 0, importedPriorities: 0, skipped: [], duplicates: 0 }),
-  resetSeed: vi.fn(),
+  resetSeed: vi.fn().mockResolvedValue(undefined),
   logout: vi.fn(),
 };
 vi.mock("@/lib/finance/FinanceContext", () => ({ useFinance: () => mockFinance }));
@@ -124,5 +136,68 @@ describe("SettingsView — Versão do app is informational, not a dead button", 
     render(<SettingsView {...baseProps()} />);
     const row = screen.getByText("Versão do app").closest("button");
     expect(row).toBeNull();
+  });
+});
+
+describe("SettingsView — Restaurar exemplo (destructive, needs confirmation)", () => {
+  it("27. tapping the row does not run resetSeed by itself", () => {
+    render(<SettingsView {...baseProps()} />);
+    fireEvent.click(screen.getByText("Restaurar exemplo"));
+    expect(mockFinance.resetSeed).not.toHaveBeenCalled();
+    expect(screen.getByText("Restaurar dados de exemplo?")).toBeTruthy();
+  });
+
+  it("28. Cancelar preserves the current data", () => {
+    render(<SettingsView {...baseProps()} />);
+    fireEvent.click(screen.getByText("Restaurar exemplo"));
+    fireEvent.click(screen.getByText("Cancelar"));
+    expect(mockFinance.resetSeed).not.toHaveBeenCalled();
+  });
+
+  it("29. Confirmar calls resetSeed", async () => {
+    render(<SettingsView {...baseProps()} />);
+    fireEvent.click(screen.getByText("Restaurar exemplo"));
+    // Two elements now share this text: the settings row (still mounted
+    // behind the confirmation) and the confirmation's own action button,
+    // rendered after it in the DOM.
+    const buttons = screen.getAllByText("Restaurar exemplo");
+    fireEvent.click(buttons[buttons.length - 1]);
+    await waitFor(() => expect(mockFinance.resetSeed).toHaveBeenCalledTimes(1));
+  });
+
+  it("30. shows loading/disabled state while resetSeed is in flight", async () => {
+    let resolveReset: () => void = () => {};
+    mockFinance.resetSeed.mockImplementation(
+      () => new Promise<void>((resolve) => (resolveReset = resolve)),
+    );
+    render(<SettingsView {...baseProps()} />);
+    fireEvent.click(screen.getByText("Restaurar exemplo"));
+    // Two elements now share this text: the settings row (still mounted
+    // behind the confirmation) and the confirmation's own action button,
+    // rendered after it in the DOM.
+    const buttons = screen.getAllByText("Restaurar exemplo");
+    fireEvent.click(buttons[buttons.length - 1]);
+
+    expect(await screen.findByText("Restaurando...")).toBeTruthy();
+    expect((screen.getByText("Restaurando...") as HTMLButtonElement).disabled).toBe(true);
+
+    resolveReset();
+    await waitFor(() => expect(screen.queryByText("Restaurando...")).toBeNull());
+    mockFinance.resetSeed.mockResolvedValue(undefined);
+  });
+
+  it("31. a failed reset keeps the confirmation open and shows an error, never a silent success", async () => {
+    mockFinance.resetSeed.mockRejectedValue(new Error("Não foi possível restaurar agora."));
+    render(<SettingsView {...baseProps()} />);
+    fireEvent.click(screen.getByText("Restaurar exemplo"));
+    // Two elements now share this text: the settings row (still mounted
+    // behind the confirmation) and the confirmation's own action button,
+    // rendered after it in the DOM.
+    const buttons = screen.getAllByText("Restaurar exemplo");
+    fireEvent.click(buttons[buttons.length - 1]);
+
+    expect(await screen.findByText("Não foi possível restaurar agora.")).toBeTruthy();
+    expect(screen.getByText("Restaurar dados de exemplo?")).toBeTruthy();
+    mockFinance.resetSeed.mockResolvedValue(undefined);
   });
 });

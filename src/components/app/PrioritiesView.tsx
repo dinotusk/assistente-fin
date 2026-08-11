@@ -1,8 +1,10 @@
+import { useState } from "react";
 import { ListChecks, Pencil, Plus, Target, Trash2 } from "lucide-react";
 
 import { calc, priorityMatchesView } from "@/lib/finance/calc";
 import { useFinance, useMoney } from "@/lib/finance/FinanceContext";
 
+import { ConfirmDialog } from "./ConfirmDialog";
 import { Panel, PanelHead, StatusPill } from "./ui";
 
 export function PrioritiesView({
@@ -15,6 +17,10 @@ export function PrioritiesView({
   const { month, state, togglePriorityStatus, deletePriority } = useFinance();
   const money = useMoney();
   const view = state.activePerson;
+  const [deletingId, setDeletingId] = useState<string | null>(null);
+  const deletingPriority = deletingId
+    ? month.priorities.find((item) => item.id === deletingId)
+    : null;
   const priorities = month.priorities
     .filter((item) => priorityMatchesView(item, view, state.people))
     .slice()
@@ -101,7 +107,7 @@ export function PrioritiesView({
                     </button>
                     <button
                       type="button"
-                      onClick={() => deletePriority(item.id)}
+                      onClick={() => setDeletingId(item.id)}
                       aria-label="Excluir"
                       className="press focus-ring flex h-9 w-9 items-center justify-center rounded-xl bg-card text-destructive hover:bg-destructive/10"
                     >
@@ -141,6 +147,21 @@ export function PrioritiesView({
           )}
         </div>
       </Panel>
+
+      <ConfirmDialog
+        open={Boolean(deletingId)}
+        onOpenChange={(next) => {
+          if (!next) setDeletingId(null);
+        }}
+        title="Excluir prioridade?"
+        description="A prioridade será removida deste mês."
+        confirmLabel="Excluir prioridade"
+        busyLabel="Excluindo..."
+        onConfirm={async () => {
+          if (!deletingPriority) return;
+          await deletePriority(deletingPriority.id);
+        }}
+      />
     </div>
   );
 }

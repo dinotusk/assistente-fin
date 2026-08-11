@@ -59,6 +59,7 @@ import {
   type VigiaTone,
 } from "@/lib/finance/vigias";
 
+import { ConfirmDialog } from "./ConfirmDialog";
 import { Field, SelectInput, TextArea, TextInput } from "./forms";
 
 export function SheetShell({
@@ -91,26 +92,43 @@ export function SheetShell({
 function Actions({
   onCancel,
   submitLabel = "Salvar",
+  busy = false,
+  busyLabel = "Salvando...",
 }: {
   onCancel: () => void;
   submitLabel?: string;
+  /** Disables both buttons and swaps the submit label while a save/delete is actually in flight — never before the real async call starts, never after it settles. */
+  busy?: boolean;
+  busyLabel?: string;
 }) {
   return (
     <div className="sticky bottom-0 -mx-5 mt-5 flex gap-3 border-t border-border/70 bg-card/95 px-5 py-3 backdrop-blur">
       <button
         type="button"
         onClick={onCancel}
-        className="press focus-ring h-12 flex-1 rounded-xl border border-input bg-secondary font-semibold text-foreground hover:bg-muted"
+        disabled={busy}
+        className="press focus-ring h-12 flex-1 rounded-xl border border-input bg-secondary font-semibold text-foreground hover:bg-muted disabled:opacity-60"
       >
         Cancelar
       </button>
       <button
         type="submit"
-        className="hero-gradient press focus-ring h-12 flex-1 rounded-xl font-semibold text-primary-foreground shadow-primary"
+        disabled={busy}
+        className="hero-gradient press focus-ring h-12 flex-1 rounded-xl font-semibold text-primary-foreground shadow-primary disabled:opacity-60"
       >
-        {submitLabel}
+        {busy ? busyLabel : submitLabel}
       </button>
     </div>
+  );
+}
+
+/** Shared inline error block for a dialog form — same visual language as ChangePasswordDialog's error state. */
+function FormError({ message }: { message: string | null }) {
+  if (!message) return null;
+  return (
+    <p className="rounded-2xl border border-destructive/30 bg-destructive/10 p-4 text-sm text-destructive">
+      {message}
+    </p>
   );
 }
 
@@ -129,30 +147,47 @@ export function ExpenseDialog({
   const [form, setForm] = useState<Expense>(
     blankExpense(state.activeMonth, state.activePerson, state.people),
   );
+  const [busy, setBusy] = useState(false);
+  const [error, setError] = useState<string | null>(null);
 
   useEffect(() => {
     if (!open) return;
     setForm(
       editing ? { ...editing } : blankExpense(state.activeMonth, state.activePerson, state.people),
     );
+    setBusy(false);
+    setError(null);
   }, [open, editingId, state.activeMonth, state.activePerson, state.people]);
 
-  function submit(event: React.FormEvent) {
+  async function submit(event: React.FormEvent) {
     event.preventDefault();
+    if (busy) return;
     if (!form.name.trim()) return;
     if (form.amount < 0) return;
     const payload: Expense = { ...form, name: form.name.trim(), note: form.note.trim() };
-    if (editing && editing.category !== payload.category) {
-      learnCategory(payload.name, payload.category);
+    setError(null);
+    setBusy(true);
+    try {
+      if (editing && editing.category !== payload.category) {
+        learnCategory(payload.name, payload.category);
+      }
+      await saveExpense(payload, editing?.id);
+      onOpenChange(false);
+    } catch (err) {
+      setError(err instanceof Error ? err.message : "Não foi possível salvar. Tente novamente.");
+    } finally {
+      setBusy(false);
     }
-    saveExpense(payload, editing?.id);
-    onOpenChange(false);
   }
 
   return (
     <SheetShell
       open={open}
-      onOpenChange={onOpenChange}
+      onOpenChange={(next) => {
+        // A swipe-to-dismiss/backdrop-tap while saving must not hide the
+        // dialog before the write settles — same guard as the Cancelar button.
+        if (!busy) onOpenChange(next);
+      }}
       title={editing ? "Editar gasto" : "Adicionar gasto"}
     >
       <form onSubmit={submit} className="flex flex-col gap-4">
@@ -236,7 +271,8 @@ export function ExpenseDialog({
             onChange={(e) => setForm({ ...form, note: e.target.value })}
           />
         </Field>
-        <Actions onCancel={() => onOpenChange(false)} />
+        <FormError message={error} />
+        <Actions onCancel={() => onOpenChange(false)} busy={busy} />
       </form>
     </SheetShell>
   );
@@ -269,24 +305,39 @@ export function PriorityDialog({
   const { month, state, savePriority } = useFinance();
   const editing = editingId ? month.priorities.find((p) => p.id === editingId) : null;
   const [form, setForm] = useState<Priority>(blankPriority(state.activePerson, state.people));
+  const [busy, setBusy] = useState(false);
+  const [error, setError] = useState<string | null>(null);
 
   useEffect(() => {
     if (!open) return;
     setForm(editing ? { ...editing } : blankPriority(state.activePerson, state.people));
+    setBusy(false);
+    setError(null);
   }, [open, editingId, state.activePerson, state.people]);
 
-  function submit(event: React.FormEvent) {
+  async function submit(event: React.FormEvent) {
     event.preventDefault();
+    if (busy) return;
     if (!form.name.trim()) return;
     const payload: Priority = { ...form, name: form.name.trim() };
-    savePriority(payload, editing?.id);
-    onOpenChange(false);
+    setError(null);
+    setBusy(true);
+    try {
+      await savePriority(payload, editing?.id);
+      onOpenChange(false);
+    } catch (err) {
+      setError(err instanceof Error ? err.message : "Não foi possível salvar. Tente novamente.");
+    } finally {
+      setBusy(false);
+    }
   }
 
   return (
     <SheetShell
       open={open}
-      onOpenChange={onOpenChange}
+      onOpenChange={(next) => {
+        if (!busy) onOpenChange(next);
+      }}
       title={editing ? "Editar prioridade" : "Adicionar prioridade"}
     >
       <form onSubmit={submit} className="flex flex-col gap-4">
@@ -330,7 +381,8 @@ export function PriorityDialog({
             </SelectInput>
           </Field>
         </div>
-        <Actions onCancel={() => onOpenChange(false)} />
+        <FormError message={error} />
+        <Actions onCancel={() => onOpenChange(false)} busy={busy} />
       </form>
     </SheetShell>
   );
@@ -361,6 +413,9 @@ export function MonthDialog({
   const [contribution, setContribution] = useState(0);
   const [profileBudgets, setProfileBudgets] = useState<Record<string, number>>({});
   const [planned, setPlanned] = useState(false);
+  const [busy, setBusy] = useState(false);
+  const [error, setError] = useState<string | null>(null);
+  const [confirmingDelete, setConfirmingDelete] = useState(false);
   const canDelete = Object.keys(state.months).length > 1;
 
   useEffect(() => {
@@ -370,112 +425,136 @@ export function MonthDialog({
     setContribution(month.houseContribution || 0);
     setProfileBudgets(month.profileBudgets || {});
     setPlanned(Boolean(month.planned));
+    setBusy(false);
+    setError(null);
+    setConfirmingDelete(false);
   }, [open, month]);
 
-  function submit(event: React.FormEvent) {
+  async function submit(event: React.FormEvent) {
     event.preventDefault();
-    saveMonthSettings(label, income, contribution, profileBudgets, planned);
-    onOpenChange(false);
+    if (busy) return;
+    setError(null);
+    setBusy(true);
+    try {
+      await saveMonthSettings(label, income, contribution, profileBudgets, planned);
+      onOpenChange(false);
+    } catch (err) {
+      setError(err instanceof Error ? err.message : "Não foi possível salvar. Tente novamente.");
+    } finally {
+      setBusy(false);
+    }
   }
 
   function setProfileBudget(profile: string, value: number) {
     setProfileBudgets((current) => ({ ...current, [profile]: value }));
   }
 
-  function handleDelete() {
-    if (!canDelete) return;
-    const ok = confirm(
-      `Excluir "${month.label}"? Todos os gastos e prioridades desse mês serão apagados. Essa ação não pode ser desfeita.`,
-    );
-    if (!ok) return;
-    deleteMonth(state.activeMonth);
-    onOpenChange(false);
-  }
-
   return (
-    <SheetShell open={open} onOpenChange={onOpenChange} title="Editar mês">
-      <form onSubmit={submit} className="flex flex-col gap-4">
-        <Field label="Nome do mês">
-          <TextInput value={label} onChange={(e) => setLabel(e.target.value)} required />
-        </Field>
+    <>
+      <SheetShell
+        open={open}
+        onOpenChange={(next) => {
+          if (!busy) onOpenChange(next);
+        }}
+        title="Editar mês"
+      >
+        <form onSubmit={submit} className="flex flex-col gap-4">
+          <Field label="Nome do mês">
+            <TextInput value={label} onChange={(e) => setLabel(e.target.value)} required />
+          </Field>
 
-        <div className="flex items-center justify-between gap-3 rounded-2xl bg-secondary p-3.5">
-          <div className="min-w-0">
-            <strong className="block text-sm font-bold text-foreground">Mês planejado</strong>
-            <span className="block text-[12px] leading-snug text-muted-foreground">
-              Marque se este mês ainda não começou. Os valores viram uma previsão até você
-              desmarcar.
-            </span>
+          <div className="flex items-center justify-between gap-3 rounded-2xl bg-secondary p-3.5">
+            <div className="min-w-0">
+              <strong className="block text-sm font-bold text-foreground">Mês planejado</strong>
+              <span className="block text-[12px] leading-snug text-muted-foreground">
+                Marque se este mês ainda não começou. Os valores viram uma previsão até você
+                desmarcar.
+              </span>
+            </div>
+            <button
+              type="button"
+              role="switch"
+              aria-checked={planned}
+              aria-label="Mês planejado"
+              onClick={() => setPlanned((value) => !value)}
+              className={`press focus-ring relative h-7 w-12 shrink-0 rounded-full transition-colors ${planned ? "bg-primary" : "bg-muted"}`}
+            >
+              <span
+                className={`absolute top-0.5 h-6 w-6 rounded-full bg-white shadow transition-transform ${planned ? "translate-x-5" : "translate-x-0.5"}`}
+              />
+            </button>
           </div>
-          <button
-            type="button"
-            role="switch"
-            aria-checked={planned}
-            aria-label="Mês planejado"
-            onClick={() => setPlanned((value) => !value)}
-            className={`press focus-ring relative h-7 w-12 shrink-0 rounded-full transition-colors ${planned ? "bg-primary" : "bg-muted"}`}
-          >
-            <span
-              className={`absolute top-0.5 h-6 w-6 rounded-full bg-white shadow transition-transform ${planned ? "translate-x-5" : "translate-x-0.5"}`}
-            />
-          </button>
-        </div>
 
-        <Field label={`Renda do mês (${state.people[0] || "Perfil 1"})`}>
-          <TextInput
-            type="number"
-            inputMode="decimal"
-            min="0"
-            step="0.01"
-            value={income || ""}
-            onChange={(e) => setIncome(Number(e.target.value || 0))}
-            required
-          />
-        </Field>
-        {state.people[1] ? (
-          <Field label={`Repasse do mês (${state.people[1]})`}>
+          <Field label={`Renda do mês (${state.people[0] || "Perfil 1"})`}>
             <TextInput
               type="number"
               inputMode="decimal"
               min="0"
               step="0.01"
-              value={contribution || ""}
-              onChange={(e) => setContribution(Number(e.target.value || 0))}
+              value={income || ""}
+              onChange={(e) => setIncome(Number(e.target.value || 0))}
+              required
             />
           </Field>
-        ) : null}
-        {state.people.slice(2).map((person) => (
-          <Field key={person} label={`Orçamento do mês (${person})`}>
-            <TextInput
-              type="number"
-              inputMode="decimal"
-              min="0"
-              step="0.01"
-              value={profileBudgets[person] || ""}
-              onChange={(e) => setProfileBudget(person, Number(e.target.value || 0))}
-            />
-          </Field>
-        ))}
+          {state.people[1] ? (
+            <Field label={`Repasse do mês (${state.people[1]})`}>
+              <TextInput
+                type="number"
+                inputMode="decimal"
+                min="0"
+                step="0.01"
+                value={contribution || ""}
+                onChange={(e) => setContribution(Number(e.target.value || 0))}
+              />
+            </Field>
+          ) : null}
+          {state.people.slice(2).map((person) => (
+            <Field key={person} label={`Orçamento do mês (${person})`}>
+              <TextInput
+                type="number"
+                inputMode="decimal"
+                min="0"
+                step="0.01"
+                value={profileBudgets[person] || ""}
+                onChange={(e) => setProfileBudget(person, Number(e.target.value || 0))}
+              />
+            </Field>
+          ))}
 
-        <div className="mt-1 border-t border-border/70 pt-4">
-          <button
-            type="button"
-            onClick={handleDelete}
-            disabled={!canDelete}
-            className="press focus-ring flex h-11 w-full items-center justify-center gap-2 rounded-xl text-sm font-semibold text-destructive hover:bg-destructive/10 disabled:pointer-events-none disabled:opacity-35"
-          >
-            <Trash2 className="h-4 w-4" /> Excluir este mês
-          </button>
-          {!canDelete && (
-            <p className="mt-1.5 text-center text-[11px] text-muted-foreground">
-              Não é possível excluir o único mês existente.
-            </p>
-          )}
-        </div>
+          <div className="mt-1 border-t border-border/70 pt-4">
+            <button
+              type="button"
+              onClick={() => setConfirmingDelete(true)}
+              disabled={!canDelete || busy}
+              className="press focus-ring flex h-11 w-full items-center justify-center gap-2 rounded-xl text-sm font-semibold text-destructive hover:bg-destructive/10 disabled:pointer-events-none disabled:opacity-35"
+            >
+              <Trash2 className="h-4 w-4" /> Excluir este mês
+            </button>
+            {!canDelete && (
+              <p className="mt-1.5 text-center text-[11px] text-muted-foreground">
+                Não é possível excluir o único mês existente.
+              </p>
+            )}
+          </div>
 
-        <Actions onCancel={() => onOpenChange(false)} />
-      </form>
-    </SheetShell>
+          <FormError message={error} />
+          <Actions onCancel={() => onOpenChange(false)} busy={busy} />
+        </form>
+      </SheetShell>
+
+      <ConfirmDialog
+        open={confirmingDelete}
+        onOpenChange={setConfirmingDelete}
+        title={`Excluir ${month.label}?`}
+        description={`Os gastos, metas e demais dados de ${month.label} serão removidos. Esta ação não pode ser desfeita.`}
+        confirmLabel="Excluir mês"
+        busyLabel="Excluindo..."
+        onConfirm={async () => {
+          await deleteMonth(state.activeMonth);
+          onOpenChange(false);
+        }}
+      />
+    </>
   );
 }
 /* ---------------- People ---------------- */
@@ -488,16 +567,29 @@ export function PeopleDialog({
 }) {
   const { state, savePeople } = useFinance();
   const [people, setPeople] = useState<string[]>([]);
+  const [busy, setBusy] = useState(false);
+  const [error, setError] = useState<string | null>(null);
 
   useEffect(() => {
     if (!open) return;
     setPeople(state.people.length ? state.people : ["Perfil principal"]);
+    setBusy(false);
+    setError(null);
   }, [open, state.people]);
 
-  function submit(event: React.FormEvent) {
+  async function submit(event: React.FormEvent) {
     event.preventDefault();
-    savePeople(people);
-    onOpenChange(false);
+    if (busy) return;
+    setError(null);
+    setBusy(true);
+    try {
+      await savePeople(people);
+      onOpenChange(false);
+    } catch (err) {
+      setError(err instanceof Error ? err.message : "Não foi possível salvar. Tente novamente.");
+    } finally {
+      setBusy(false);
+    }
   }
 
   function updatePerson(index: number, value: string) {
@@ -515,7 +607,13 @@ export function PeopleDialog({
   }
 
   return (
-    <SheetShell open={open} onOpenChange={onOpenChange} title="Perfis financeiros">
+    <SheetShell
+      open={open}
+      onOpenChange={(next) => {
+        if (!busy) onOpenChange(next);
+      }}
+      title="Perfis financeiros"
+    >
       <form onSubmit={submit} className="flex flex-col gap-4">
         <p className="text-sm text-muted-foreground">
           Crie as visões que deseja acompanhar no filtro superior. Os gastos existentes continuam
@@ -528,12 +626,13 @@ export function PeopleDialog({
                 value={person}
                 onChange={(e) => updatePerson(index, e.target.value)}
                 required
+                disabled={busy}
               />
             </Field>
             <button
               type="button"
               onClick={() => removePerson(index)}
-              disabled={people.length <= 1}
+              disabled={people.length <= 1 || busy}
               className="mt-6 h-12 rounded-xl border border-input bg-secondary px-3 text-xs font-bold text-muted-foreground disabled:opacity-35"
             >
               Remover
@@ -543,11 +642,13 @@ export function PeopleDialog({
         <button
           type="button"
           onClick={addPerson}
-          className="h-12 rounded-xl border border-dashed border-primary/35 bg-primary-soft text-sm font-bold text-primary"
+          disabled={busy}
+          className="h-12 rounded-xl border border-dashed border-primary/35 bg-primary-soft text-sm font-bold text-primary disabled:opacity-60"
         >
           Adicionar perfil
         </button>
-        <Actions onCancel={() => onOpenChange(false)} />
+        <FormError message={error} />
+        <Actions onCancel={() => onOpenChange(false)} busy={busy} />
       </form>
     </SheetShell>
   );

@@ -1,4 +1,4 @@
-import { useRef } from "react";
+import { useRef, useState } from "react";
 import {
   Users,
   CalendarCog,
@@ -25,6 +25,7 @@ import { toast } from "sonner";
 import { summarizeImport } from "@/lib/finance/calc";
 import { useFinance } from "@/lib/finance/FinanceContext";
 
+import { ConfirmDialog } from "./ConfirmDialog";
 import { Panel, PanelHead } from "./ui";
 
 /** No package.json "version" field exists to read at build time — this is the
@@ -59,6 +60,7 @@ export function SettingsView({
   const { activeUser, state, exportData, importData, resetSeed, logout } = useFinance();
   const fileRef = useRef<HTMLInputElement>(null);
   const initials = getInitials(activeUser?.name || "Aval");
+  const [confirmingReset, setConfirmingReset] = useState(false);
 
   async function onImport(e: React.ChangeEvent<HTMLInputElement>) {
     const file = e.target.files?.[0];
@@ -167,7 +169,7 @@ export function SettingsView({
           icon: RotateCcw,
           title: "Restaurar exemplo",
           desc: "Volta para os dados de demonstração.",
-          action: resetSeed,
+          action: () => setConfirmingReset(true),
         },
       ],
     },
@@ -307,6 +309,16 @@ export function SettingsView({
           ))}
         </div>
       </Panel>
+
+      <ConfirmDialog
+        open={confirmingReset}
+        onOpenChange={setConfirmingReset}
+        title="Restaurar dados de exemplo?"
+        description="Os dados atuais serão substituídos pelos dados de exemplo. Esta ação não pode ser desfeita."
+        confirmLabel="Restaurar exemplo"
+        busyLabel="Restaurando..."
+        onConfirm={resetSeed}
+      />
     </div>
   );
 }
