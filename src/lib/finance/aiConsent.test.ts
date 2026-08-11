@@ -89,3 +89,62 @@ describe("askGemini consent gate", () => {
     expect(fetch).not.toHaveBeenCalled();
   });
 });
+
+describe("P0-05B round 2.1 — consent version bump touches nothing about the AI context contract", () => {
+  it("AI_CONSENT_VERSION is 2, decoupled from the context allowlist/classifier", async () => {
+    const { AI_CONSENT_VERSION } = await import("./aiConsent");
+    expect(AI_CONSENT_VERSION).toBe(2);
+  });
+
+  it("classifyAiIntent/buildAiContext still produce exactly the pinned per-intent shapes", async () => {
+    const { buildAiContext, classifyAiIntent } = await import("./ai");
+    const state = {
+      people: ["Maria"],
+      activePerson: "me",
+      activeMonth: "2026-08",
+      months: {
+        "2026-08": {
+          label: "Agosto 2026",
+          income: 5000,
+          houseContribution: 0,
+          expenses: [],
+          priorities: [],
+        },
+      },
+    };
+    expect(classifyAiIntent("Quanto ainda posso gastar?")).toBe("BALANCE");
+    const context = buildAiContext(state, "BALANCE");
+    expect(Object.keys(context).sort()).toEqual(
+      [
+        "tipo",
+        "mes",
+        "planejamento",
+        "visao",
+        "orcamento",
+        "totalGasto",
+        "pendente",
+        "pago",
+        "saldoRestante",
+      ].sort(),
+    );
+  });
+
+  it("the validation caps (question length, item count, category cap, body size) are unchanged", async () => {
+    const validation = await import("./aiRequestValidation");
+    expect(validation.MAX_QUESTION_LENGTH).toBe(2000);
+    expect(validation.MAX_CONTEXT_ITEMS).toBe(12);
+    expect(validation.MAX_AI_CATEGORY_ITEMS).toBe(13);
+    expect(validation.MAX_CONTEXT_TEXT_LENGTH).toBe(120);
+    expect(validation.MAX_BODY_BYTES).toBe(24_000);
+  });
+
+  it("gemini-chat.ts source still pins generationConfig and the round-1 prompt guarantees verbatim", async () => {
+    const { readFileSync } = await import("node:fs");
+    const { resolve } = await import("node:path");
+    const source = readFileSync(resolve(__dirname, "../../routes/api/gemini-chat.ts"), "utf8");
+    expect(source).toMatch(/maxOutputTokens:\s*2048/);
+    expect(source).toMatch(/thinkingBudget:\s*1024/);
+    expect(source).toMatch(/Nunca invente numeros/i);
+    expect(source).toMatch(/Nao use Markdown/i);
+  });
+});

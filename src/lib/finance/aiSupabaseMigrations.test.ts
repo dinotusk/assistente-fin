@@ -20,6 +20,13 @@ const CONSENT_RPC_SQL = readFileSync(
   resolve(MIGRATIONS_DIR, "20260806040000_ai_consents_rpc_only.sql"),
   "utf8",
 );
+// P0-05B round 2.1: accept_ai_consent() was redefined (CREATE OR REPLACE, not
+// an edit to the historical migration above) to hardcode version 2 instead of
+// 1 — this is now the authoritative definition of what version get granted.
+const CONSENT_VERSION_BUMP_SQL = readFileSync(
+  resolve(MIGRATIONS_DIR, "20260810120000_ai_consent_version_2.sql"),
+  "utf8",
+);
 
 describe("check_and_log_ai_rate_limit privilege fix (SQL text)", () => {
   it("uses an empty search_path", () => {
@@ -96,13 +103,6 @@ describe("accept_ai_consent / revoke_ai_consent RPCs (SQL text)", () => {
     expect(CONSENT_RPC_SQL).toMatch(/v_current_version constant integer := \d+;/);
   });
 
-  it("the hardcoded SQL version matches AI_CONSENT_VERSION in code — fails on drift, not just on a stale comment", () => {
-    const match = CONSENT_RPC_SQL.match(/v_current_version constant integer := (\d+);/);
-    expect(match).not.toBeNull();
-    const sqlVersion = Number(match![1]);
-    expect(sqlVersion).toBe(AI_CONSENT_VERSION);
-  });
-
   it("both RPCs use an empty search_path", () => {
     const searchPathMatches = CONSENT_RPC_SQL.match(/set search_path = ''/g) || [];
     expect(searchPathMatches.length).toBe(2);
@@ -125,5 +125,55 @@ describe("accept_ai_consent / revoke_ai_consent RPCs (SQL text)", () => {
         ) || [];
       expect(grantMatches).toHaveLength(1);
     }
+  });
+});
+
+/** Strips `-- ...` line comments so a doc comment that merely discusses grants/
+ *  revokes (in prose) can't be confused with the SQL actually executing one. */
+function stripSqlComments(sql: string): string {
+  return sql
+    .split("\n")
+    .map((line) => line.replace(/--.*$/, ""))
+    .join("\n");
+}
+
+describe("accept_ai_consent version 2 bump — 20260810120000 (SQL text)", () => {
+  it("redefines only accept_ai_consent — never edits the original migration's table/RLS/grants", () => {
+    expect(CONSENT_VERSION_BUMP_SQL).toMatch(
+      /create or replace function public\.accept_ai_consent\(\)/,
+    );
+    // No grant/revoke/alter table/policy statement anywhere in this file's
+    // executable SQL (comments aside) — the function keeps the ACL it already
+    // had from 20260806040000 (CREATE OR REPLACE preserves grants on the same
+    // name+signature), so this migration has no business touching privileges
+    // or RLS at all.
+    const executable = stripSqlComments(CONSENT_VERSION_BUMP_SQL);
+    expect(executable).not.toMatch(/\bgrant\b/i);
+    expect(executable).not.toMatch(/\brevoke\b/i);
+    expect(executable).not.toMatch(/\balter table\b/i);
+    expect(executable).not.toMatch(/\bcreate policy\b/i);
+    expect(executable).not.toMatch(/\bcreate table\b/i);
+  });
+
+  it("hardcodes version 2 — the SQL version matches AI_CONSENT_VERSION in code, fails on drift", () => {
+    const match = CONSENT_VERSION_BUMP_SQL.match(/v_current_version constant integer := (\d+);/);
+    expect(match).not.toBeNull();
+    const sqlVersion = Number(match![1]);
+    expect(sqlVersion).toBe(AI_CONSENT_VERSION);
+    expect(sqlVersion).toBe(2);
+  });
+
+  it("still derives the user from auth.uid() and rejects unauthenticated calls", () => {
+    expect(CONSENT_VERSION_BUMP_SQL).toMatch(/v_user_id uuid := auth\.uid\(\)/);
+    expect(CONSENT_VERSION_BUMP_SQL).toMatch(/raise exception 'Not authenticated'/);
+  });
+
+  it("keeps the same security definer + empty search_path as the original definition", () => {
+    expect(CONSENT_VERSION_BUMP_SQL).toMatch(/security definer/);
+    expect(CONSENT_VERSION_BUMP_SQL).toMatch(/set search_path = ''/);
+  });
+
+  it("the original 20260806040000 migration is untouched — still hardcodes version 1 (history is never edited)", () => {
+    expect(CONSENT_RPC_SQL).toMatch(/v_current_version constant integer := 1;/);
   });
 });

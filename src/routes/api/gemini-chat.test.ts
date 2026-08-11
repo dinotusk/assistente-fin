@@ -1,5 +1,6 @@
 import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
 
+import { AI_CONSENT_VERSION } from "@/lib/finance/aiConsent";
 import { MAX_BODY_BYTES } from "@/lib/finance/aiRequestValidation";
 
 const mockSupabase = {
@@ -42,10 +43,17 @@ function makeConsentQuery(result: { data: unknown; error: unknown }) {
   return query;
 }
 
+/** "Currently consented" baseline for every test not specifically about consent
+ *  version enforcement — always the current AI_CONSENT_VERSION, not a literal,
+ *  so a future version bump doesn't silently break every unrelated test here. */
 function mockActiveConsent() {
   mockSupabase.from.mockReturnValue(
     makeConsentQuery({
-      data: { consent_version: 1, accepted_at: "2026-08-01T00:00:00Z", revoked_at: null },
+      data: {
+        consent_version: AI_CONSENT_VERSION,
+        accepted_at: "2026-08-01T00:00:00Z",
+        revoked_at: null,
+      },
       error: null,
     }),
   );
@@ -168,6 +176,56 @@ describe("handleGeminiChatRequest", () => {
       const handle = await importHandler();
       const response = await handle(makeRequest({ question: "oi", context: VALID_CONTEXT }));
       expect(response.status).toBe(403);
+    });
+
+    describe("P0-05B round 2.1 — AI_CONSENT_VERSION bump (1 -> 2)", () => {
+      it("blocks a user still on consent_version 1 (pre-round-2.1) until they re-consent", async () => {
+        mockSupabase.auth.getUser.mockResolvedValue({ data: { user: { id: "u1" } }, error: null });
+        mockSupabase.from.mockReturnValue(
+          makeConsentQuery({
+            data: { consent_version: 1, accepted_at: "2026-08-01T00:00:00Z", revoked_at: null },
+            error: null,
+          }),
+        );
+        const handle = await importHandler();
+        const response = await handle(makeRequest({ question: "oi", context: VALID_CONTEXT }));
+        expect(response.status).toBe(403);
+        const json = await response.json();
+        expect(json).toEqual({ error: "Consentimento de IA necessario ou desatualizado" });
+      });
+
+      it("authorizes a user on the current consent_version 2", async () => {
+        mockSupabase.auth.getUser.mockResolvedValue({ data: { user: { id: "u1" } }, error: null });
+        mockSupabase.from.mockReturnValue(
+          makeConsentQuery({
+            data: { consent_version: 2, accepted_at: "2026-08-10T00:00:00Z", revoked_at: null },
+            error: null,
+          }),
+        );
+        mockSupabase.rpc.mockResolvedValue({ data: true, error: null });
+        const handle = await importHandler();
+        const response = await handle(makeRequest({ question: "oi", context: VALID_CONTEXT }));
+        // Never 403 — proceeds to the rate-limit check (and 502s here only
+        // because `fetch` isn't mocked to succeed in this test).
+        expect(response.status).not.toBe(403);
+      });
+
+      it("blocks again once a consent_version 2 grant is revoked", async () => {
+        mockSupabase.auth.getUser.mockResolvedValue({ data: { user: { id: "u1" } }, error: null });
+        mockSupabase.from.mockReturnValue(
+          makeConsentQuery({
+            data: {
+              consent_version: 2,
+              accepted_at: "2026-08-10T00:00:00Z",
+              revoked_at: "2026-08-10T01:00:00Z",
+            },
+            error: null,
+          }),
+        );
+        const handle = await importHandler();
+        const response = await handle(makeRequest({ question: "oi", context: VALID_CONTEXT }));
+        expect(response.status).toBe(403);
+      });
     });
 
     it("looks up consent by the JWT-verified user id, never by anything from the request body", async () => {

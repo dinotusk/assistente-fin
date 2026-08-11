@@ -1,5 +1,7 @@
 import { beforeEach, describe, expect, it, vi } from "vitest";
 
+import { AI_CONSENT_VERSION } from "./aiConsent";
+
 const mockSupabase = {
   auth: { getUser: vi.fn() },
   rpc: vi.fn(),
@@ -51,7 +53,11 @@ describe("AI consent repository — RPC-only writes, read-only select", () => {
     const query = {
       select: vi.fn().mockReturnThis(),
       maybeSingle: vi.fn().mockResolvedValue({
-        data: { consent_version: 1, accepted_at: "2026-08-01T00:00:00Z", revoked_at: null },
+        data: {
+          consent_version: AI_CONSENT_VERSION,
+          accepted_at: "2026-08-01T00:00:00Z",
+          revoked_at: null,
+        },
         error: null,
       }),
     };
@@ -68,7 +74,7 @@ describe("AI consent repository — RPC-only writes, read-only select", () => {
       select: vi.fn().mockReturnThis(),
       maybeSingle: vi.fn().mockResolvedValue({
         data: {
-          consent_version: 1,
+          consent_version: AI_CONSENT_VERSION,
           accepted_at: "2026-08-01T00:00:00Z",
           revoked_at: "2026-08-02T00:00:00Z",
         },

@@ -7,8 +7,14 @@
 // and only use this module to mirror that state locally after a successful write.
 const CONSENT_KEY = "aval:ai-consent:v1";
 
-/** Bump when the consent copy/scope changes meaningfully — forces re-consent. */
-export const AI_CONSENT_VERSION = 1;
+/**
+ * Bump when the consent copy/scope changes meaningfully — forces re-consent.
+ * v2 (P0-05B round 2.1): the context sent per question became selective and
+ * can now include fields v1's copy never described (a goal's saved amount/
+ * progress, a full category breakdown, a bill's dueDate) — see
+ * supabase/migrations/20260810120000_ai_consent_version_2.sql.
+ */
+export const AI_CONSENT_VERSION = 2;
 
 interface ConsentRecord {
   accepted: boolean;
