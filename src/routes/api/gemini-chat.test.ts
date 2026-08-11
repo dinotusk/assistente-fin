@@ -322,6 +322,102 @@ describe("handleGeminiChatRequest", () => {
     const json = await response.json();
     expect(json).toEqual({ answer: "Voce esta dentro do orcamento." });
   });
+
+  it("returns a clean answer when finishReason is explicitly STOP", async () => {
+    mockSupabase.auth.getUser.mockResolvedValue({ data: { user: { id: "u1" } }, error: null });
+    vi.mocked(fetch).mockResolvedValue(
+      Response.json({
+        candidates: [
+          {
+            content: { parts: [{ text: "Voce esta dentro do orcamento." }] },
+            finishReason: "STOP",
+          },
+        ],
+        usageMetadata: { promptTokenCount: 120, candidatesTokenCount: 40, totalTokenCount: 160 },
+      }),
+    );
+    const handle = await importHandler();
+    const response = await handle(makeRequest({ question: "Como estou?", context: VALID_CONTEXT }));
+    expect(response.status).toBe(200);
+    expect(await response.json()).toEqual({ answer: "Voce esta dentro do orcamento." });
+  });
+
+  it("never returns a MAX_TOKENS-truncated answer as if it were a complete success", async () => {
+    mockSupabase.auth.getUser.mockResolvedValue({ data: { user: { id: "u1" } }, error: null });
+    vi.mocked(fetch).mockResolvedValue(
+      Response.json({
+        candidates: [
+          {
+            content: { parts: [{ text: "Seu mes esta com o orcamento de R" }] },
+            finishReason: "MAX_TOKENS",
+          },
+        ],
+        usageMetadata: {
+          promptTokenCount: 850,
+          candidatesTokenCount: 12,
+          thoughtsTokenCount: 686,
+          totalTokenCount: 1548,
+        },
+      }),
+    );
+    const handle = await importHandler();
+    const response = await handle(
+      makeRequest({ question: "Como esta meu mes?", context: VALID_CONTEXT }),
+    );
+    expect(response.status).toBe(502);
+    const json = await response.json();
+    // The generic, already-approved unavailability message — never the cut-off text.
+    expect(json).toEqual({ error: "Assistente de IA indisponivel no momento" });
+    const serialized = JSON.stringify(json);
+    expect(serialized).not.toContain("Seu mes esta com o orcamento");
+    expect(serialized).not.toContain("MAX_TOKENS");
+    expect(serialized).not.toContain("thoughtsTokenCount");
+    expect(json).not.toHaveProperty("finishReason");
+    expect(json).not.toHaveProperty("usageMetadata");
+  });
+
+  it("a MAX_TOKENS failure classifies the same way any other unavailability does on the client", async () => {
+    // The 502 status is what ai.ts's askGemini reads to classify the failure as
+    // "unavailable" (see ai.test.ts) — this just confirms this path uses that status.
+    mockSupabase.auth.getUser.mockResolvedValue({ data: { user: { id: "u1" } }, error: null });
+    vi.mocked(fetch).mockResolvedValue(
+      Response.json({
+        candidates: [{ content: { parts: [{ text: "truncado" }] }, finishReason: "MAX_TOKENS" }],
+      }),
+    );
+    const handle = await importHandler();
+    const response = await handle(makeRequest({ question: "oi", context: VALID_CONTEXT }));
+    expect(response.status).toBe(502);
+  });
+
+  it("still returns the generic apology (never a crash) when there is no candidate and no block reason", async () => {
+    mockSupabase.auth.getUser.mockResolvedValue({ data: { user: { id: "u1" } }, error: null });
+    vi.mocked(fetch).mockResolvedValue(Response.json({ candidates: [] }));
+    const handle = await importHandler();
+    const response = await handle(makeRequest({ question: "oi", context: VALID_CONTEXT }));
+    expect(response.status).toBe(200);
+    expect(await response.json()).toEqual({ answer: "Nao consegui gerar uma resposta agora." });
+  });
+
+  it("sends the new generationConfig (higher maxOutputTokens + a bounded thinking budget) to Gemini", async () => {
+    mockSupabase.auth.getUser.mockResolvedValue({ data: { user: { id: "u1" } }, error: null });
+    vi.mocked(fetch).mockResolvedValue(
+      Response.json({
+        candidates: [{ content: { parts: [{ text: "ok" }] }, finishReason: "STOP" }],
+      }),
+    );
+    const handle = await importHandler();
+    await handle(makeRequest({ question: "oi", context: VALID_CONTEXT }));
+    const [, init] = vi.mocked(fetch).mock.calls[0];
+    const body = JSON.parse((init as RequestInit).body as string);
+    expect(body.generationConfig.maxOutputTokens).toBe(2048);
+    expect(body.generationConfig.thinkingConfig).toEqual({ thinkingBudget: 1024 });
+    // Thinking budget must leave meaningfully more room for the visible answer than
+    // it can itself consume — the whole point of round 1.1.
+    expect(body.generationConfig.maxOutputTokens).toBeGreaterThan(
+      body.generationConfig.thinkingConfig.thinkingBudget,
+    );
+  });
 });
 
 /**

@@ -179,7 +179,23 @@ export async function handleGeminiChatRequest(request: Request): Promise<Respons
         headers: { "Content-Type": "application/json", "x-goog-api-key": apiKey },
         body: JSON.stringify({
           contents: [{ role: "user", parts: [{ text: buildPrompt(question, context) }] }],
-          generationConfig: { temperature: 0.35, maxOutputTokens: 700 },
+          // P0-05B round 1.1: gemini-2.5-flash's thinking tokens are billed against
+          // the SAME maxOutputTokens ceiling as the visible answer (Gemini API docs,
+          // "Thinking" guide) — the old maxOutputTokens: 700 with no thinkingConfig
+          // (defaults to dynamic/unbounded thinking) let harder questions spend most
+          // of that budget reasoning internally, cutting the visible answer off
+          // mid-sentence. thinkingBudget: 1024 caps thinking at a level generous for
+          // a structured personal-finance Q&A (no multi-step chain-of-thought, no
+          // code/math derivation) without disabling it outright — every observed
+          // complete answer in the round-1 smoke test was under ~500 characters
+          // (~150 tokens); maxOutputTokens: 2048 leaves at least ~1024 tokens for the
+          // visible answer even if thinking fully exhausts its own budget, several
+          // times more than any answer this app has produced.
+          generationConfig: {
+            temperature: 0.35,
+            maxOutputTokens: 2048,
+            thinkingConfig: { thinkingBudget: 1024 },
+          },
         }),
         signal: controller.signal,
       },
@@ -192,16 +208,42 @@ export async function handleGeminiChatRequest(request: Request): Promise<Respons
     }
 
     const data = (await response.json()) as {
-      candidates?: { content?: { parts?: { text?: string }[] } }[];
+      candidates?: {
+        content?: { parts?: { text?: string }[] };
+        finishReason?: string;
+      }[];
       promptFeedback?: { blockReason?: string };
+      usageMetadata?: {
+        promptTokenCount?: number;
+        candidatesTokenCount?: number;
+        thoughtsTokenCount?: number;
+        totalTokenCount?: number;
+      };
     };
-    const raw = data?.candidates?.[0]?.content?.parts
+    const candidate = data?.candidates?.[0];
+    const finishReason = candidate?.finishReason;
+    const raw = candidate?.content?.parts
       ?.map((p) => p.text || "")
       .join("\n")
       .trim();
+    // Server-log only (never returned to the client, never includes the question or
+    // the generated text) — lets real traffic confirm the budget change above
+    // actually eliminated MAX_TOKENS without needing to expose anything to the user.
+    console.debug("Gemini finishReason:", finishReason, "usage:", data?.usageMetadata);
+
     if (!raw && data?.promptFeedback?.blockReason) {
       console.error("Gemini blocked the response:", data.promptFeedback.blockReason);
       return Response.json({ error: CLIENT_ERRORS.blocked }, { status: 502 });
+    }
+    if (finishReason === "MAX_TOKENS") {
+      // A cut-off sentence is worse than no answer — never return a partial answer
+      // as if it were a complete one. Routes through the same sanitized-error path
+      // as any other unavailability, which the client already turns into the
+      // transparent local fallback (never a silent, confident-looking half answer).
+      console.error(
+        "Gemini response truncated (MAX_TOKENS) — treated as a failed generation, not returned as a partial answer.",
+      );
+      return Response.json({ error: CLIENT_ERRORS.unavailable }, { status: 502 });
     }
     return Response.json({
       answer: cleanAnswer(raw) || "Nao consegui gerar uma resposta agora.",
