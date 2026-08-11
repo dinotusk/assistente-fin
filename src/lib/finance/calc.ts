@@ -273,6 +273,59 @@ export function getLargestCategoryGrowth(
   );
 }
 
+export interface NextDueExpense {
+  expense: Expense;
+  /** Negative = overdue, 0 = due today, positive = days remaining. */
+  daysUntil: number;
+}
+
+/** Earliest unpaid item due (by dueDate, falling back to date), or null if nothing is pending. */
+export function getNextDueExpense(expenses: Expense[]): NextDueExpense | null {
+  const nextDue = expenses
+    .filter((item) => item.status === "A pagar")
+    .sort((a, b) => (a.dueDate || a.date).localeCompare(b.dueDate || b.date))[0];
+  if (!nextDue) return null;
+  const today = new Date().toISOString().slice(0, 10);
+  const daysUntil = Math.ceil(
+    (new Date(nextDue.dueDate || nextDue.date).getTime() - new Date(today).getTime()) / 86400000,
+  );
+  return { expense: nextDue, daysUntil };
+}
+
+/**
+ * One-sentence "how's my month going" headline. Same picking order (over
+ * budget > bill due soon > category growth > weekly allowance) the Aval
+ * chat's hero card already uses — shared here (P0-FRONTEND-1B.3) so the
+ * Painel can show the same "what needs attention" line without a second,
+ * possibly-diverging copy of this logic.
+ */
+export function getMonthHeadline(
+  numbers: Metrics,
+  expenses: Expense[],
+  growth: { category: string; diff: number } | null,
+  formatMoney: (value: number) => string,
+): string {
+  if (numbers.free < 0) {
+    return `O orçamento passou ${formatMoney(Math.abs(numbers.free))}. Priorize cortar novas compras.`;
+  }
+  const next = getNextDueExpense(expenses);
+  if (next && next.daysUntil <= 3) {
+    return `${next.expense.name} ${
+      next.daysUntil < 0
+        ? "está atrasada"
+        : next.daysUntil === 0
+          ? "vence hoje"
+          : `vence em ${next.daysUntil} dia${next.daysUntil === 1 ? "" : "s"}`
+    }.`;
+  }
+  if (growth) {
+    return `${categoryLabel(growth.category)} cresceu ${formatMoney(growth.diff)} contra o mês anterior.`;
+  }
+  const weeklyAllowance =
+    numbers.daysLeft > 0 ? Math.max(0, (numbers.free / numbers.daysLeft) * 7) : 0;
+  return `Você pode gastar cerca de ${formatMoney(weeklyAllowance)} nesta semana.`;
+}
+
 /** Lowercases and strips accents so text can be matched regardless of typing style. */
 export function normalizeText(value: string): string {
   return value

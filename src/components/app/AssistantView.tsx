@@ -18,6 +18,8 @@ import {
   expensesForView,
   budgetForView,
   getLargestCategoryGrowth,
+  getMonthHeadline,
+  getNextDueExpense,
   maskMoneyInText,
   normalizeText,
   ownerLabelForPeople,
@@ -101,21 +103,11 @@ export function AssistantView({
   const spendingTrend = chartMonthEntries(state, 6).map(([, data]) =>
     sum(expensesForView(data, view, state.people)),
   );
-  const today = new Date().toISOString().slice(0, 10);
-  const nextDue = expenses
-    .filter((item) => item.status === "A pagar")
-    .sort((a, b) => (a.dueDate || a.date).localeCompare(b.dueDate || b.date))[0];
   // Negative = overdue, 0 = due today, positive = days remaining. Not clamped
   // to 0 here so overdue bills can be told apart from "due today" downstream.
-  const daysToNextDue = nextDue
-    ? Math.ceil(
-        (new Date(nextDue.dueDate || nextDue.date).getTime() - new Date(today).getTime()) /
-          86400000,
-      )
-    : null;
-
-  const weeklyAllowance =
-    numbers.daysLeft > 0 ? Math.max(0, (numbers.free / numbers.daysLeft) * 7) : 0;
+  const nextDueInfo = getNextDueExpense(expenses);
+  const nextDue = nextDueInfo?.expense;
+  const daysToNextDue = nextDueInfo?.daysUntil ?? null;
 
   const [messages, setMessages] = useState<Message[]>([]);
   const [input, setInput] = useState("");
@@ -314,20 +306,9 @@ export function AssistantView({
   }
 
   // One clear answer for the hero, picked by what's most urgent right now —
-  // instead of showing every possible insight at once.
-  const primaryRecommendation = overBudget
-    ? `O orçamento passou ${money(Math.abs(numbers.free))}. Priorize cortar novas compras.`
-    : daysToNextDue !== null && daysToNextDue <= 3 && nextDue
-      ? `${nextDue.name} ${
-          daysToNextDue < 0
-            ? "está atrasada"
-            : daysToNextDue === 0
-              ? "vence hoje"
-              : `vence em ${daysToNextDue} dia${daysToNextDue === 1 ? "" : "s"}`
-        }.`
-      : growth
-        ? `${categoryLabel(growth.category)} cresceu ${money(growth.diff)} contra o mês anterior.`
-        : `Você pode gastar cerca de ${money(weeklyAllowance)} nesta semana.`;
+  // instead of showing every possible insight at once. Shared with the
+  // Painel's own headline (getMonthHeadline) so the two never disagree.
+  const primaryRecommendation = getMonthHeadline(numbers, expenses, growth, money);
 
   const secondaryInsights = [
     {

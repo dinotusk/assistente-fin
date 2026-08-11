@@ -25,9 +25,12 @@ window.matchMedia = ((query: string) => ({
 
 // AppHome renders a large tree of views/dialogs unrelated to the profile
 // menu — stub every one of them so this test only exercises AppHome's own
-// header/menu wiring.
+// header/menu wiring. AccountDialog/PeopleDialog/SettingsView render a
+// visible marker when actually open/mounted so "Minha conta" / "Perfis
+// financeiros" / "Configurações" can be proven to really open the right
+// thing, not just close the popover.
 vi.mock("./AccountDialogs", () => ({
-  AccountDialog: () => null,
+  AccountDialog: ({ open }: { open: boolean }) => (open ? <div>AccountDialogOpen</div> : null),
   ChangePasswordDialog: () => null,
   MembersDialog: () => null,
   PersonalDataDialog: () => null,
@@ -42,7 +45,7 @@ vi.mock("./SideNav", () => ({
 }));
 vi.mock("./DashboardView", () => ({ DashboardView: () => null }));
 vi.mock("./PrioritiesView", () => ({ PrioritiesView: () => null }));
-vi.mock("./SettingsView", () => ({ SettingsView: () => null }));
+vi.mock("./SettingsView", () => ({ SettingsView: () => <div>SettingsViewRendered</div> }));
 vi.mock("./TransactionsView", () => ({ TransactionsView: () => null }));
 vi.mock("./dialogs", () => ({
   BankImportDialog: () => null,
@@ -52,7 +55,7 @@ vi.mock("./dialogs", () => ({
   InviteDialog: () => null,
   JoinHouseholdDialog: () => null,
   MonthDialog: () => null,
-  PeopleDialog: () => null,
+  PeopleDialog: ({ open }: { open: boolean }) => (open ? <div>PeopleDialogOpen</div> : null),
   PriorityDialog: () => null,
   PurchaseSimulatorDialog: () => null,
   PushNotificationsDialog: () => null,
@@ -87,8 +90,6 @@ const mockFinance = {
   setActivePerson: vi.fn(),
   setActiveMonth: vi.fn(),
   createNextMonth: vi.fn(),
-  exportData: vi.fn(),
-  importData: vi.fn(),
   logout: vi.fn(),
   writeConflict: null,
   refreshAfterConflict: vi.fn(),
@@ -172,5 +173,82 @@ describe("AppHome — profile menu dismissal (desktop SideNav footer)", () => {
 
     fireEvent.keyDown(document, { key: "Escape" });
     expect(screen.queryByText("Sair do perfil")).toBeNull();
+  });
+});
+
+// P0-FRONTEND-1B.3 — the menu was trimmed to identity/account shortcuts
+// only. "Editar mês", "Exportar backup" and "Importar dados" were removed
+// from here specifically because they're already one tap away in
+// Configurações (see SettingsView.test.tsx's row-presence checks for "Mês
+// atual" / "Exportar backup" / "Importar dados" — that's what proves the
+// functionality itself was not removed from the app, only from this menu).
+describe("AppHome — profile menu content (P0-FRONTEND-1B.3)", () => {
+  it("10. contains only the approved shortcuts: Minha conta, Perfis financeiros, Configurações, Sair do perfil", () => {
+    render(<AppHome />);
+    fireEvent.click(screen.getByLabelText("Abrir opções do perfil"));
+    expect(screen.getByText("Minha conta")).toBeTruthy();
+    expect(screen.getByText("Perfis financeiros")).toBeTruthy();
+    expect(screen.getByText("Configurações")).toBeTruthy();
+    expect(screen.getByText("Sair do perfil")).toBeTruthy();
+  });
+
+  it("removed shortcuts (Editar mês, Exportar backup, Importar dados) are gone from the menu", () => {
+    render(<AppHome />);
+    fireEvent.click(screen.getByLabelText("Abrir opções do perfil"));
+    expect(screen.queryByText(/Editar m/i)).toBeNull();
+    expect(screen.queryByText("Exportar backup")).toBeNull();
+    expect(screen.queryByText("Importar dados")).toBeNull();
+  });
+
+  it("12. Minha conta opens the account dialog", () => {
+    render(<AppHome />);
+    fireEvent.click(screen.getByLabelText("Abrir opções do perfil"));
+    fireEvent.click(screen.getByText("Minha conta"));
+    expect(screen.getByText("AccountDialogOpen")).toBeTruthy();
+    // and closes the popover itself, same as every other menu item.
+    expect(screen.queryByText("Perfis financeiros")).toBeNull();
+  });
+
+  it("13. Perfis financeiros opens the people dialog", () => {
+    render(<AppHome />);
+    fireEvent.click(screen.getByLabelText("Abrir opções do perfil"));
+    fireEvent.click(screen.getByText("Perfis financeiros"));
+    expect(screen.getByText("PeopleDialogOpen")).toBeTruthy();
+  });
+
+  it("14. Configurações switches to the Settings view", () => {
+    render(<AppHome />);
+    fireEvent.click(screen.getByLabelText("Abrir opções do perfil"));
+    fireEvent.click(screen.getByText("Configurações"));
+    expect(screen.getByText("SettingsViewRendered")).toBeTruthy();
+  });
+
+  it("15. Sair do perfil logs out", () => {
+    render(<AppHome />);
+    fireEvent.click(screen.getByLabelText("Abrir opções do perfil"));
+    fireEvent.click(screen.getByText("Sair do perfil"));
+    expect(mockFinance.logout).toHaveBeenCalledTimes(1);
+  });
+
+  it("18. mobile: all four shortcuts are present and Minha conta works", () => {
+    render(<AppHome />);
+    fireEvent.click(screen.getByLabelText("Abrir opções do perfil"));
+    fireEvent.click(screen.getByText("Minha conta"));
+    expect(screen.getByText("AccountDialogOpen")).toBeTruthy();
+  });
+});
+
+describe("AppHome — profile menu content, desktop (P0-FRONTEND-1B.3)", () => {
+  beforeEach(() => {
+    desktopMode = true;
+  });
+
+  it("19. desktop: all four shortcuts are present and Minha conta works", () => {
+    render(<AppHome />);
+    fireEvent.click(screen.getByRole("button", { name: /Oziel/ }));
+    expect(screen.getByText("Perfis financeiros")).toBeTruthy();
+    expect(screen.getByText("Configurações")).toBeTruthy();
+    fireEvent.click(screen.getByText("Minha conta"));
+    expect(screen.getByText("AccountDialogOpen")).toBeTruthy();
   });
 });

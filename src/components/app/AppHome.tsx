@@ -3,17 +3,15 @@ import {
   Plus,
   CalendarPlus,
   ChevronDown,
-  Download,
   Eye,
   EyeOff,
   LogOut,
   Settings,
-  Upload,
   UserRound,
+  Users,
 } from "lucide-react";
-import { toast } from "sonner";
 
-import { formatMonthLabel, summarizeImport } from "@/lib/finance/calc";
+import { formatMonthLabel } from "@/lib/finance/calc";
 import { VIEW_ALL, VIEW_ME, VIEW_SPOUSE } from "@/lib/finance/constants";
 import { useFinance } from "@/lib/finance/FinanceContext";
 import type { ViewKey } from "@/lib/finance/types";
@@ -79,8 +77,6 @@ export function AppHome() {
     setActivePerson,
     setActiveMonth,
     createNextMonth,
-    exportData,
-    importData,
     logout,
     writeConflict,
     refreshAfterConflict,
@@ -113,7 +109,6 @@ export function AppHome() {
   const [changePasswordOpen, setChangePasswordOpen] = useState(false);
   const [membersOpen, setMembersOpen] = useState(false);
   const [profileMenuOpen, setProfileMenuOpen] = useState(false);
-  const importRef = useRef<HTMLInputElement>(null);
   const profileMenuRef = useRef<HTMLDivElement>(null);
   const initials = getInitials(activeUser?.name || "Aval");
 
@@ -138,24 +133,6 @@ export function AppHome() {
     };
   }, [profileMenuOpen]);
 
-  async function onImport(e: React.ChangeEvent<HTMLInputElement>) {
-    const file = e.target.files?.[0];
-    if (!file) return;
-    try {
-      const summary = await importData(file);
-      toast.success(summarizeImport(summary));
-      setProfileMenuOpen(false);
-    } catch (error) {
-      toast.error(
-        error instanceof Error
-          ? error.message
-          : "Não consegui importar esse arquivo. Confira se é um JSON, XLS ou XLSX válido.",
-      );
-    } finally {
-      e.target.value = "";
-    }
-  }
-
   const showFab = view === "assistant" || view === "dashboard" || view === "transactions";
   const activeMonthLabel =
     state.months[state.activeMonth]?.label || formatMonthLabel(state.activeMonth);
@@ -174,16 +151,20 @@ export function AppHome() {
           <span className="text-xs text-muted-foreground">Conta sincronizada</span>
         </div>
       </div>
+      {/* P0-FRONTEND-1B.3: quick identity/account access only — Editar mês,
+          Exportar backup and Importar dados were removed from here since
+          they're already one tap away in Configurações; nothing was removed
+          from the app, only from this shortcut list. */}
       <HeaderMenuButton
-        icon={<Settings className="h-4 w-4" />}
-        label="Configurações"
+        icon={<UserRound className="h-4 w-4" />}
+        label="Minha conta"
         onClick={() => {
-          setView("settings");
+          setAccountOpen(true);
           setProfileMenuOpen(false);
         }}
       />
       <HeaderMenuButton
-        icon={<UserRound className="h-4 w-4" />}
+        icon={<Users className="h-4 w-4" />}
         label="Perfis financeiros"
         onClick={() => {
           setPeopleOpen(true);
@@ -191,25 +172,12 @@ export function AppHome() {
         }}
       />
       <HeaderMenuButton
-        icon={<CalendarPlus className="h-4 w-4" />}
-        label="Editar mes"
+        icon={<Settings className="h-4 w-4" />}
+        label="Configurações"
         onClick={() => {
-          setMonthOpen(true);
+          setView("settings");
           setProfileMenuOpen(false);
         }}
-      />
-      <HeaderMenuButton
-        icon={<Download className="h-4 w-4" />}
-        label="Exportar backup"
-        onClick={() => {
-          exportData();
-          setProfileMenuOpen(false);
-        }}
-      />
-      <HeaderMenuButton
-        icon={<Upload className="h-4 w-4" />}
-        label="Importar dados"
-        onClick={() => importRef.current?.click()}
       />
       <HeaderMenuButton
         icon={<LogOut className="h-4 w-4" />}
@@ -308,16 +276,6 @@ export function AppHome() {
     </div>
   );
 
-  const hiddenImport = (
-    <input
-      ref={importRef}
-      type="file"
-      accept=".json,.xls,.xlsx,application/json"
-      className="hidden"
-      onChange={onImport}
-    />
-  );
-
   const dialogs = (
     <>
       <ExpenseDialog
@@ -368,7 +326,6 @@ export function AppHome() {
   if (isDesktop) {
     return (
       <div className="app-backdrop flex min-h-dvh">
-        {hiddenImport}
         <SideNav
           view={view}
           onChange={(v) => {
@@ -487,7 +444,6 @@ export function AppHome() {
         <BottomNav view={view} onChange={setView} onOpenAssistant={() => setView("assistant")} />
       </div>
 
-      {hiddenImport}
       {dialogs}
     </div>
   );

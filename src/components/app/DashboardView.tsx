@@ -1,12 +1,23 @@
-import { BarChart3, CalendarRange, History, PieChart, TrendingUp, Users } from "lucide-react";
+import {
+  BarChart3,
+  CalendarRange,
+  History,
+  PieChart,
+  TrendingUp,
+  TriangleAlert,
+  Users,
+} from "lucide-react";
 
 import { useFinance, useMoney } from "@/lib/finance/FinanceContext";
 import {
   calc,
   budgetForView,
+  categoryLabel,
   chartMonthEntries,
   expensesForView,
   getCategoryTotals,
+  getLargestCategoryGrowth,
+  getMonthHeadline,
   sum,
   timelineMonthEntries,
   viewLabelForPeople,
@@ -44,6 +55,14 @@ export function DashboardView() {
   const usedPct = budget > 0 ? Math.min(100, (numbers.total / budget) * 100) : 0;
   const overBudget = numbers.free < 0;
 
+  // Nível 2 ("entendimento"): reuses numbers.topCategory (already computed by
+  // calc()) and the same headline logic Aval's chat hero already shows — no
+  // new financial rule, just surfaced here too so "o que está pesando mais" /
+  // "o que merece atenção" don't require scrolling into the analytical charts.
+  const expensesInView = expensesForView(month, view, state.people);
+  const growth = getLargestCategoryGrowth(state, view);
+  const headline = getMonthHeadline(numbers, expensesInView, growth, money);
+
   return (
     <div className="flex flex-col gap-4">
       {/* Compact budget summary -- the full "Seu dinheiro" hero lives on Inicio, this stays lighter */}
@@ -76,8 +95,34 @@ export function DashboardView() {
         </div>
       </section>
 
+      {/* Nível 2 ("entendimento"): biggest category + one-line "what needs
+          attention" — same data calc()/getMonthHeadline already produce for
+          the hero card and o Aval, surfaced here so it doesn't require
+          scrolling past the analytical charts below to find out. */}
+      <Panel tone="flat" className="relative z-10 -mt-3">
+        <PanelHead title="Situação do mês" icon={TriangleAlert} />
+        <div className="flex flex-col gap-3">
+          {numbers.topCategory && (
+            <div className="flex items-center justify-between gap-3 rounded-2xl bg-secondary/70 p-3.5">
+              <div className="min-w-0">
+                <span className="block text-[11px] font-semibold uppercase tracking-wide text-muted-foreground">
+                  Categoria que mais pesa
+                </span>
+                <strong className="block truncate text-sm font-bold text-foreground">
+                  {categoryLabel(numbers.topCategory.category)}
+                </strong>
+              </div>
+              <strong className="tnum shrink-0 font-display text-lg text-primary">
+                {money(numbers.topCategory.total)}
+              </strong>
+            </div>
+          )}
+          <p className="text-sm leading-relaxed text-foreground/85">{headline}</p>
+        </div>
+      </Panel>
+
       {/* Month history timeline -- pulled up to overlap the hero card for a layered feel */}
-      <Panel className="relative z-10 -mt-3">
+      <Panel className="relative z-10">
         <PanelHead title="Histórico de meses" hint="toque para abrir" icon={History} />
         <div className="flex gap-2.5 overflow-x-auto no-scrollbar pb-1">
           {timeline.map(([key, data]) => {
@@ -106,6 +151,12 @@ export function DashboardView() {
           })}
         </div>
       </Panel>
+
+      {/* Nível 3 ("análise"): grouped under one label so these read as
+          supporting detail, not five cards competing with the summary above. */}
+      <span className="mt-1 px-1 text-xs font-bold uppercase tracking-wide text-muted-foreground">
+        Análise detalhada
+      </span>
 
       <Panel tone="elevated" accent="primary">
         <PanelHead title="Distribuição do mês" hint="por categoria" icon={PieChart} />
