@@ -19,6 +19,7 @@ import {
   ShieldCheck,
   FileText,
   Info,
+  Cookie,
 } from "lucide-react";
 import { toast } from "sonner";
 
@@ -192,6 +193,16 @@ export function SettingsView({
           title: "Termos e privacidade",
           desc: "Como tratamos seus dados.",
           action: () => window.open("/termos", "_blank", "noopener,noreferrer"),
+        },
+        {
+          // P0-PRIVACY-COOKIES: o Aval não define cookies nem usa analytics, então
+          // não há preferências opcionais a controlar — esta linha é transparência,
+          // não consentimento. Se algum dia entrar tecnologia não essencial, este
+          // ponto vira a porta de entrada da central de preferências.
+          icon: Cookie,
+          title: "Cookies e armazenamento",
+          desc: "O que o Aval guarda no seu navegador e por quê.",
+          action: () => window.open("/termos#cookies", "_blank", "noopener,noreferrer"),
         },
         {
           icon: Info,

@@ -3,7 +3,7 @@ import { ArrowLeft } from "lucide-react";
 
 import { AvalMark } from "./ui";
 
-const SECTIONS = [
+const SECTIONS: { title: string; anchor?: string; body: string[] }[] = [
   {
     title: "1. Partes",
     body: [
@@ -47,25 +47,42 @@ const SECTIONS = [
       "Seus dados financeiros ficam armazenados em um banco de dados protegido por regras de acesso por usuário: só você e quem você convidar para sua casa podem ver essas informações.",
       "Não vendemos seus dados a terceiros e não exibimos anúncios dentro do Aval.",
       "Você pode exportar um backup completo dos seus dados em formato JSON a qualquer momento, pela tela de Configurações.",
-      "Você pode solicitar a exclusão da sua conta e dos dados associados a qualquer momento entrando em contato pelo e-mail informado na seção 9.",
+      "Você pode solicitar a exclusão da sua conta e dos dados associados a qualquer momento entrando em contato pelo e-mail informado na seção 10.",
     ],
   },
   {
-    title: "7. Responsabilidades do usuário",
+    // P0-PRIVACY-COOKIES: esta seção descreve o inventário real auditado. O Aval
+    // não define nenhum cookie e não usa analytics/rastreamento — por isso não há
+    // banner de consentimento de cookies: não existe categoria opcional a controlar.
+    // Se um dia entrar analytics ou qualquer tecnologia não essencial, esta seção
+    // precisa ser revista JUNTO com a introdução de um mecanismo de consentimento.
+    title: "7. Cookies e armazenamento no navegador",
+    anchor: "cookies",
+    body: [
+      "O Aval não utiliza cookies. Não usamos ferramentas de analytics, medição de audiência, publicidade ou rastreamento, nem carregamos scripts de terceiros nas páginas do aplicativo. As fontes tipográficas são servidas pelo próprio Aval, sem requisição a servidores externos.",
+      "Para funcionar, o Aval guarda algumas informações no armazenamento local do seu navegador (localStorage e sessionStorage), que é uma tecnologia diferente de cookies e não é enviada automaticamente a cada requisição. São elas: sua sessão de login; um registro local da sua escolha sobre o assistente de IA; as regras de categorização que você ensina ao app; os vigias que você configura; uma cópia local dos seus dados financeiros para o app abrir mais rápido e continuar utilizável; seus perfis financeiros; e preferências de navegação como o mês e o perfil que você está visualizando.",
+      "Esses itens são necessários para prestar o serviço que você pediu ou guardam preferências suas dentro do próprio aparelho. Nenhum deles é usado para criar perfil de comportamento, para publicidade ou para compartilhamento com terceiros com essa finalidade.",
+      "Você pode apagar esse armazenamento a qualquer momento pelas configurações de dados de navegação do seu navegador. Isso encerra a sessão e remove as preferências e a cópia local; seus dados permanecem na sua conta e voltam a aparecer quando você entra novamente.",
+      "O Aval registra um service worker no seu navegador com uma única finalidade: exibir notificações push, caso você as ative. Ele não armazena páginas nem dados financeiros em cache.",
+      "Quando você usa o aplicativo, ele se comunica com o Supabase, provedor que hospeda o banco de dados e a autenticação do Aval. Se você optar por entrar com o Google, o login é feito junto ao Google. As perguntas ao assistente são enviadas ao provedor de IA a partir do nosso servidor — o seu navegador não fala diretamente com o provedor de IA — e isso só acontece após o seu consentimento específico para o assistente, que você pode revogar em Configurações.",
+    ],
+  },
+  {
+    title: "8. Responsabilidades do usuário",
     body: [
       "Você é responsável pela exatidão dos valores, categorias e datas que registra ou importa no Aval.",
       "O Aval depende de dados fornecidos por você; relatórios, gráficos e avisos gerados pelo assistente refletem apenas o que foi informado, e não a totalidade real das suas finanças caso haja lançamentos não registrados.",
     ],
   },
   {
-    title: "8. Isenção de garantias e responsabilidade",
+    title: "9. Isenção de garantias e responsabilidade",
     body: [
       'O Aval é oferecido "como está", sem garantias de disponibilidade ininterrupta ou de ausência total de erros.',
       "Não nos responsabilizamos por decisões financeiras tomadas com base em informações ou sugestões do assistente. Use o bom senso e, para decisões importantes, consulte um profissional qualificado.",
     ],
   },
   {
-    title: "9. Alterações e contato",
+    title: "10. Alterações e contato",
     body: [
       "Estes termos podem ser atualizados conforme o Aval evolui. Mudanças relevantes serão comunicadas dentro do aplicativo.",
       "Dúvidas, pedidos de exclusão de conta ou de dados podem ser enviados para o e-mail de suporte informado no aplicativo.",
@@ -102,7 +119,11 @@ export function TermsPage() {
 
         <div className="mt-10 flex flex-col gap-8">
           {SECTIONS.map((section) => (
-            <section key={section.title} className="card-surface p-6">
+            <section
+              key={section.title}
+              id={section.anchor}
+              className="card-surface scroll-mt-24 p-6"
+            >
               <h2 className="font-display text-xl text-foreground">{section.title}</h2>
               <div className="mt-3 flex flex-col gap-2.5">
                 {section.body.map((paragraph, i) => (
