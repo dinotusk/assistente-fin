@@ -7,6 +7,8 @@
 import { cleanup, fireEvent, render, screen } from "@testing-library/react";
 import { afterEach, describe, expect, it, vi } from "vitest";
 
+import type { ViewKey } from "@/lib/finance/types";
+
 import { BottomNav } from "./BottomNav";
 
 afterEach(() => cleanup());
@@ -76,6 +78,56 @@ describe("BottomNav — estado ativo", () => {
   it("8. the Aval center button reflects the active view via aria-current", () => {
     render(<BottomNav view="assistant" onChange={vi.fn()} onOpenAssistant={vi.fn()} />);
     expect(screen.getByLabelText("Conversar com o Aval").getAttribute("aria-current")).toBe("page");
+  });
+
+  // P0-FRONTEND-1B.7.1 — walking the whole tab cycle, exactly one tab may
+  // ever own the active state at a time. Asserted on the declarative class /
+  // aria state, not on measured pixels: jsdom does not lay out or composite,
+  // so a real scale value is not observable here (and a real browser settles
+  // it asynchronously after the incoming view renders).
+  it("14. across the full tab cycle, exactly one item is active and scaled up", () => {
+    const CYCLE: { view: ViewKey; label: string }[] = [
+      { view: "dashboard", label: "Painel" },
+      { view: "transactions", label: "Gastos" },
+      { view: "priorities", label: "Metas" },
+      { view: "assistant", label: "Aval" },
+      { view: "settings", label: "Config" },
+      { view: "dashboard", label: "Painel" },
+    ];
+    const TABS = ["Painel", "Gastos", "Metas", "Config"];
+
+    for (const step of CYCLE) {
+      const { unmount } = render(
+        <BottomNav view={step.view} onChange={vi.fn()} onOpenAssistant={vi.fn()} />,
+      );
+
+      const scaledUp = TABS.filter((label) => {
+        const pill = screen.getByText(label).closest("button")?.querySelector("span");
+        return pill?.className.includes("scale-105");
+      });
+      const marked = TABS.filter(
+        (label) =>
+          screen.getByText(label).closest("button")?.getAttribute("aria-current") === "page",
+      );
+      const avalActive =
+        screen.getByLabelText("Conversar com o Aval").getAttribute("aria-current") === "page";
+
+      // The previously active tab never keeps its scale: on the Aval step no
+      // tab pill is scaled at all, otherwise exactly the incoming one is.
+      const expected = step.label === "Aval" ? [] : [step.label];
+      expect(scaledUp).toEqual(expected);
+      expect(marked).toEqual(expected);
+      expect(avalActive).toBe(step.label === "Aval");
+
+      // Every tab that is not the active one is explicitly held at scale-100.
+      TABS.filter((l) => l !== step.label).forEach((label) => {
+        const pill = screen.getByText(label).closest("button")?.querySelector("span");
+        expect(pill?.className).toContain("scale-100");
+        expect(pill?.className).not.toContain("glass-active");
+      });
+
+      unmount();
+    }
   });
 });
 
