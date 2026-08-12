@@ -248,6 +248,15 @@ describe("DashboardView — categoria principal navega para Gastos (P0-FRONTEND-
     const chip = screen.getByRole("button", { name: /Ver gastos da categoria Casa/ });
     expect(chip.tagName).toBe("BUTTON");
   });
+
+  // P0-FRONTEND-1B.5 (Aval Glass): financial-content-adjacent controls (this
+  // chip, the family cards below) are clickable but NOT glass — only the
+  // dedicated navigation/controls surfaces are.
+  it("27. the chip stays solid — no glass utility over the category amount", () => {
+    renderDashboard();
+    const chip = screen.getByRole("button", { name: /Ver gastos da categoria Casa/ });
+    expect(chip.className).not.toMatch(/glass-/);
+  });
 });
 
 describe("DashboardView — Divisão familiar como controle de visão (P0-FRONTEND-1B.4)", () => {
@@ -317,6 +326,16 @@ describe("DashboardView — Ações rápidas (P0-FRONTEND-1B.4)", () => {
     fireEvent.click(screen.getByText("Perguntar ao Aval"));
     expect(actions.onOpenAval).toHaveBeenCalledTimes(1);
   });
+
+  // P0-FRONTEND-1B.5 (Aval Glass): quick actions are controls, so — unlike
+  // the financial panels — they're meant to carry the glass utility.
+  it("26. each quick action button carries the glass-surface utility", () => {
+    renderDashboard();
+    ["Adicionar gasto", "Ver gastos", "Adicionar meta", "Perguntar ao Aval"].forEach((label) => {
+      const button = screen.getByText(label).closest("button");
+      expect(button?.className).toContain("glass-surface");
+    });
+  });
 });
 
 describe("DashboardView — frase de atenção e saldo livre continuam estáticos (P0-FRONTEND-1B.4)", () => {
@@ -325,5 +344,24 @@ describe("DashboardView — frase de atenção e saldo livre continuam estático
     const panel = screen.getByText("Situação do mês").closest("section");
     const clickableTags = panel ? Array.from(panel.querySelectorAll("a")) : [];
     expect(clickableTags.length).toBe(0);
+  });
+
+  // P0-FRONTEND-1B.5 (Aval Glass): glass is a navigation/controls treatment
+  // only — the hero, Situação do mês, and every financial chart must never
+  // carry it, however the utility class ends up spelled.
+  it("24. the hero and Situação do mês panels never carry a glass- utility class", () => {
+    renderDashboard();
+    const hero = screen.getByText("R$ 6000.00").closest("section");
+    const situacao = screen.getByText("Situação do mês").closest("section");
+    expect(hero?.className).not.toMatch(/glass-/);
+    expect(situacao?.className).not.toMatch(/glass-/);
+  });
+
+  it("25. Distribuição/Por categoria/Divisão familiar panels never carry a glass- utility class", () => {
+    renderDashboard();
+    ["Distribuição do mês", "Por categoria", "Divisão familiar"].forEach((title) => {
+      const panel = screen.getByText(title).closest("section");
+      expect(panel?.className).not.toMatch(/glass-/);
+    });
   });
 });

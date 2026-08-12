@@ -22,7 +22,7 @@ export function BottomNav({ view, onChange, onOpenAssistant }: BottomNavProps) {
       aria-label="Navegação principal"
       className="pointer-events-none fixed inset-x-0 bottom-0 z-30 flex justify-center px-3 pb-[max(1rem,env(safe-area-inset-bottom))]"
     >
-      <div className="pointer-events-auto grid w-full max-w-[416px] grid-cols-5 items-end rounded-[1.45rem] border border-primary/15 bg-popover/95 px-2 pb-2 pt-2.5 shadow-float backdrop-blur-[22px]">
+      <div className="glass-surface-strong pointer-events-auto grid w-full max-w-[416px] grid-cols-5 items-end rounded-[1.45rem] px-2 pb-2 pt-2.5">
         <NavButton item={items[0]} active={view === items[0].key} onChange={onChange} />
         <NavButton item={items[1]} active={view === items[1].key} onChange={onChange} />
 
@@ -63,13 +63,21 @@ function NavButton({
       onClick={() => onChange(key)}
       aria-current={active ? "page" : undefined}
       className={cn(
-        "focus-ring flex min-h-12 flex-col items-center justify-end gap-1 rounded-xl px-1 py-1 text-[9px] font-semibold transition duration-200 active:scale-95",
+        "focus-ring flex min-h-12 flex-col items-center justify-end gap-1 rounded-xl px-1 py-0.5 text-[9px] font-semibold transition duration-200 active:scale-95",
         active ? "text-primary" : "text-muted-foreground hover:text-foreground",
       )}
     >
-      <Icon className="h-[18px] w-[18px]" strokeWidth={active ? 2.5 : 2} />
+      {/* Active state reads from the pill + icon weight together, not color
+          alone — a glass-tinted capsule instead of the old color-only dot. */}
+      <span
+        className={cn(
+          "flex h-7 w-9 items-center justify-center rounded-full transition-colors",
+          active && "glass-active",
+        )}
+      >
+        <Icon className="h-[18px] w-[18px]" strokeWidth={active ? 2.5 : 2} />
+      </span>
       <span>{label}</span>
-      <span className={cn("h-1 w-1 rounded-full", active ? "bg-primary" : "bg-transparent")} />
     </button>
   );
 }

@@ -201,10 +201,7 @@ export function Segmented<T extends string>({
 }: SegmentedProps<T>) {
   return (
     <div
-      className={cn(
-        "no-scrollbar flex overflow-x-auto rounded-full border border-white/8 bg-white/[0.035] p-1",
-        className,
-      )}
+      className={cn("glass-surface no-scrollbar flex overflow-x-auto rounded-full p-1", className)}
     >
       {options.map((opt) => {
         const active = opt.value === value;

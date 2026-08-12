@@ -84,6 +84,19 @@
   --border: rgb(237 232 221 / 0.1);
   --input: rgb(237 232 221 / 0.14);
   --ring: #c8ad7a;
+
+  /* Aval Glass (P0-FRONTEND-1B.5) — translucent chrome for navigation and
+     controls only, never over financial content. Tinted with the app's own
+     deep green + gold instead of a generic white/blue glass, so intensity
+     can be retuned here later without touching every component. */
+  --glass-bg: rgb(13 43 34 / 0.55);
+  --glass-bg-strong: rgb(9 27 21 / 0.74);
+  --glass-border: rgb(237 232 221 / 0.14);
+  --glass-highlight: rgb(237 232 221 / 0.09);
+  --glass-shadow: 0 20px 40px -24px rgb(0 0 0 / 0.85);
+  --glass-blur: 20px;
+  --glass-active: rgb(200 173 122 / 0.22);
+  --glass-pressed: rgb(200 173 122 / 0.3);
 }
 
 .dark {
@@ -239,6 +252,80 @@
       0 0 0 2px var(--color-background),
       0 0 0 4px oklch(0.58 0.13 158 / 0.55);
   }
+}
+
+/* --- Aval Glass (P0-FRONTEND-1B.5) ---
+   Navigation/controls only — never over financial values. Level B
+   (equilibrado): translucent enough to read as a floating layer, opaque
+   enough to never cost legibility. See --glass-* tokens above. */
+
+@utility glass-surface {
+  background: var(--glass-bg);
+  border: 1px solid var(--glass-border);
+  box-shadow:
+    var(--glass-shadow),
+    inset 0 1px 0 var(--glass-highlight);
+  backdrop-filter: blur(var(--glass-blur)) saturate(1.12);
+}
+
+/* Stronger variant for floating overlays (bottom nav, popovers) that sit
+   directly over scrolling content and need a firmer separation. */
+@utility glass-surface-strong {
+  background: var(--glass-bg-strong);
+  border: 1px solid var(--glass-border);
+  box-shadow:
+    var(--glass-shadow),
+    inset 0 1px 0 var(--glass-highlight);
+  backdrop-filter: blur(calc(var(--glass-blur) + 6px)) saturate(1.18);
+}
+
+/* Gold-tinted glass fill for an active/selected state on a glass surface —
+   pairs with a color change so the state never depends on color alone. */
+@utility glass-active {
+  background: var(--glass-active);
+  border-color: rgb(200 173 122 / 0.4);
+}
+
+@utility glass-pressed {
+  &:active {
+    background: var(--glass-pressed);
+  }
+}
+
+/* No backdrop-filter support: fall back to the stronger, near-solid tint so
+   legibility never depends on the blur itself. */
+@supports not ((backdrop-filter: blur(1px)) or (-webkit-backdrop-filter: blur(1px))) {
+  .glass-surface,
+  .glass-surface-strong {
+    background: var(--glass-bg-strong);
+  }
+}
+
+/* Accessibility: honor a reduced-transparency preference where the browser
+   exposes it (glass is progressive decoration, never load-bearing). */
+@media (prefers-reduced-transparency: reduce) {
+  .glass-surface,
+  .glass-surface-strong {
+    background: var(--glass-bg-strong);
+    backdrop-filter: none;
+    -webkit-backdrop-filter: none;
+  }
+}
+
+/* Subtle entrance for glass popovers/menus — short enough to never delay
+   the menu items underneath from being tappable. */
+@keyframes glass-in {
+  from {
+    opacity: 0;
+    transform: scale(0.97) translateY(-4px);
+  }
+  to {
+    opacity: 1;
+    transform: none;
+  }
+}
+@utility animate-glass-in {
+  animation: glass-in 0.16s var(--ease-out-soft) both;
 }
 
 /* Entrance animation for screen changes */

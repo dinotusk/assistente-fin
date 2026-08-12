@@ -252,3 +252,42 @@ describe("AppHome — profile menu content, desktop (P0-FRONTEND-1B.3)", () => {
     expect(screen.getByText("AccountDialogOpen")).toBeTruthy();
   });
 });
+
+// P0-FRONTEND-1B.5 (Aval Glass) — the profile menu popover and the header
+// controls that trigger it are now glass; this only checks the utility
+// classes land on the right elements and that the menu is still fully
+// operable by mouse/keyboard, not colors or blur amounts (CSS-owned).
+describe("AppHome — Aval Glass (P0-FRONTEND-1B.5)", () => {
+  it("20. mobile: the profile menu popover carries glass-surface-strong and a soft entrance animation", () => {
+    render(<AppHome />);
+    fireEvent.click(screen.getByLabelText("Abrir opções do perfil"));
+    const popover = screen.getByText("Minha conta").closest("div.glass-surface-strong");
+    expect(popover).toBeTruthy();
+    expect(popover?.className).toContain("animate-glass-in");
+  });
+
+  it("21. mobile: the hide-values toggle carries glass-surface and stays reachable/clickable", () => {
+    render(<AppHome />);
+    const toggle = screen.getByLabelText("Ativar modo privado");
+    expect(toggle.className).toContain("glass-surface");
+    fireEvent.click(toggle);
+    expect(mockFinance.toggleHideValues).toHaveBeenCalledTimes(1);
+  });
+
+  it("22. desktop: the profile trigger row carries glass-surface and still opens the menu", () => {
+    desktopMode = true;
+    render(<AppHome />);
+    const trigger = screen.getByRole("button", { name: /Oziel/ });
+    expect(trigger.className).toContain("glass-surface");
+    fireEvent.click(trigger);
+    expect(screen.getByText("Sair do perfil")).toBeTruthy();
+  });
+
+  it("23. Escape still closes the (now glass) popover — dismissal logic is unaffected by the visual change", () => {
+    render(<AppHome />);
+    fireEvent.click(screen.getByLabelText("Abrir opções do perfil"));
+    expect(screen.getByText("Minha conta")).toBeTruthy();
+    fireEvent.keyDown(document, { key: "Escape" });
+    expect(screen.queryByText("Minha conta")).toBeNull();
+  });
+});

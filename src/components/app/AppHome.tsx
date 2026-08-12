@@ -147,7 +147,7 @@ export function AppHome() {
   const firstName = activeUser?.name?.trim().split(/\s+/)[0] || "Você";
 
   const profileMenu = (
-    <div className="rounded-[1.5rem] border border-border bg-card/96 p-3 text-left shadow-float backdrop-blur-xl">
+    <div className="glass-surface-strong animate-glass-in rounded-[1.5rem] p-3 text-left">
       <div className="mb-3 flex items-center gap-3 rounded-2xl bg-secondary p-3">
         <div className="hero-gradient flex h-10 w-10 items-center justify-center rounded-2xl text-sm font-bold text-primary-foreground">
           {initials}
@@ -221,7 +221,7 @@ export function AppHome() {
           value={state.activeMonth}
           onChange={(e) => setActiveMonth(e.target.value)}
           aria-label="Selecionar mês"
-          className="focus-ring h-11 w-full appearance-none rounded-[1.35rem] border border-border bg-card px-4 pr-10 text-sm font-bold text-foreground shadow-soft outline-none transition focus:border-primary"
+          className="glass-surface focus-ring h-11 w-full appearance-none rounded-[1.35rem] px-4 pr-10 text-sm font-bold text-foreground outline-none transition focus:border-primary"
         >
           {Object.entries(state.months)
             .sort(([a], [b]) => a.localeCompare(b))
@@ -359,7 +359,7 @@ export function AppHome() {
               <button
                 type="button"
                 onClick={() => setProfileMenuOpen((value) => !value)}
-                className="press focus-ring flex w-full items-center gap-3 rounded-2xl border border-border bg-secondary/60 px-3 py-2.5 text-left"
+                className="glass-surface press focus-ring flex w-full items-center gap-3 rounded-2xl px-3 py-2.5 text-left"
               >
                 <div className="hero-gradient flex h-9 w-9 shrink-0 items-center justify-center rounded-xl text-xs font-bold text-primary-foreground">
                   {initials}
@@ -443,7 +443,7 @@ export function AppHome() {
                 <button
                   type="button"
                   onClick={() => setProfileMenuOpen((value) => !value)}
-                  className="hero-gradient press focus-ring flex h-11 w-11 shrink-0 items-center justify-center rounded-[0.95rem] text-sm font-bold text-primary-foreground shadow-primary"
+                  className="hero-gradient press focus-ring flex h-11 w-11 shrink-0 items-center justify-center rounded-[0.95rem] border border-[var(--glass-border)] text-sm font-bold text-primary-foreground shadow-primary"
                   aria-label="Abrir opções do perfil"
                 >
                   {initials}
@@ -479,8 +479,8 @@ function HideValuesToggle({ hidden, onClick }: { hidden: boolean; onClick: () =>
       aria-pressed={hidden}
       aria-label={hidden ? "Desativar modo privado" : "Ativar modo privado"}
       title={hidden ? "Desativar modo privado" : "Ativar modo privado"}
-      className={`press focus-ring flex h-11 w-11 shrink-0 items-center justify-center rounded-[0.95rem] border border-white/12 bg-white/[0.07] transition-colors ${
-        hidden ? "text-primary" : "text-muted-foreground hover:text-foreground"
+      className={`glass-surface press focus-ring flex h-11 w-11 shrink-0 items-center justify-center rounded-[0.95rem] transition-colors ${
+        hidden ? "glass-active text-primary" : "text-muted-foreground hover:text-foreground"
       }`}
     >
       {hidden ? (

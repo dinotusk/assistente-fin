@@ -297,7 +297,7 @@ function QuickActionButton({
     <button
       type="button"
       onClick={onClick}
-      className="press focus-ring hover-lift flex min-h-[76px] flex-col items-center justify-center gap-1.5 rounded-2xl border border-border bg-secondary p-3 text-center"
+      className="glass-surface press glass-pressed focus-ring hover-lift flex min-h-[76px] flex-col items-center justify-center gap-1.5 rounded-2xl p-3 text-center"
     >
       <span className="flex h-9 w-9 items-center justify-center rounded-xl bg-primary-soft text-primary">
         <Icon className="h-[18px] w-[18px]" strokeWidth={2.2} />
