@@ -129,3 +129,48 @@ describe("TransactionsView — excluir gasto", () => {
     expect(screen.getByText("Padaria")).toBeTruthy();
   });
 });
+
+// P0-FRONTEND-1B.4 — the Painel's "categoria que mais pesa" chip now opens
+// this screen pre-filtered. It reuses the existing free-text search state
+// (there was no separate category filter to plug into) instead of adding a
+// second, parallel filter mechanism.
+describe("TransactionsView — initialCategory (P0-FRONTEND-1B.4)", () => {
+  function stateWithTwoCategories(): FinanceState {
+    const state = baseState();
+    state.months[MONTH].expenses.push({
+      id: "exp-2",
+      name: "Aluguel",
+      category: "Casa",
+      amount: 1500,
+      status: "A pagar",
+      owner: "Maria",
+      date: `${MONTH}-10`,
+      paymentMethod: "Pix",
+      note: "",
+    });
+    return state;
+  }
+
+  it("6. pre-fills the search box with the given category", () => {
+    mockFinance.state = stateWithTwoCategories();
+    mockFinance.month = mockFinance.state.months[MONTH];
+    render(<TransactionsView onEdit={vi.fn()} onAdd={vi.fn()} initialCategory="Casa" />);
+    expect((screen.getByLabelText(/Buscar/) as HTMLInputElement).value).toBe("Casa");
+  });
+
+  it("7. only shows expenses matching that category", () => {
+    mockFinance.state = stateWithTwoCategories();
+    mockFinance.month = mockFinance.state.months[MONTH];
+    render(<TransactionsView onEdit={vi.fn()} onAdd={vi.fn()} initialCategory="Casa" />);
+    expect(screen.getByText("Aluguel")).toBeTruthy();
+    expect(screen.queryByText("Padaria")).toBeNull();
+  });
+
+  it("8. with no initialCategory, every expense is shown as before", () => {
+    mockFinance.state = stateWithTwoCategories();
+    mockFinance.month = mockFinance.state.months[MONTH];
+    render(<TransactionsView onEdit={vi.fn()} onAdd={vi.fn()} />);
+    expect(screen.getByText("Aluguel")).toBeTruthy();
+    expect(screen.getByText("Padaria")).toBeTruthy();
+  });
+});

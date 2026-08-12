@@ -4,6 +4,10 @@
 // itself must sit above the "Análise detalhada" group; every pre-existing
 // panel must keep rendering (nothing removed); hideValues, empty states,
 // and month/view switching must keep working exactly as before.
+// P0-FRONTEND-1B.4 — the top category chip and the family cards became real
+// navigation/view controls, and a new "Ações rápidas" block was added
+// between "Situação do mês" and "Histórico de meses" — all through existing
+// flows (no new functionality), so this file also covers that behavior.
 import { cleanup, fireEvent, render, screen } from "@testing-library/react";
 import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
 
@@ -93,6 +97,7 @@ const mockFinance = {
   state: baseState(),
   month: baseState().months[MONTH],
   setActiveMonth: vi.fn(),
+  setActivePerson: vi.fn(),
   hideValues: false,
 };
 
@@ -106,6 +111,18 @@ vi.mock("@/lib/finance/FinanceContext", () => ({
 
 const { DashboardView } = await import("./DashboardView");
 
+const actions = {
+  onOpenCategory: vi.fn(),
+  onViewTransactions: vi.fn(),
+  onAddExpense: vi.fn(),
+  onAddGoal: vi.fn(),
+  onOpenAval: vi.fn(),
+};
+
+function renderDashboard() {
+  return render(<DashboardView {...actions} />);
+}
+
 beforeEach(() => {
   vi.clearAllMocks();
   Object.assign(mockFinance, { state: baseState(), month: baseState().months[MONTH] });
@@ -115,22 +132,24 @@ afterEach(() => cleanup());
 
 describe("DashboardView — informação principal presente e hierarquia", () => {
   it("1. shows the primary numbers: orçamento, gastos and livre", () => {
-    render(<DashboardView />);
+    renderDashboard();
     // budget = income(5000) + houseContribution(1000) for "todos" = 6000
     expect(screen.getByText("R$ 6000.00")).toBeTruthy();
     // total spent = 1500 + 400 = 1900
     expect(screen.getByText(/R\$ 1900\.00 gastos/)).toBeTruthy();
   });
 
-  it("2. hierarquia: hero -> Situação do mês -> Histórico -> Análise detalhada -> painéis analíticos", () => {
-    render(<DashboardView />);
+  it("2. hierarquia: hero -> Situação do mês -> Ações rápidas -> Histórico -> Análise detalhada -> painéis analíticos", () => {
+    renderDashboard();
     const headings = Array.from(document.querySelectorAll("h2")).map((h) => h.textContent);
     const situacaoIndex = headings.findIndex((h) => h?.includes("Situação do mês"));
+    const acoesIndex = headings.findIndex((h) => h?.includes("Ações rápidas"));
     const historicoIndex = headings.findIndex((h) => h?.includes("Histórico de meses"));
     const distribuicaoIndex = headings.findIndex((h) => h?.includes("Distribuição do mês"));
 
     expect(situacaoIndex).toBeGreaterThanOrEqual(0);
-    expect(historicoIndex).toBeGreaterThan(situacaoIndex);
+    expect(acoesIndex).toBeGreaterThan(situacaoIndex);
+    expect(historicoIndex).toBeGreaterThan(acoesIndex);
     expect(distribuicaoIndex).toBeGreaterThan(historicoIndex);
 
     // "Análise detalhada" groups the analytical panels and must appear
@@ -140,7 +159,7 @@ describe("DashboardView — informação principal presente e hierarquia", () =>
   });
 
   it("3. every pre-existing panel still renders — nothing was removed", () => {
-    render(<DashboardView />);
+    renderDashboard();
     [
       "Histórico de meses",
       "Distribuição do mês",
@@ -154,7 +173,7 @@ describe("DashboardView — informação principal presente e hierarquia", () =>
   });
 
   it("5. Situação do mês surfaces the biggest category without hiding any category from Por categoria", () => {
-    render(<DashboardView />);
+    renderDashboard();
     // Casa (1500) is bigger than Alimentação (400) this month.
     expect(screen.getByText("Categoria que mais pesa")).toBeTruthy();
     // Both categories must still be fully enumerated in "Por categoria" — the
@@ -167,7 +186,7 @@ describe("DashboardView — informação principal presente e hierarquia", () =>
 describe("DashboardView — hideValues", () => {
   it("6. masks the primary numbers and the new Situação do mês amounts when hideValues is on", () => {
     mockFinance.hideValues = true;
-    render(<DashboardView />);
+    renderDashboard();
     expect(screen.queryByText("R$ 6000.00")).toBeNull();
     expect(screen.getAllByText("R$ ••••").length).toBeGreaterThan(0);
   });
@@ -179,18 +198,29 @@ describe("DashboardView — empty states", () => {
       state: emptyMonthState(),
       month: emptyMonthState().months[MONTH],
     });
-    render(<DashboardView />);
+    renderDashboard();
     expect(screen.getByText("Sem dados para o gráfico.")).toBeTruthy();
     expect(screen.getByText("Nenhum gasto neste mês.")).toBeTruthy();
     expect(screen.getByText("Cadastre mais meses para ver a evolução.")).toBeTruthy();
     // No topCategory when there are no expenses — the row must not render.
     expect(screen.queryByText("Categoria que mais pesa")).toBeNull();
   });
+
+  it("10. an empty month (no category) still shows Ações rápidas — never a fake category button", () => {
+    Object.assign(mockFinance, {
+      state: emptyMonthState(),
+      month: emptyMonthState().months[MONTH],
+    });
+    renderDashboard();
+    expect(screen.queryByRole("button", { name: /Ver gastos da categoria/ })).toBeNull();
+    expect(screen.getByText("Ações rápidas")).toBeTruthy();
+    expect(screen.getByText("Adicionar gasto")).toBeTruthy();
+  });
 });
 
 describe("DashboardView — troca de mês e de visão", () => {
   it("8. clicking a month in Histórico de meses calls setActiveMonth", () => {
-    render(<DashboardView />);
+    renderDashboard();
     fireEvent.click(screen.getByText("Julho 2026"));
     expect(mockFinance.setActiveMonth).toHaveBeenCalledWith(PREV_MONTH);
   });
@@ -198,9 +228,102 @@ describe("DashboardView — troca de mês e de visão", () => {
   it("9. switching the active view changes which numbers are shown", () => {
     const stateForMaria: FinanceState = { ...baseState(), activePerson: "me" };
     Object.assign(mockFinance, { state: stateForMaria, month: stateForMaria.months[MONTH] });
-    render(<DashboardView />);
+    renderDashboard();
     // view "me" -> budget is just income (5000), not income+houseContribution (6000).
     expect(screen.getByText("R$ 5000.00")).toBeTruthy();
     expect(screen.queryByText("R$ 6000.00")).toBeNull();
+  });
+});
+
+describe("DashboardView — categoria principal navega para Gastos (P0-FRONTEND-1B.4)", () => {
+  it("11. clicking the top category chip calls onOpenCategory with that category", () => {
+    renderDashboard();
+    // Casa (1500) is the biggest category this month.
+    fireEvent.click(screen.getByRole("button", { name: /Ver gastos da categoria Casa/ }));
+    expect(actions.onOpenCategory).toHaveBeenCalledWith("Casa");
+  });
+
+  it("12. the chip is keyboard-focusable (a real button, not a styled div)", () => {
+    renderDashboard();
+    const chip = screen.getByRole("button", { name: /Ver gastos da categoria Casa/ });
+    expect(chip.tagName).toBe("BUTTON");
+  });
+});
+
+describe("DashboardView — Divisão familiar como controle de visão (P0-FRONTEND-1B.4)", () => {
+  it("13. tapping Maria's card sets activePerson to the 'me' key (first person)", () => {
+    renderDashboard();
+    fireEvent.click(screen.getByRole("button", { name: "Ver gastos de Maria" }));
+    expect(mockFinance.setActivePerson).toHaveBeenCalledWith("me");
+  });
+
+  it("14. tapping Oziel's card sets activePerson to the 'spouse' key (second person)", () => {
+    renderDashboard();
+    fireEvent.click(screen.getByRole("button", { name: "Ver gastos de Oziel" }));
+    expect(mockFinance.setActivePerson).toHaveBeenCalledWith("spouse");
+  });
+
+  it("15. 'Minha casa' (todos) is not one of the family cards — it stays an aggregate view, not a person", () => {
+    renderDashboard();
+    expect(screen.queryByRole("button", { name: /Ver gastos de Minha casa/ })).toBeNull();
+  });
+
+  it("16. tapping the already-active view does not call setActivePerson again", () => {
+    const stateForMaria: FinanceState = { ...baseState(), activePerson: "me" };
+    Object.assign(mockFinance, { state: stateForMaria, month: stateForMaria.months[MONTH] });
+    renderDashboard();
+    fireEvent.click(screen.getByRole("button", { name: "Ver gastos de Maria" }));
+    expect(mockFinance.setActivePerson).not.toHaveBeenCalled();
+  });
+
+  it("17. the active card keeps aria-pressed=true and visual state without writing", () => {
+    const stateForMaria: FinanceState = { ...baseState(), activePerson: "me" };
+    Object.assign(mockFinance, { state: stateForMaria, month: stateForMaria.months[MONTH] });
+    renderDashboard();
+    const card = screen.getByRole("button", { name: "Ver gastos de Maria" });
+    expect(card.getAttribute("aria-pressed")).toBe("true");
+  });
+});
+
+describe("DashboardView — Ações rápidas (P0-FRONTEND-1B.4)", () => {
+  it("18. renders exactly the 4 approved actions", () => {
+    renderDashboard();
+    expect(screen.getByText("Adicionar gasto")).toBeTruthy();
+    expect(screen.getByText("Ver gastos")).toBeTruthy();
+    expect(screen.getByText("Adicionar meta")).toBeTruthy();
+    expect(screen.getByText("Perguntar ao Aval")).toBeTruthy();
+  });
+
+  it("19. Adicionar gasto calls onAddExpense", () => {
+    renderDashboard();
+    fireEvent.click(screen.getByText("Adicionar gasto"));
+    expect(actions.onAddExpense).toHaveBeenCalledTimes(1);
+  });
+
+  it("20. Ver gastos calls onViewTransactions", () => {
+    renderDashboard();
+    fireEvent.click(screen.getByText("Ver gastos"));
+    expect(actions.onViewTransactions).toHaveBeenCalledTimes(1);
+  });
+
+  it("21. Adicionar meta calls onAddGoal", () => {
+    renderDashboard();
+    fireEvent.click(screen.getByText("Adicionar meta"));
+    expect(actions.onAddGoal).toHaveBeenCalledTimes(1);
+  });
+
+  it("22. Perguntar ao Aval calls onOpenAval", () => {
+    renderDashboard();
+    fireEvent.click(screen.getByText("Perguntar ao Aval"));
+    expect(actions.onOpenAval).toHaveBeenCalledTimes(1);
+  });
+});
+
+describe("DashboardView — frase de atenção e saldo livre continuam estáticos (P0-FRONTEND-1B.4)", () => {
+  it("23. the attention headline is plain text, not a button or link", () => {
+    renderDashboard();
+    const panel = screen.getByText("Situação do mês").closest("section");
+    const clickableTags = panel ? Array.from(panel.querySelectorAll("a")) : [];
+    expect(clickableTags.length).toBe(0);
   });
 });

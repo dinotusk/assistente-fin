@@ -20,7 +20,7 @@ export function MonthlyBars({ entries, activeKey, onSelect }: MonthlyBarsProps) 
             key={entry.key}
             type="button"
             onClick={() => onSelect(entry.key)}
-            className="flex min-w-14 flex-1 flex-col items-center gap-2"
+            className="press focus-ring flex min-w-14 flex-1 flex-col items-center gap-2 rounded-xl"
           >
             <span className="tnum text-[10px] font-semibold text-muted-foreground">
               {moneyShort(entry.total)}

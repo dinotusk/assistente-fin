@@ -46,13 +46,17 @@ function matchesFilter(item: Expense, filter: FilterKey): boolean {
 export function TransactionsView({
   onEdit,
   onAdd,
+  initialCategory = null,
 }: {
   onEdit: (id: string) => void;
   onAdd: () => void;
+  /** P0-FRONTEND-1B.4: category tapped on the Painel — reuses this same
+      free-text search instead of a second, parallel filter mechanism. */
+  initialCategory?: string | null;
 }) {
   const { month, state, toggleExpenseStatus, deleteExpense, duplicateExpense } = useFinance();
   const money = useMoney();
-  const [term, setTerm] = useState("");
+  const [term, setTerm] = useState(initialCategory ?? "");
   const [filter, setFilter] = useState<FilterKey>("todos");
   const [deletingId, setDeletingId] = useState<string | null>(null);
   const deletingExpense = deletingId ? month.expenses.find((item) => item.id === deletingId) : null;

@@ -1,11 +1,16 @@
 import {
+  ArrowLeftRight,
   BarChart3,
   CalendarRange,
   History,
   PieChart,
+  Plus,
+  Sparkles,
+  Target,
   TrendingUp,
   TriangleAlert,
   Users,
+  Zap,
 } from "lucide-react";
 
 import { useFinance, useMoney } from "@/lib/finance/FinanceContext";
@@ -37,8 +42,24 @@ function initials(name: string): string {
   return `${first}${second || ""}`.toLocaleUpperCase("pt-BR").slice(0, 2);
 }
 
-export function DashboardView() {
-  const { state, month, setActiveMonth } = useFinance();
+interface DashboardViewProps {
+  /** Navigate to Gastos filtered by this category (preserving month/view). */
+  onOpenCategory: (category: string) => void;
+  /** Navigate to Gastos with no filter applied. */
+  onViewTransactions: () => void;
+  onAddExpense: () => void;
+  onAddGoal: () => void;
+  onOpenAval: () => void;
+}
+
+export function DashboardView({
+  onOpenCategory,
+  onViewTransactions,
+  onAddExpense,
+  onAddGoal,
+  onOpenAval,
+}: DashboardViewProps) {
+  const { state, month, setActiveMonth, setActivePerson } = useFinance();
   const money = useMoney();
   const view = state.activePerson;
   const numbers = calc(month, view, state.activeMonth, state.people);
@@ -62,6 +83,7 @@ export function DashboardView() {
   const expensesInView = expensesForView(month, view, state.people);
   const growth = getLargestCategoryGrowth(state, view);
   const headline = getMonthHeadline(numbers, expensesInView, growth, money);
+  const topCategory = numbers.topCategory;
 
   return (
     <div className="flex flex-col gap-4">
@@ -102,22 +124,45 @@ export function DashboardView() {
       <Panel tone="flat" className="relative z-10 -mt-3">
         <PanelHead title="Situação do mês" icon={TriangleAlert} />
         <div className="flex flex-col gap-3">
-          {numbers.topCategory && (
-            <div className="flex items-center justify-between gap-3 rounded-2xl bg-secondary/70 p-3.5">
+          {topCategory && (
+            <button
+              type="button"
+              onClick={() => onOpenCategory(topCategory.category)}
+              aria-label={`Ver gastos da categoria ${categoryLabel(topCategory.category)}`}
+              className="press focus-ring hover-lift flex items-center justify-between gap-3 rounded-2xl bg-secondary/70 p-3.5 text-left transition-colors hover:bg-secondary"
+            >
               <div className="min-w-0">
                 <span className="block text-[11px] font-semibold uppercase tracking-wide text-muted-foreground">
                   Categoria que mais pesa
                 </span>
                 <strong className="block truncate text-sm font-bold text-foreground">
-                  {categoryLabel(numbers.topCategory.category)}
+                  {categoryLabel(topCategory.category)}
                 </strong>
               </div>
               <strong className="tnum shrink-0 font-display text-lg text-primary">
-                {money(numbers.topCategory.total)}
+                {money(topCategory.total)}
               </strong>
-            </div>
+            </button>
           )}
           <p className="text-sm leading-relaxed text-foreground/85">{headline}</p>
+        </div>
+      </Panel>
+
+      {/* P0-FRONTEND-1B.4: the one thing missing from the Painel was a clear
+          "what do I do now" — these are shortcuts to flows that already
+          exist elsewhere (Novo gasto, Gastos, nova meta, Aval), not new
+          functionality. */}
+      <Panel tone="flat" className="relative z-10">
+        <PanelHead title="Ações rápidas" icon={Zap} />
+        <div className="grid grid-cols-2 gap-2.5 lg:grid-cols-4">
+          <QuickActionButton icon={Plus} label="Adicionar gasto" onClick={onAddExpense} />
+          <QuickActionButton
+            icon={ArrowLeftRight}
+            label="Ver gastos"
+            onClick={onViewTransactions}
+          />
+          <QuickActionButton icon={Target} label="Adicionar meta" onClick={onAddGoal} />
+          <QuickActionButton icon={Sparkles} label="Perguntar ao Aval" onClick={onOpenAval} />
         </div>
       </Panel>
 
@@ -181,9 +226,16 @@ export function DashboardView() {
             const pending = sum(mine.filter((e) => e.status === "A pagar"));
             const active = key === view;
             return (
-              <div
+              <button
                 key={key}
-                className={`rounded-2xl border p-3.5 transition-colors ${active ? "border-primary bg-primary-soft" : "border-border bg-secondary"}`}
+                type="button"
+                onClick={() => {
+                  // Already-selected person: no write, keep the visual state as-is.
+                  if (key !== view) setActivePerson(key);
+                }}
+                aria-pressed={active}
+                aria-label={`Ver gastos de ${name}`}
+                className={`press focus-ring w-full rounded-2xl border p-3.5 text-left transition-colors ${active ? "border-primary bg-primary-soft" : "border-border bg-secondary hover:border-primary/25"}`}
               >
                 <div className="flex items-center gap-2.5">
                   <span
@@ -205,7 +257,7 @@ export function DashboardView() {
                 <small className="mt-1 block text-[11px] text-muted-foreground">
                   Falta pagar {money(pending)}
                 </small>
-              </div>
+              </button>
             );
           })}
         </div>
@@ -229,5 +281,28 @@ export function DashboardView() {
         />
       </Panel>
     </div>
+  );
+}
+
+function QuickActionButton({
+  icon: Icon,
+  label,
+  onClick,
+}: {
+  icon: React.ComponentType<{ className?: string; strokeWidth?: number }>;
+  label: string;
+  onClick: () => void;
+}) {
+  return (
+    <button
+      type="button"
+      onClick={onClick}
+      className="press focus-ring hover-lift flex min-h-[76px] flex-col items-center justify-center gap-1.5 rounded-2xl border border-border bg-secondary p-3 text-center"
+    >
+      <span className="flex h-9 w-9 items-center justify-center rounded-xl bg-primary-soft text-primary">
+        <Icon className="h-[18px] w-[18px]" strokeWidth={2.2} />
+      </span>
+      <span className="text-[11px] font-bold leading-tight text-foreground">{label}</span>
+    </button>
   );
 }

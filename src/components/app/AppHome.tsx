@@ -84,6 +84,10 @@ export function AppHome() {
   } = useFinance();
   const isDesktop = useIsDesktop();
   const [view, setView] = useState<ViewKey>("dashboard");
+  // P0-FRONTEND-1B.4: the category tapped on the Painel travels here so
+  // Gastos can open pre-filtered; cleared whenever a fresh navigation to
+  // Gastos doesn't specify one (see goToTransactions below).
+  const [transactionsCategory, setTransactionsCategory] = useState<string | null>(null);
   const [expenseDialog, setExpenseDialog] = useState<{ open: boolean; id: string | null }>({
     open: false,
     id: null,
@@ -133,7 +137,11 @@ export function AppHome() {
     };
   }, [profileMenuOpen]);
 
-  const showFab = view === "assistant" || view === "dashboard" || view === "transactions";
+  // P0-FRONTEND-1B.4: the Painel's own "Ações rápidas" block already offers
+  // "Adicionar gasto", so the FAB would just be a second, redundant way to
+  // do the exact same thing on the same screen — kept only on the views
+  // that don't have that block.
+  const showFab = view === "assistant" || view === "transactions";
   const activeMonthLabel =
     state.months[state.activeMonth]?.label || formatMonthLabel(state.activeMonth);
   const firstName = activeUser?.name?.trim().split(/\s+/)[0] || "Você";
@@ -236,11 +244,25 @@ export function AppHome() {
     </>
   );
 
+  function goToTransactions(category?: string) {
+    setTransactionsCategory(category ?? null);
+    setView("transactions");
+  }
+
   const content = (
     <div key={view} className="animate-view">
-      {view === "dashboard" && <DashboardView />}
+      {view === "dashboard" && (
+        <DashboardView
+          onOpenCategory={(category) => goToTransactions(category)}
+          onViewTransactions={() => goToTransactions()}
+          onAddExpense={() => setExpenseDialog({ open: true, id: null })}
+          onAddGoal={() => setPriorityDialog({ open: true, id: null })}
+          onOpenAval={() => setView("assistant")}
+        />
+      )}
       {view === "transactions" && (
         <TransactionsView
+          initialCategory={transactionsCategory}
           onEdit={(id) => setExpenseDialog({ open: true, id })}
           onAdd={() => setExpenseDialog({ open: true, id: null })}
         />

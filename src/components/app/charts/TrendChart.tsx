@@ -71,7 +71,7 @@ export function TrendChart({ entries, activeKey, onSelect }: TrendChartProps) {
             key={entry.key}
             type="button"
             onClick={() => onSelect(entry.key)}
-            className="flex flex-1 flex-col items-center gap-0.5"
+            className="press focus-ring flex flex-1 flex-col items-center gap-0.5 rounded-lg"
           >
             <span
               className={`text-[10px] font-medium ${entry.key === activeKey ? "text-primary" : "text-muted-foreground"}`}
