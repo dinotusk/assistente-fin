@@ -5,7 +5,6 @@ import {
   Plus,
   RotateCcw,
   Send,
-  Sparkles,
   TrendingUp,
   TriangleAlert,
   Wallet,
@@ -382,7 +381,7 @@ export function AssistantView({
               onClick={focusChatInput}
               className="press focus-ring inline-flex h-11 items-center gap-2 rounded-full border border-primary/25 bg-primary-soft px-4 text-sm font-bold text-primary"
             >
-              <Sparkles className="h-4 w-4" /> Perguntar ao Aval
+              <AvalMark size={16} className="text-primary" /> Perguntar ao Aval
             </button>
           </div>
         </section>

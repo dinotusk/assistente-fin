@@ -336,6 +336,24 @@ describe("DashboardView — Ações rápidas (P0-FRONTEND-1B.4)", () => {
       expect(button?.className).toContain("glass-surface");
     });
   });
+
+  // P0-FRONTEND-1B.7 — "Perguntar ao Aval" uses the real brand mark, not a
+  // generic sparkles icon; the other three actions keep their lucide icons.
+  it("28. Perguntar ao Aval renders the Aval brand mark", () => {
+    renderDashboard();
+    const button = screen.getByText("Perguntar ao Aval").closest("button");
+    const svg = button?.querySelector("svg");
+    expect(svg?.getAttribute("viewBox")).toBe("0 0 32 32");
+  });
+
+  it("29. the other quick actions keep a generic lucide icon (24x24 viewBox)", () => {
+    renderDashboard();
+    ["Adicionar gasto", "Ver gastos", "Adicionar meta"].forEach((label) => {
+      const button = screen.getByText(label).closest("button");
+      const svg = button?.querySelector("svg");
+      expect(svg?.getAttribute("viewBox")).toBe("0 0 24 24");
+    });
+  });
 });
 
 describe("DashboardView — frase de atenção e saldo livre continuam estáticos (P0-FRONTEND-1B.4)", () => {

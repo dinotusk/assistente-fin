@@ -1,7 +1,9 @@
-import { ArrowLeftRight, LayoutGrid, Settings, Sparkles, Target } from "lucide-react";
+import { ArrowLeftRight, LayoutGrid, Settings, Target } from "lucide-react";
 
 import { cn } from "@/lib/utils";
 import type { ViewKey } from "@/lib/finance/types";
+
+import { AvalMark } from "./ui";
 
 const items: { key: ViewKey; label: string; Icon: typeof LayoutGrid }[] = [
   { key: "dashboard", label: "Painel", Icon: LayoutGrid },
@@ -20,9 +22,12 @@ export function BottomNav({ view, onChange, onOpenAssistant }: BottomNavProps) {
   return (
     <nav
       aria-label="Navegação principal"
-      className="pointer-events-none fixed inset-x-0 bottom-0 z-30 flex justify-center px-3 pb-[max(1rem,env(safe-area-inset-bottom))]"
+      className="pointer-events-none fixed inset-x-0 bottom-0 z-30 flex justify-center px-4 pb-[max(1rem,env(safe-area-inset-bottom))]"
     >
-      <div className="glass-surface-strong pointer-events-auto grid w-full max-w-[416px] grid-cols-5 items-end rounded-[1.45rem] px-2 pb-2 pt-2.5">
+      {/* P0-FRONTEND-1B.7 — the one permanently-visible glass surface, so it
+          gets the strongest tier (glass-nav) and the only backdrop-filter in
+          this component; every child below is background/border/shadow only. */}
+      <div className="glass-nav pointer-events-auto grid w-full max-w-[416px] grid-cols-5 items-end rounded-[1.85rem] px-2 pb-2 pt-2.5">
         <NavButton item={items[0]} active={view === items[0].key} onChange={onChange} />
         <NavButton item={items[1]} active={view === items[1].key} onChange={onChange} />
 
@@ -38,7 +43,7 @@ export function BottomNav({ view, onChange, onOpenAssistant }: BottomNavProps) {
               : "bg-primary text-primary-foreground",
           )}
         >
-          <Sparkles className="h-6 w-6" strokeWidth={2.4} />
+          <AvalMark size={24} className="text-primary-foreground" />
         </button>
 
         <NavButton item={items[2]} active={view === items[2].key} onChange={onChange} />
@@ -68,11 +73,13 @@ function NavButton({
       )}
     >
       {/* Active state reads from the pill + icon weight together, not color
-          alone — a glass-tinted capsule instead of the old color-only dot. */}
+          alone — a "lens" capsule (glass-active: background/border/inset
+          highlight, no backdrop-filter of its own) plus a small scale-up,
+          not just a color change. */}
       <span
         className={cn(
-          "flex h-7 w-9 items-center justify-center rounded-full transition-colors",
-          active && "glass-active",
+          "flex h-8 w-10 items-center justify-center rounded-full transition-[scale,background-color,border-color,box-shadow] duration-200",
+          active ? "glass-active scale-105" : "scale-100",
         )}
       >
         <Icon className="h-[18px] w-[18px]" strokeWidth={active ? 2.5 : 2} />

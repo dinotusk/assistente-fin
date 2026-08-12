@@ -97,6 +97,13 @@
   --glass-blur: 20px;
   --glass-active: rgb(200 173 122 / 0.22);
   --glass-pressed: rgb(200 173 122 / 0.3);
+
+  /* P0-FRONTEND-1B.7 — the bottom nav is the one permanently-visible glass
+     surface, so it gets its own single stronger tier ("nav") instead of a
+     whole new Level 3 family: more blur/saturation, a touch more
+     transparent than glass-surface-strong, still deep-green tinted. */
+  --glass-nav-bg: rgb(9 27 21 / 0.62);
+  --glass-nav-blur: 32px;
 }
 
 .dark {
@@ -279,11 +286,31 @@
   backdrop-filter: blur(calc(var(--glass-blur) + 6px)) saturate(1.18);
 }
 
+/* P0-FRONTEND-1B.7 — the single strongest glass tier, reserved for the
+   permanently-visible bottom nav capsule. Only ONE backdrop-filter lives
+   here (the container) — the active-tab pill below is background/border/
+   shadow only, never a second blur, so the nav never pays for "glass
+   inside glass" no matter how many tabs it has. */
+@utility glass-nav {
+  background: var(--glass-nav-bg);
+  border: 1px solid var(--glass-border);
+  box-shadow:
+    var(--glass-shadow),
+    0 30px 60px -24px rgb(0 0 0 / 0.6),
+    inset 0 1px 0 var(--glass-highlight);
+  backdrop-filter: blur(var(--glass-nav-blur)) saturate(1.24);
+}
+
 /* Gold-tinted glass fill for an active/selected state on a glass surface —
-   pairs with a color change so the state never depends on color alone. */
+   pairs with a color change so the state never depends on color alone.
+   The inset highlight + soft glow give the active tab a "lens" feel
+   without a second backdrop-filter (box-shadow is compositing-cheap). */
 @utility glass-active {
   background: var(--glass-active);
   border-color: rgb(200 173 122 / 0.4);
+  box-shadow:
+    inset 0 1px 0 rgb(255 255 255 / 0.12),
+    0 2px 8px -2px rgb(200 173 122 / 0.35);
 }
 
 @utility glass-pressed {
@@ -296,7 +323,8 @@
    legibility never depends on the blur itself. */
 @supports not ((backdrop-filter: blur(1px)) or (-webkit-backdrop-filter: blur(1px))) {
   .glass-surface,
-  .glass-surface-strong {
+  .glass-surface-strong,
+  .glass-nav {
     background: var(--glass-bg-strong);
   }
 }
@@ -305,7 +333,8 @@
    exposes it (glass is progressive decoration, never load-bearing). */
 @media (prefers-reduced-transparency: reduce) {
   .glass-surface,
-  .glass-surface-strong {
+  .glass-surface-strong,
+  .glass-nav {
     background: var(--glass-bg-strong);
     backdrop-filter: none;
     -webkit-backdrop-filter: none;

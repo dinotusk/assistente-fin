@@ -207,4 +207,21 @@ describe("AssistantView — Aval Glass (P0-FRONTEND-1B.6)", () => {
     const bubble = screen.getByText("Seu mês está tranquilo, ainda sobram R$ 800,00.");
     expect(bubble.className).not.toMatch(/glass-/);
   });
+
+  // P0-FRONTEND-1B.7 — the empty-state hero's "Perguntar ao Aval" button
+  // uses the real brand mark instead of a generic sparkles icon.
+  it("the hero's Perguntar ao Aval button renders the Aval brand mark", () => {
+    render(<AssistantView onAddExpense={noop} onOpenSimulator={noop} onOpenEnvelopes={noop} />);
+    const button = screen.getByText("Perguntar ao Aval").closest("button");
+    const svg = button?.querySelector("svg");
+    expect(svg?.getAttribute("viewBox")).toBe("0 0 32 32");
+  });
+
+  it("every AI bubble avatar uses the Aval brand mark", async () => {
+    mockAskGemini.mockResolvedValue("Seu mês está tranquilo, ainda sobram R$ 800,00.");
+    await askAndWait("Como está meu mês?");
+    const bubble = screen.getByText("Seu mês está tranquilo, ainda sobram R$ 800,00.");
+    const avatar = bubble.closest("div.flex.items-start")?.querySelector("svg");
+    expect(avatar?.getAttribute("viewBox")).toBe("0 0 32 32");
+  });
 });

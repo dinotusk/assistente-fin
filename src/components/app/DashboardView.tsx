@@ -5,7 +5,6 @@ import {
   History,
   PieChart,
   Plus,
-  Sparkles,
   Target,
   TrendingUp,
   TriangleAlert,
@@ -33,7 +32,7 @@ import { DonutChart } from "./charts/DonutChart";
 import { CategoryBars } from "./charts/CategoryBars";
 import { MonthlyBars } from "./charts/MonthlyBars";
 import { TrendChart } from "./charts/TrendChart";
-import { BudgetRing, Panel, PanelHead } from "./ui";
+import { AvalMark, BudgetRing, Panel, PanelHead } from "./ui";
 
 function initials(name: string): string {
   const parts = name.trim().split(/\s+/).filter(Boolean);
@@ -162,7 +161,9 @@ export function DashboardView({
             onClick={onViewTransactions}
           />
           <QuickActionButton icon={Target} label="Adicionar meta" onClick={onAddGoal} />
-          <QuickActionButton icon={Sparkles} label="Perguntar ao Aval" onClick={onOpenAval} />
+          {/* P0-FRONTEND-1B.7: the Aval brand mark, not a generic AI icon —
+              icon={null} tells QuickActionButton to render AvalMark instead. */}
+          <QuickActionButton icon={null} label="Perguntar ao Aval" onClick={onOpenAval} />
         </div>
       </Panel>
 
@@ -289,7 +290,8 @@ function QuickActionButton({
   label,
   onClick,
 }: {
-  icon: React.ComponentType<{ className?: string; strokeWidth?: number }>;
+  /** null renders the Aval brand mark instead of a lucide icon. */
+  icon: React.ComponentType<{ className?: string; strokeWidth?: number }> | null;
   label: string;
   onClick: () => void;
 }) {
@@ -300,7 +302,7 @@ function QuickActionButton({
       className="glass-surface press glass-pressed focus-ring hover-lift flex min-h-[76px] flex-col items-center justify-center gap-1.5 rounded-2xl p-3 text-center"
     >
       <span className="flex h-9 w-9 items-center justify-center rounded-xl bg-primary-soft text-primary">
-        <Icon className="h-[18px] w-[18px]" strokeWidth={2.2} />
+        {Icon ? <Icon className="h-[18px] w-[18px]" strokeWidth={2.2} /> : <AvalMark size={18} />}
       </span>
       <span className="text-[11px] font-bold leading-tight text-foreground">{label}</span>
     </button>

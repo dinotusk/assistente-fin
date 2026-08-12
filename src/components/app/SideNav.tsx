@@ -1,13 +1,16 @@
-import { LayoutGrid, ArrowLeftRight, Star, House, Settings } from "lucide-react";
+import { LayoutGrid, ArrowLeftRight, Star, Settings } from "lucide-react";
 
 import { cn } from "@/lib/utils";
 import type { ViewKey } from "@/lib/finance/types";
 
 import { AvalMark } from "./ui";
 
-export const NAV_ITEMS: { key: ViewKey; label: string; Icon: typeof LayoutGrid }[] = [
+// P0-FRONTEND-1B.7 — Icon is null for "assistant": that row renders AvalMark
+// instead (see the render loop below), since the assistant is the Aval
+// brand itself, not a generic nav glyph.
+export const NAV_ITEMS: { key: ViewKey; label: string; Icon: typeof LayoutGrid | null }[] = [
   { key: "dashboard", label: "Painel", Icon: LayoutGrid },
-  { key: "assistant", label: "Aval", Icon: House },
+  { key: "assistant", label: "Aval", Icon: null },
   { key: "transactions", label: "Gastos", Icon: ArrowLeftRight },
   { key: "priorities", label: "Metas", Icon: Star },
   { key: "settings", label: "Config", Icon: Settings },
@@ -55,7 +58,14 @@ export function SideNav({
                   active ? "bg-primary/15" : "bg-transparent",
                 )}
               >
-                <Icon className="h-[18px] w-[18px]" strokeWidth={active ? 2.5 : 2} />
+                {Icon ? (
+                  <Icon className="h-[18px] w-[18px]" strokeWidth={active ? 2.5 : 2} />
+                ) : (
+                  <AvalMark
+                    size={18}
+                    className={active ? "text-primary" : "text-muted-foreground"}
+                  />
+                )}
               </span>
               {label}
             </button>
