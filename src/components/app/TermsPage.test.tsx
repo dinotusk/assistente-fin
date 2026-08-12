@@ -63,4 +63,35 @@ describe("TermsPage — transparência de armazenamento (P0-PRIVACY-COOKIES)", (
     expect(screen.queryByText(/Rejeitar opcionais/i)).toBeNull();
     expect(screen.queryByRole("dialog")).toBeNull();
   });
+
+  // Guardas de precisão factual (rodada de correção pós-revisão): storage.ts
+  // (loadState/saveState/getProfiles/localLogin) não tem nenhum call site no app
+  // atual — é código órfão de antes da migração para Supabase — e a captura real
+  // de produção não mostra essas chaves. A cópia não pode afirmar um
+  // comportamento que o código não executa.
+  it("9. não afirma guardar uma cópia local dos dados financeiros (storage.ts é código órfão, sem call sites)", () => {
+    render(<TermsPage />);
+    expect(screen.queryByText(/cópia local dos seus dados financeiros/i)).toBeNull();
+  });
+
+  it("10. não afirma guardar perfis financeiros em armazenamento local (mesma razão)", () => {
+    render(<TermsPage />);
+    expect(screen.queryByText(/seus perfis financeiros/i)).toBeNull();
+  });
+
+  // O service worker é registrado em toda visita (src/routes/__root.tsx), não
+  // apenas quando o usuário ativa push — só a inscrição/uso é que é condicional.
+  it("11. não afirma que o service worker só é registrado quando push é ativado", () => {
+    render(<TermsPage />);
+    expect(
+      screen.queryByText(/finalidade: exibir notificações push, caso você as ative/i),
+    ).toBeNull();
+  });
+
+  it("12. descreve o service worker como sempre registrado, com push como uso condicional", () => {
+    render(<TermsPage />);
+    expect(
+      screen.getByText(/registra um service worker no seu navegador\. Ele só é usado/i),
+    ).toBeTruthy();
+  });
 });
