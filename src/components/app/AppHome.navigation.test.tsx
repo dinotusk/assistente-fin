@@ -213,6 +213,14 @@ describe("AppHome — FAB no desktop (P0-FRONTEND-1B.4)", () => {
     expect(screen.getByText("Novo gasto")).toBeTruthy();
   });
 
+  it("12. the FAB stays solid — never a glass- utility (P0-FRONTEND-1B.6)", () => {
+    render(<AppHome />);
+    fireEvent.click(screen.getByText("Ver gastos"));
+    const fab = screen.getByText("Novo gasto").closest("button");
+    expect(fab?.className).toContain("bg-primary");
+    expect(fab?.className).not.toMatch(/glass-/);
+  });
+
   it("11. FAB still present on Aval", () => {
     render(<AppHome />);
     fireEvent.click(screen.getByText("Perguntar ao Aval"));

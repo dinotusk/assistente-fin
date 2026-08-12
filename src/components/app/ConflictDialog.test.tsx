@@ -103,4 +103,11 @@ describe("ConflictDialog", () => {
 
     expect(screen.queryByText(/Não foi possível atualizar/)).toBeNull();
   });
+
+  // P0-FRONTEND-1B.6 — same footer normalization as ConfirmDialog.
+  it("the footer carries glass-surface (P0-FRONTEND-1B.6)", () => {
+    render(<ConflictDialog open={true} onRefresh={vi.fn()} onDismiss={vi.fn()} />);
+    const footer = screen.getByText("Fechar").closest("div");
+    expect(footer?.className).toContain("glass-surface");
+  });
 });

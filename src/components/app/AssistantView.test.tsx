@@ -168,3 +168,43 @@ describe("fallback answers are visibly distinguishable from a Gemini answer", ()
     expect(rateLimitLabel).not.toBe(unavailableLabel);
   });
 });
+
+// P0-FRONTEND-1B.6 — quick prompts and the composer's own frame are chrome
+// (glass); the textarea the user types into, the send button, and every
+// chat bubble show/carry real content and stay solid. No Gemini call is
+// exercised in this block — these are pure rendering/structural checks.
+describe("AssistantView — Aval Glass (P0-FRONTEND-1B.6)", () => {
+  it("quick prompts carry glass-surface and still trigger a question", () => {
+    render(<AssistantView onAddExpense={noop} onOpenSimulator={noop} onOpenEnvelopes={noop} />);
+    const prompt = screen.getByText("Falta pagar").closest("button");
+    expect(prompt?.className).toContain("glass-surface");
+  });
+
+  it("the composer frame carries glass-surface", () => {
+    render(<AssistantView onAddExpense={noop} onOpenSimulator={noop} onOpenEnvelopes={noop} />);
+    const textarea = screen.getByPlaceholderText("Converse com o Aval");
+    const form = textarea.closest("form");
+    expect(form?.className).toContain("glass-surface");
+  });
+
+  it("the textarea itself stays solid — never transparent over the glass frame", () => {
+    render(<AssistantView onAddExpense={noop} onOpenSimulator={noop} onOpenEnvelopes={noop} />);
+    const textarea = screen.getByPlaceholderText("Converse com o Aval");
+    expect(textarea.className).toContain("!bg-card");
+    expect(textarea.className).not.toMatch(/glass-/);
+  });
+
+  it("the send button stays solid", () => {
+    render(<AssistantView onAddExpense={noop} onOpenSimulator={noop} onOpenEnvelopes={noop} />);
+    const sendButton = screen.getByLabelText("Enviar");
+    expect(sendButton.className).toContain("bg-primary");
+    expect(sendButton.className).not.toMatch(/glass-/);
+  });
+
+  it("a Gemini answer bubble never carries a glass- utility", async () => {
+    mockAskGemini.mockResolvedValue("Seu mês está tranquilo, ainda sobram R$ 800,00.");
+    await askAndWait("Como está meu mês?");
+    const bubble = screen.getByText("Seu mês está tranquilo, ainda sobram R$ 800,00.");
+    expect(bubble.className).not.toMatch(/glass-/);
+  });
+});

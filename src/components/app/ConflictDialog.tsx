@@ -65,7 +65,8 @@ export function ConflictDialog({
         {refreshError && <p className="text-sm text-destructive">{refreshError}</p>}
       </div>
 
-      <div className="sticky bottom-0 -mx-5 mt-5 flex gap-3 border-t border-border/70 bg-card/95 px-5 py-3 backdrop-blur">
+      {/* P0-FRONTEND-1B.6: normalized from the informal bg-card/95 + backdrop-blur. */}
+      <div className="glass-surface sticky bottom-0 -mx-5 mt-5 flex gap-3 px-5 py-3">
         <button
           type="button"
           onClick={onDismiss}

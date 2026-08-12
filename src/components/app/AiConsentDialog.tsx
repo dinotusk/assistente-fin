@@ -181,7 +181,7 @@ export function AiConsentDialog({
       </div>
 
       {mode === "request" ? (
-        <div className="sticky bottom-0 -mx-5 mt-5 flex gap-3 border-t border-border/70 bg-card/95 px-5 py-3 backdrop-blur">
+        <div className="sticky bottom-0 -mx-5 mt-5 flex gap-3 glass-surface px-5 py-3">
           <button
             type="button"
             onClick={decline}
@@ -200,7 +200,7 @@ export function AiConsentDialog({
           </button>
         </div>
       ) : (
-        <div className="sticky bottom-0 -mx-5 mt-5 flex flex-col gap-3 border-t border-border/70 bg-card/95 px-5 py-3 backdrop-blur">
+        <div className="sticky bottom-0 -mx-5 mt-5 flex flex-col gap-3 glass-surface px-5 py-3">
           {accepted ? (
             <>
               <p className="text-center text-xs text-muted-foreground">{REVOKE_HELPER_TEXT}</p>

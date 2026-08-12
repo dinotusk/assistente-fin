@@ -172,4 +172,28 @@ describe("ConfirmDialog", () => {
     resolveConfirm();
     await waitFor(() => expect(onOpenChange).toHaveBeenCalledWith(false));
   });
+
+  // P0-FRONTEND-1B.6 — the sticky footer is chrome (glass); the description
+  // body and the destructive button are content/action, must stay solid so
+  // the gravity of a destructive confirmation is never diluted.
+  describe("Aval Glass (P0-FRONTEND-1B.6)", () => {
+    it("the footer carries glass-surface", () => {
+      render(<ConfirmDialog {...baseProps()} />);
+      const footer = screen.getByText("Cancelar").closest("div");
+      expect(footer?.className).toContain("glass-surface");
+    });
+
+    it("the destructive confirm button stays fully solid, never glass", () => {
+      render(<ConfirmDialog {...baseProps()} />);
+      const confirmButton = screen.getByText("Excluir gasto");
+      expect(confirmButton.className).toContain("bg-destructive");
+      expect(confirmButton.className).not.toMatch(/glass-/);
+    });
+
+    it("the description/body never carries a glass- utility", () => {
+      render(<ConfirmDialog {...baseProps()} />);
+      const description = screen.getByText("Esse lançamento será removido deste mês.");
+      expect(description.className).not.toMatch(/glass-/);
+    });
+  });
 });

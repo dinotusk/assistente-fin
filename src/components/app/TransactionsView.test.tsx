@@ -174,3 +174,40 @@ describe("TransactionsView — initialCategory (P0-FRONTEND-1B.4)", () => {
     expect(screen.getByText("Padaria")).toBeTruthy();
   });
 });
+
+// P0-FRONTEND-1B.6 — filter pills are chrome/controls (glass); the search
+// box and every expense row show real financial data (must stay solid).
+describe("TransactionsView — Aval Glass (P0-FRONTEND-1B.6)", () => {
+  it("9. inactive filter pills carry the glass-surface utility (active pill stays solid gold, same as Segmented)", () => {
+    render(<TransactionsView onEdit={vi.fn()} onAdd={vi.fn()} />);
+    // "Tudo" is the default active filter — the row it sits in is the
+    // filters bar, distinct from any expense row's own status-toggle button.
+    const filterBar = screen.getByText("Tudo").closest("button")?.parentElement;
+    const pills = filterBar ? Array.from(filterBar.querySelectorAll("button")) : [];
+    const byLabel = (label: string) => pills.find((b) => b.textContent?.trim() === label);
+    ["Entradas", "Saídas", "A pagar", "Pagos"].forEach((label) => {
+      expect(byLabel(label)?.className).toContain("glass-surface");
+    });
+    expect(byLabel("Tudo")?.className).not.toMatch(/glass-surface/);
+  });
+
+  it("10. filter pills keep a 44px minimum touch target", () => {
+    render(<TransactionsView onEdit={vi.fn()} onAdd={vi.fn()} />);
+    const filterBar = screen.getByText("Tudo").closest("button")?.parentElement;
+    const pill = filterBar ? Array.from(filterBar.querySelectorAll("button"))[0] : null;
+    expect(pill?.className).toContain("min-h-11");
+  });
+
+  it("11. the search input never carries a glass- utility", () => {
+    render(<TransactionsView onEdit={vi.fn()} onAdd={vi.fn()} />);
+    const input = screen.getByLabelText(/Buscar/);
+    expect(input.className).not.toMatch(/glass-/);
+  });
+
+  it("12. an expense row never carries a glass- utility", () => {
+    render(<TransactionsView onEdit={vi.fn()} onAdd={vi.fn()} />);
+    const row = screen.getByText("Padaria").closest("div.card-surface");
+    expect(row).toBeTruthy();
+    expect(row?.className).not.toMatch(/glass-/);
+  });
+});

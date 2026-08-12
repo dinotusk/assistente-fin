@@ -128,7 +128,9 @@ const SECURITY_POINTS = [
 export function LandingPage() {
   return (
     <div className="app-backdrop min-h-dvh">
-      <header className="sticky top-0 z-20 border-b border-border/60 bg-background/80 backdrop-blur-md">
+      {/* P0-FRONTEND-1B.6: token normalization only — this was already an
+          informal glass header, now using the same tokens the app uses. */}
+      <header className="glass-surface sticky top-0 z-20">
         <div className="mx-auto flex h-16 max-w-6xl items-center justify-between px-5">
           <a href="#top" className="flex items-center gap-2">
             <AvalMark size={24} />
@@ -333,7 +335,7 @@ function PhoneMock() {
       <div className="pointer-events-none absolute inset-6 rounded-full bg-primary/10 blur-3xl" />
 
       <div className="absolute left-[-10px] top-[118px] hidden w-[270px] rotate-[-5deg] sm:block lg:left-[-20px]">
-        <article className="animate-float rounded-[1.6rem] border border-primary/18 bg-card/72 p-5 text-left shadow-float backdrop-blur-xl">
+        <article className="glass-surface-strong animate-float rounded-[1.6rem] p-5 text-left">
           <p className="text-[11px] font-bold text-muted-foreground">Últimas movimentações</p>
           <div className="mt-3 flex flex-col divide-y divide-border/70">
             {transactions.map(({ icon: Icon, title, meta, value }) => (
@@ -356,7 +358,7 @@ function PhoneMock() {
 
       <div className="absolute bottom-6 right-[-8px] hidden w-[300px] rotate-[5deg] sm:block lg:right-[-22px]">
         <article
-          className="animate-float rounded-[1.7rem] border border-primary/18 bg-card/70 p-5 text-left shadow-float backdrop-blur-xl"
+          className="glass-surface-strong animate-float rounded-[1.7rem] p-5 text-left"
           style={{ animationDelay: "-3.5s" }}
         >
           <div className="flex items-center justify-between">

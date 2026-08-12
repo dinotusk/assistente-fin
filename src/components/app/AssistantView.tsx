@@ -428,14 +428,17 @@ export function AssistantView({
             key={question}
             type="button"
             onClick={() => askQuestion(question)}
-            className="press focus-ring shrink-0 rounded-full border border-white/[0.12] bg-white/[0.05] px-3.5 py-2 text-xs font-bold text-muted-foreground hover:border-primary/30 hover:text-foreground"
+            className="glass-surface press glass-pressed focus-ring flex min-h-11 shrink-0 items-center rounded-full px-3.5 text-xs font-bold text-muted-foreground hover:text-foreground"
           >
             {question}
           </button>
         ))}
       </div>
 
-      <form onSubmit={ask} className="card-surface rounded-[1.375rem] p-3">
+      {/* P0-FRONTEND-1B.6: only the chrome around the composer is glass — the
+          textarea itself keeps its own solid background (!bg-card) so what
+          the user is typing never sits under a blurred/translucent layer. */}
+      <form onSubmit={ask} className="glass-surface rounded-[1.375rem] p-3">
         <TextArea
           ref={inputRef}
           value={input}
@@ -448,7 +451,7 @@ export function AssistantView({
           }}
           placeholder="Converse com o Aval"
           rows={3}
-          className="!h-auto w-full resize-none !border-0 !bg-transparent !p-0 text-sm !shadow-none !ring-0 focus:!ring-0"
+          className="!h-auto w-full resize-none !rounded-xl !border-0 !bg-card !p-2.5 text-sm !shadow-none !ring-0 focus:!ring-0"
         />
         <div className="mt-2 flex items-center justify-between">
           <div className="flex items-center gap-2">

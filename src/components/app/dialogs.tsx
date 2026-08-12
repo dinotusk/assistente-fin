@@ -102,7 +102,10 @@ function Actions({
   busyLabel?: string;
 }) {
   return (
-    <div className="sticky bottom-0 -mx-5 mt-5 flex gap-3 border-t border-border/70 bg-card/95 px-5 py-3 backdrop-blur">
+    // P0-FRONTEND-1B.6: this sticky footer already read as glass informally
+    // (bg-card/95 + backdrop-blur) — normalized to the real token here.
+    // Buttons stay fully solid: Cancelar secondary, Salvar/Confirmar primary.
+    <div className="glass-surface sticky bottom-0 -mx-5 mt-5 flex gap-3 px-5 py-3">
       <button
         type="button"
         onClick={onCancel}
@@ -711,7 +714,7 @@ export function CategoriesDialog({
           ))}
         </div>
       )}
-      <div className="sticky bottom-0 -mx-5 mt-5 border-t border-border/70 bg-card/95 px-5 py-3 backdrop-blur">
+      <div className="sticky bottom-0 -mx-5 mt-5 glass-surface px-5 py-3">
         <button
           type="button"
           onClick={() => onOpenChange(false)}
@@ -813,7 +816,7 @@ export function InviteDialog({
         </div>
       )}
 
-      <div className="sticky bottom-0 -mx-5 mt-5 border-t border-border/70 bg-card/95 px-5 py-3 backdrop-blur">
+      <div className="sticky bottom-0 -mx-5 mt-5 glass-surface px-5 py-3">
         <button
           type="button"
           onClick={() => onOpenChange(false)}
@@ -1018,7 +1021,7 @@ export function PushNotificationsDialog({
         {error && <p className="text-sm text-destructive">{error}</p>}
       </div>
 
-      <div className="sticky bottom-0 -mx-5 mt-5 border-t border-border/70 bg-card/95 px-5 py-3 backdrop-blur">
+      <div className="sticky bottom-0 -mx-5 mt-5 glass-surface px-5 py-3">
         <button
           type="button"
           onClick={() => onOpenChange(false)}
@@ -1231,7 +1234,7 @@ export function BankImportDialog({
               </div>
             </div>
           ))}
-          <div className="sticky bottom-0 -mx-5 mt-2 flex gap-3 border-t border-border/70 bg-card/95 px-5 py-3 backdrop-blur">
+          <div className="sticky bottom-0 -mx-5 mt-2 flex gap-3 glass-surface px-5 py-3">
             <button
               type="button"
               onClick={() => setCandidates([])}
@@ -1406,7 +1409,7 @@ export function VigiasDialog({
         </button>
       )}
 
-      <div className="sticky bottom-0 -mx-5 mt-5 border-t border-border/70 bg-card/95 px-5 py-3 backdrop-blur">
+      <div className="sticky bottom-0 -mx-5 mt-5 glass-surface px-5 py-3">
         <button
           type="button"
           onClick={() => onOpenChange(false)}
@@ -1701,7 +1704,7 @@ export function EnvelopesDialog({
           </button>
         ) : null}
       </div>
-      <div className="sticky bottom-0 -mx-5 mt-5 border-t border-border/70 bg-card/95 px-5 py-3 backdrop-blur">
+      <div className="sticky bottom-0 -mx-5 mt-5 glass-surface px-5 py-3">
         <button
           type="button"
           onClick={() => onOpenChange(false)}

@@ -120,3 +120,29 @@ describe("PrioritiesView — excluir prioridade", () => {
     expect(screen.getByText("Viagem")).toBeTruthy();
   });
 });
+
+// P0-FRONTEND-1B.6 — Metas has no glass candidate: "Adicionar" is the sole
+// action-creation control on this screen (no FAB/quick-actions here), so it
+// keeps the same solid-CTA treatment as the FAB. Goal cards always show R$.
+describe("PrioritiesView — Aval Glass (P0-FRONTEND-1B.6)", () => {
+  it("11. the Adicionar button stays solid — it's the screen's sole CTA, not chrome", () => {
+    render(<PrioritiesView onEdit={vi.fn()} onAdd={vi.fn()} />);
+    const button = screen.getByText("Adicionar").closest("button");
+    expect(button?.className).not.toMatch(/glass-/);
+  });
+
+  it("12. the goal card never carries a glass- utility", () => {
+    render(<PrioritiesView onEdit={vi.fn()} onAdd={vi.fn()} />);
+    const card = screen.getByText("Viagem").closest("div");
+    expect(card?.className).not.toMatch(/glass-/);
+  });
+
+  it("13. the delete-confirmation footer carries glass-surface, but the destructive button stays solid", () => {
+    render(<PrioritiesView onEdit={vi.fn()} onAdd={vi.fn()} />);
+    fireEvent.click(screen.getByLabelText("Excluir"));
+    const confirmButton = screen.getByText("Excluir prioridade");
+    expect(confirmButton.className).toContain("bg-destructive");
+    expect(confirmButton.className).not.toMatch(/glass-/);
+    expect(confirmButton.closest("div")?.className).toContain("glass-surface");
+  });
+});

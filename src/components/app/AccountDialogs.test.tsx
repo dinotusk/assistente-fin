@@ -248,6 +248,20 @@ describe("ChangePasswordDialog", () => {
     await screen.findByText("Senha alterada com sucesso.");
     expect(onOpenChange).not.toHaveBeenCalled();
   });
+
+  // P0-FRONTEND-1B.6 — footer normalized to glass-surface; the password
+  // inputs themselves must never carry a glass- utility.
+  it("the footer carries glass-surface (P0-FRONTEND-1B.6)", () => {
+    render(<ChangePasswordDialog open={true} onOpenChange={vi.fn()} />);
+    const footer = screen.getByText("Salvar").closest("div");
+    expect(footer?.className).toContain("glass-surface");
+  });
+
+  it("password inputs never carry a glass- utility (P0-FRONTEND-1B.6)", () => {
+    render(<ChangePasswordDialog open={true} onOpenChange={vi.fn()} />);
+    const passwordInput = screen.getByPlaceholderText("Mínimo de 6 caracteres");
+    expect(passwordInput.className).not.toMatch(/glass-/);
+  });
 });
 
 describe("MembersDialog — read-only", () => {

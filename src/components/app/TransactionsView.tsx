@@ -102,10 +102,10 @@ export function TransactionsView({
               key={item.key}
               type="button"
               onClick={() => setFilter(item.key)}
-              className={`press focus-ring shrink-0 rounded-full px-4 py-2 text-sm font-semibold transition-colors ${
+              className={`press focus-ring glass-pressed flex min-h-11 shrink-0 items-center rounded-full px-4 text-sm font-semibold transition-colors ${
                 active
                   ? "bg-primary text-primary-foreground"
-                  : "border border-white/[0.14] bg-white/[0.05] text-muted-foreground hover:text-foreground"
+                  : "glass-surface text-muted-foreground hover:text-foreground"
               }`}
             >
               {item.label}

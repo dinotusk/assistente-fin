@@ -83,7 +83,10 @@ export function ConfirmDialog({
         {error && <p className="text-sm text-destructive">{error}</p>}
       </div>
 
-      <div className="sticky bottom-0 -mx-5 mt-5 flex gap-3 border-t border-border/70 bg-card/95 px-5 py-3 backdrop-blur">
+      {/* P0-FRONTEND-1B.6: normalized from the informal bg-card/95 + backdrop-blur
+          to the real glass token. The destructive button stays 100% opaque —
+          glass is only the chrome around it, never the action itself. */}
+      <div className="glass-surface sticky bottom-0 -mx-5 mt-5 flex gap-3 px-5 py-3">
         <button
           type="button"
           onClick={() => onOpenChange(false)}
