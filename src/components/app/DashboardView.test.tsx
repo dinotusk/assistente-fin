@@ -8,8 +8,17 @@
 // navigation/view controls, and a new "Ações rápidas" block was added
 // between "Situação do mês" and "Histórico de meses" — all through existing
 // flows (no new functionality), so this file also covers that behavior.
-import { cleanup, fireEvent, render, screen } from "@testing-library/react";
+import { cleanup, fireEvent, render, screen, within } from "@testing-library/react";
 import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
+
+/** Scopes queries to the Movimentações recentes panel — its rows can repeat
+    text/amounts already shown in Situação do mês (e.g. a single-expense
+    category), so tests must not assume page-wide uniqueness. */
+function recentMovementsPanel() {
+  const panel = screen.getByText("Movimentações recentes").closest("section");
+  if (!panel) throw new Error("Movimentações recentes panel not found");
+  return within(panel);
+}
 
 import type { FinanceState } from "@/lib/finance/types";
 
@@ -117,6 +126,7 @@ const actions = {
   onAddExpense: vi.fn(),
   onAddGoal: vi.fn(),
   onOpenAval: vi.fn(),
+  onEditExpense: vi.fn(),
 };
 
 function renderDashboard() {
@@ -214,7 +224,8 @@ describe("DashboardView — empty states", () => {
     renderDashboard();
     expect(screen.queryByRole("button", { name: /Ver gastos da categoria/ })).toBeNull();
     expect(screen.getByText("Ações rápidas")).toBeTruthy();
-    expect(screen.getByText("Adicionar gasto")).toBeTruthy();
+    // Also rendered by Movimentações recentes' own empty state (P0-DASHBOARD-REFINE).
+    expect(screen.getAllByText("Adicionar gasto").length).toBeGreaterThan(0);
   });
 });
 
@@ -353,6 +364,159 @@ describe("DashboardView — Ações rápidas (P0-FRONTEND-1B.4)", () => {
       const svg = button?.querySelector("svg");
       expect(svg?.getAttribute("viewBox")).toBe("0 0 24 24");
     });
+  });
+});
+
+describe("DashboardView — Movimentações recentes (P0-DASHBOARD-REFINE)", () => {
+  it("30. shows real fixture rows — name, category, date and amount, most recent first", () => {
+    renderDashboard();
+    // exp-1 (05/08) is more recent than exp-2 (03/08); both must appear.
+    const panel = recentMovementsPanel();
+    expect(panel.getByText("Aluguel")).toBeTruthy();
+    expect(panel.getByText("Mercado")).toBeTruthy();
+    expect(panel.getByText("R$ 1500.00")).toBeTruthy();
+    expect(panel.getByText("R$ 400.00")).toBeTruthy();
+    const names = panel.getAllByText(/^(Aluguel|Mercado)$/).map((el) => el.textContent);
+    expect(names.indexOf("Aluguel")).toBeLessThan(names.indexOf("Mercado"));
+  });
+
+  it("31. never shows more than the defined limit (5), even with more expenses", () => {
+    const manyExpensesState: FinanceState = {
+      people: ["Maria"],
+      activePerson: "todos",
+      activeMonth: MONTH,
+      months: {
+        [MONTH]: {
+          label: "Agosto 2026",
+          income: 5000,
+          houseContribution: 0,
+          expenses: Array.from({ length: 7 }, (_, i) => ({
+            id: `many-${i}`,
+            name: `Gasto ${i}`,
+            category: "Outros",
+            amount: 10 + i,
+            status: "Pago" as const,
+            owner: "Maria",
+            date: `${MONTH}-${String(i + 1).padStart(2, "0")}`,
+            paymentMethod: "Pix",
+            note: "",
+          })),
+          priorities: [],
+        },
+      },
+    };
+    Object.assign(mockFinance, {
+      state: manyExpensesState,
+      month: manyExpensesState.months[MONTH],
+    });
+    renderDashboard();
+    expect(screen.getAllByRole("button", { name: /^Editar gasto/ }).length).toBe(5);
+    // The 5 most recent by date (i=6..2), not the 5 oldest.
+    expect(screen.getByText("Gasto 6")).toBeTruthy();
+    expect(screen.queryByText("Gasto 0")).toBeNull();
+  });
+
+  it("32. respects activeMonth — switching month changes which movements appear", () => {
+    const prevMonthState: FinanceState = { ...baseState(), activeMonth: PREV_MONTH };
+    Object.assign(mockFinance, {
+      state: prevMonthState,
+      month: baseState().months[PREV_MONTH],
+    });
+    renderDashboard();
+    // Only July's single expense — never August's Aluguel.
+    expect(recentMovementsPanel().getByText("R$ 100.00")).toBeTruthy();
+    expect(screen.queryByText("Aluguel")).toBeNull();
+  });
+
+  it("33. respects activePerson — 'me' (Maria) only shows Maria's movements", () => {
+    const stateForMaria: FinanceState = { ...baseState(), activePerson: "me" };
+    Object.assign(mockFinance, { state: stateForMaria, month: stateForMaria.months[MONTH] });
+    renderDashboard();
+    expect(screen.getByText("Aluguel")).toBeTruthy(); // owner Maria
+    expect(screen.queryByText("Mercado")).toBeNull(); // owner Oziel
+  });
+
+  it("34. 'Minha casa' (todos) shows movements from every person", () => {
+    renderDashboard(); // default fixture activePerson is "todos"
+    expect(screen.getByText("Aluguel")).toBeTruthy();
+    expect(screen.getByText("Mercado")).toBeTruthy();
+  });
+
+  it("35. hideValues masks the movement amounts", () => {
+    mockFinance.hideValues = true;
+    renderDashboard();
+    expect(screen.queryByText("R$ 1500.00")).toBeNull();
+    expect(screen.getAllByText("R$ ••••").length).toBeGreaterThan(0);
+  });
+
+  it("36. 'Ver todas' calls onViewTransactions — the same navigation Ações rápidas already uses", () => {
+    renderDashboard();
+    fireEvent.click(screen.getByText("Ver todas"));
+    expect(actions.onViewTransactions).toHaveBeenCalledTimes(1);
+  });
+
+  it("37. clicking a movement calls onEditExpense with that expense's id — reuses the existing ExpenseDialog, not a new one", () => {
+    renderDashboard();
+    fireEvent.click(screen.getByRole("button", { name: "Editar gasto Aluguel" }));
+    expect(actions.onEditExpense).toHaveBeenCalledWith("exp-1");
+  });
+
+  it("38. empty month shows a simple empty state, not fake rows", () => {
+    Object.assign(mockFinance, {
+      state: emptyMonthState(),
+      month: emptyMonthState().months[MONTH],
+    });
+    renderDashboard();
+    expect(screen.getByText("Nenhuma movimentação neste mês")).toBeTruthy();
+    expect(screen.queryByRole("button", { name: /^Editar gasto/ })).toBeNull();
+  });
+
+  it("39. the empty-state 'Adicionar gasto' button reuses the existing add-expense flow", () => {
+    Object.assign(mockFinance, {
+      state: emptyMonthState(),
+      month: emptyMonthState().months[MONTH],
+    });
+    renderDashboard();
+    const emptyStateButtons = screen.getAllByText("Adicionar gasto");
+    fireEvent.click(emptyStateButtons[emptyStateButtons.length - 1]);
+    expect(actions.onAddExpense).toHaveBeenCalled();
+  });
+
+  it("40. every movement row is a real, keyboard-focusable button with an accessible name", () => {
+    renderDashboard();
+    const row = screen.getByRole("button", { name: "Editar gasto Aluguel" });
+    expect(row.tagName).toBe("BUTTON");
+  });
+
+  it("41. Movimentações recentes stays solid — no glass utility, financial content prioritizes legibility", () => {
+    renderDashboard();
+    const panel = screen.getByText("Movimentações recentes").closest("section");
+    expect(panel?.className).not.toMatch(/glass-/);
+    const row = screen.getByRole("button", { name: "Editar gasto Aluguel" });
+    expect(row.className).not.toMatch(/glass-/);
+  });
+
+  it("42. Movimentações recentes doesn't replace any pre-existing panel", () => {
+    renderDashboard();
+    [
+      "Situação do mês",
+      "Ações rápidas",
+      "Histórico de meses",
+      "Distribuição do mês",
+      "Por categoria",
+      "Divisão familiar",
+      "Comparação mensal",
+      "Evolução dos gastos",
+    ].forEach((title) => {
+      expect(screen.getByText(title)).toBeTruthy();
+    });
+  });
+
+  it("43. Situação do mês, Ações rápidas and Movimentações recentes share a two-column grid wrapper at desktop (lg:), single column below", () => {
+    renderDashboard();
+    const wrapper = screen.getByText("Situação do mês").closest("section")
+      ?.parentElement?.parentElement;
+    expect(wrapper?.className).toContain("lg:grid-cols-2");
   });
 });
 
