@@ -25,10 +25,9 @@ Spring Boot 3.5.x reached end-of-life on 2026-06-30. For a brand-new
 foundation meant to last years, 4.x (built on Spring Framework 7 + Jakarta
 EE 11, LTS support through at least 2030) is the only responsibly
 supportable choice — not a stylistic preference for "the new thing."
-Pinned to **4.1.0** (GA 2026-06-10, confirmed resolvable on Maven Central)
-rather than the newer 4.1.1 patch, which this project could not
-independently confirm was resolvable from the environment this scaffold
-was built in — bump it once a real `./mvnw verify` has run.
+Pinned to the latest patch, **4.1.1** (GA 2026-08-20, confirmed on Maven
+Central — the artifact's last-published-release date independently matches
+the spring.io announcement).
 
 ## Why Java 25, not 21
 

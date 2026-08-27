@@ -10,15 +10,13 @@
     Version choice (see docs/architecture/ADR-002-spring-boot-supabase.md):
     Spring Boot 3.5.x reached end-of-life on 2026-06-30, so for a brand-new
     foundation Spring Boot 4.x is the only responsibly supportable line, not
-    a stylistic preference. Pinned to 4.1.0 (GA 2026-06-10, confirmed on
-    Maven Central) rather than the newer 4.1.1 patch, which this project
-    could not independently confirm was resolvable from this environment at
-    scaffolding time — bump it once a real build has verified it.
+    a stylistic preference. Pinned to the latest patch, 4.1.1 (GA
+    2026-08-20, confirmed on Maven Central).
   -->
   <parent>
     <groupId>org.springframework.boot</groupId>
     <artifactId>spring-boot-starter-parent</artifactId>
-    <version>4.1.0</version>
+    <version>4.1.1</version>
     <relativePath/>
   </parent>
 
