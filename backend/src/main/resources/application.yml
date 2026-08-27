@@ -1,0 +1,69 @@
+spring:
+  application:
+    name: aval-backend
+  threads:
+    virtual:
+      enabled: true
+
+  datasource:
+    url: ${DATABASE_URL:jdbc:postgresql://localhost:5432/postgres}
+    username: ${DATABASE_USERNAME:postgres}
+    password: ${DATABASE_PASSWORD:}
+    hikari:
+      # Don't fail application startup just because the database is briefly
+      # unreachable — Actuator's health endpoint (Fase 14) is the intended
+      # signal for that, not a crash loop. Pool creation becomes lazy: the
+      # first real query is what surfaces a connectivity problem, not boot.
+      initialization-fail-timeout: -1
+
+  # Flyway is wired and ready, but intentionally OFF by default this round.
+  # The existing Supabase/PostgreSQL schema was created through Supabase's
+  # own migration history, not Flyway's — turning this on against that
+  # database without first establishing an explicit baseline would either
+  # fail outright or attempt to replay schema-creation SQL that already
+  # exists. See docs/architecture/ADR-002-spring-boot-supabase.md and
+  # backend/README.md "Banco de dados" before ever flipping this to true
+  # against a real environment.
+  flyway:
+    enabled: false
+    locations: classpath:db/migration
+
+  security:
+    oauth2:
+      resourceserver:
+        jwt:
+          issuer-uri: ${SUPABASE_JWT_ISSUER:}
+          jwk-set-uri: ${SUPABASE_JWKS_URL:}
+
+server:
+  port: ${SERVER_PORT:8081}
+
+aval:
+  cors:
+    allowed-origins: ${CORS_ALLOWED_ORIGINS:http://localhost:8080}
+  supabase:
+    jwt-audience: ${SUPABASE_JWT_AUDIENCE:authenticated}
+
+management:
+  endpoints:
+    web:
+      exposure:
+        include: ${MANAGEMENT_ENDPOINTS_WEB_EXPOSURE_INCLUDE:health}
+  endpoint:
+    health:
+      show-details: never
+  otlp:
+    metrics:
+      export:
+        enabled: false
+    tracing:
+      endpoint: ${OTEL_EXPORTER_OTLP_ENDPOINT:}
+
+springdoc:
+  swagger-ui:
+    enabled: true
+
+logging:
+  pattern:
+    # requestId comes from RequestIdFilter's MDC entry — see platform.web.
+    console: "%d{yyyy-MM-dd HH:mm:ss.SSS} %-5level [%X{requestId}] %logger{36} - %msg%n"

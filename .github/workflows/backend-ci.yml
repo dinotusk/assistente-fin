@@ -1,0 +1,45 @@
+name: backend-ci
+
+# Scoped entirely to backend/ — never touches or interferes with the
+# frontend's own build/tooling (which has no CI workflow of its own yet,
+# so there is nothing here for this to conflict with or replace).
+on:
+  push:
+    branches: [main, "develop/**"]
+    paths:
+      - "backend/**"
+      - ".github/workflows/backend-ci.yml"
+  pull_request:
+    paths:
+      - "backend/**"
+      - ".github/workflows/backend-ci.yml"
+
+jobs:
+  build-and-test:
+    runs-on: ubuntu-latest
+    defaults:
+      run:
+        working-directory: backend
+    steps:
+      - uses: actions/checkout@v4
+
+      - name: Set up JDK 25
+        uses: actions/setup-java@v4
+        with:
+          distribution: temurin
+          java-version: "25"
+          cache: maven
+
+      - name: Compile
+        run: ./mvnw -B -ntp compile
+
+      - name: Test (unit + MockMvc)
+        run: ./mvnw -B -ntp test
+
+      # ubuntu-latest ships Docker, so the Testcontainers-backed integration
+      # tests can run for real here, not just be configured for it.
+      - name: Verify (includes Testcontainers integration tests)
+        run: ./mvnw -B -ntp verify
+
+      - name: Package
+        run: ./mvnw -B -ntp package -DskipTests

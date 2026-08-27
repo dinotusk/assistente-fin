@@ -1,0 +1,14 @@
+# Local development profile. Activate with SPRING_PROFILES_ACTIVE=local.
+management:
+  endpoints:
+    web:
+      exposure:
+        include: health,info,prometheus,metrics
+
+springdoc:
+  swagger-ui:
+    enabled: true
+
+logging:
+  level:
+    com.aval: DEBUG

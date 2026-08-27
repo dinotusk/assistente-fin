@@ -1,0 +1,15 @@
+# Integration-test profile. Datasource is supplied at runtime by
+# AbstractIntegrationTest via @DynamicPropertySource, pointed at a disposable
+# Testcontainers PostgreSQL instance — never the real Supabase database.
+#
+# Flyway runs for real here (against the throwaway container only), reading
+# a separate, test-only migration set so nothing here ever touches or
+# resembles the live schema. See src/test/resources/db/migration.
+spring:
+  flyway:
+    enabled: true
+    locations: classpath:db/migration
+
+springdoc:
+  swagger-ui:
+    enabled: false

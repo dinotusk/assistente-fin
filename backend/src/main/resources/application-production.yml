@@ -1,0 +1,21 @@
+# Production profile. Activate with SPRING_PROFILES_ACTIVE=production.
+management:
+  endpoints:
+    web:
+      exposure:
+        # Deliberately narrow — bump only with a specific, reviewed reason.
+        include: health
+
+springdoc:
+  # Swagger UI/OpenAPI JSON stay off in production this round — there is no
+  # separate "protect it" mechanism built yet (see README "O que ainda não
+  # foi migrado"). Turning it on requires wiring real access control first.
+  swagger-ui:
+    enabled: false
+  api-docs:
+    enabled: false
+
+logging:
+  level:
+    root: INFO
+    com.aval: INFO

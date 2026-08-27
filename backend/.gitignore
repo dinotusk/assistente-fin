@@ -1,0 +1,12 @@
+target/
+.mvn/wrapper/maven-wrapper.jar
+*.class
+.env
+.env.*
+!.env.example
+HELP.md
+.factorypath
+.apt_generated
+.settings
+.classpath
+.project
