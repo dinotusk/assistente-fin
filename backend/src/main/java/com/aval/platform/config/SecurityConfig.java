@@ -4,7 +4,7 @@ import com.aval.platform.errors.ApiErrorResponse;
 import com.aval.platform.errors.ApiErrorType;
 import com.aval.platform.web.RequestContext;
 import com.aval.platform.web.RequestLoggingFilter;
-import com.fasterxml.jackson.databind.ObjectMapper;
+import tools.jackson.databind.ObjectMapper;
 import jakarta.servlet.http.HttpServletResponse;
 import java.io.IOException;
 import java.util.List;
@@ -27,7 +27,6 @@ import org.springframework.security.oauth2.server.resource.web.authentication.Be
 import org.springframework.security.web.AuthenticationEntryPoint;
 import org.springframework.security.web.SecurityFilterChain;
 import org.springframework.security.web.access.AccessDeniedHandler;
-import org.springframework.security.web.util.matcher.AntPathRequestMatcher;
 import org.springframework.web.cors.CorsConfiguration;
 import org.springframework.web.cors.CorsConfigurationSource;
 import org.springframework.web.cors.UrlBasedCorsConfigurationSource;
@@ -70,19 +69,13 @@ public class SecurityConfig {
         .authorizeHttpRequests(
             authorize ->
                 authorize
-                    .requestMatchers(
-                        new AntPathRequestMatcher("/api/v1/health"),
-                        new AntPathRequestMatcher("/actuator/health"),
-                        new AntPathRequestMatcher("/actuator/health/**"))
+                    .requestMatchers("/api/v1/health", "/actuator/health", "/actuator/health/**")
                     .permitAll()
                     // Swagger UI/OpenAPI JSON are disabled outright in the production
                     // profile (application-production.yml) — permitting the paths
                     // here is harmless when the endpoints don't exist, and avoids
                     // needing a profile-conditional security rule.
-                    .requestMatchers(
-                        new AntPathRequestMatcher("/swagger-ui.html"),
-                        new AntPathRequestMatcher("/swagger-ui/**"),
-                        new AntPathRequestMatcher("/v3/api-docs/**"))
+                    .requestMatchers("/swagger-ui.html", "/swagger-ui/**", "/v3/api-docs/**")
                     .permitAll()
                     .anyRequest()
                     .authenticated())
@@ -185,6 +178,7 @@ public class SecurityConfig {
       throws IOException {
     response.setStatus(status.value());
     response.setContentType(MediaType.APPLICATION_JSON_VALUE);
+    response.setCharacterEncoding("UTF-8");
     ApiErrorResponse body = new ApiErrorResponse(type, message, RequestContext.currentRequestId());
     response.getWriter().write(objectMapper.writeValueAsString(body));
   }

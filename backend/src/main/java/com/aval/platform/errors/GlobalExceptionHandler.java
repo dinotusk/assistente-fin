@@ -11,6 +11,7 @@ import org.springframework.security.access.AccessDeniedException;
 import org.springframework.web.bind.MethodArgumentNotValidException;
 import org.springframework.web.bind.annotation.ExceptionHandler;
 import org.springframework.web.bind.annotation.RestControllerAdvice;
+import org.springframework.web.servlet.resource.NoResourceFoundException;
 
 /**
  * Every exception this API can produce funnels through here into exactly
@@ -58,6 +59,14 @@ public class GlobalExceptionHandler {
   @ExceptionHandler(AccessDeniedException.class)
   public ResponseEntity<ApiErrorResponse> handleAccessDenied(AccessDeniedException ex) {
     return respond(HttpStatus.FORBIDDEN, ApiErrorType.ACCESS_DENIED, "Acesso negado.", List.of());
+  }
+
+  // A genuinely unmapped route (no controller, no static resource) — must
+  // stay a 404, not fall through to the catch-all 500 below, which would
+  // make every unmapped URL look like a server bug instead of a missing one.
+  @ExceptionHandler(NoResourceFoundException.class)
+  public ResponseEntity<ApiErrorResponse> handleNoResourceFound(NoResourceFoundException ex) {
+    return respond(HttpStatus.NOT_FOUND, ApiErrorType.RESOURCE_NOT_FOUND, "Recurso não encontrado.", List.of());
   }
 
   @ExceptionHandler(Exception.class)

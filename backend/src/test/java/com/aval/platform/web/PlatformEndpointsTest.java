@@ -10,7 +10,7 @@ import static org.springframework.test.web.servlet.result.MockMvcResultMatchers.
 
 import org.junit.jupiter.api.Test;
 import org.springframework.beans.factory.annotation.Autowired;
-import org.springframework.boot.test.autoconfigure.web.servlet.AutoConfigureMockMvc;
+import org.springframework.boot.webmvc.test.autoconfigure.AutoConfigureMockMvc;
 import org.springframework.boot.test.context.SpringBootTest;
 import org.springframework.http.HttpHeaders;
 import org.springframework.test.web.servlet.MockMvc;
@@ -121,7 +121,11 @@ class PlatformEndpointsTest {
   void unexposedActuatorEndpointIsNotReachable() throws Exception {
     // Only "health" is in management.endpoints.web.exposure.include by
     // default (application.yml) — anything else must not be mapped at all.
-    mockMvc.perform(get("/actuator/env")).andExpect(status().isNotFound());
+    // Authenticated on purpose: an anonymous request would already be
+    // rejected with 401 by the security filter chain before Spring MVC ever
+    // gets to resolve (or fail to resolve) a handler, which would prove
+    // nothing about whether the endpoint itself is mapped.
+    mockMvc.perform(get("/actuator/env").with(jwt())).andExpect(status().isNotFound());
   }
 
   @Test

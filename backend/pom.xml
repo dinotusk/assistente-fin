@@ -75,11 +75,22 @@
       <scope>runtime</scope>
     </dependency>
 
-    <!-- Schema migrations (configured, not exercised — see ADR/README: existing schema untouched this round). -->
+    <!--
+      Schema migrations (configured, not exercised against the real schema
+      this round — see ADR/README). Spring Boot 4 modularized Flyway's
+      auto-configuration out of spring-boot-autoconfigure into its own
+      module: the raw flyway-core/flyway-database-postgresql artifacts alone
+      no longer trigger it (silently — no error, no log line, Flyway simply
+      never runs). This starter is what actually wires FlywayAutoConfiguration
+      back in, and pulls flyway-core/flyway-database-postgresql transitively.
+    -->
     <dependency>
-      <groupId>org.flywaydb</groupId>
-      <artifactId>flyway-core</artifactId>
+      <groupId>org.springframework.boot</groupId>
+      <artifactId>spring-boot-starter-flyway</artifactId>
     </dependency>
+    <!-- The starter only pulls flyway-core — the PostgreSQL dialect extension
+         is a separate artifact and still needs to be added explicitly, or
+         Flyway throws "Unsupported Database" against a real PostgreSQL connection. -->
     <dependency>
       <groupId>org.flywaydb</groupId>
       <artifactId>flyway-database-postgresql</artifactId>
@@ -119,6 +130,13 @@
       <artifactId>spring-boot-starter-test</artifactId>
       <scope>test</scope>
     </dependency>
+    <!-- Spring Boot 4 modularized test autoconfiguration per web starter —
+         @AutoConfigureMockMvc/MockMvc live here now, not in spring-boot-starter-test. -->
+    <dependency>
+      <groupId>org.springframework.boot</groupId>
+      <artifactId>spring-boot-starter-webmvc-test</artifactId>
+      <scope>test</scope>
+    </dependency>
     <dependency>
       <groupId>org.springframework.security</groupId>
       <artifactId>spring-security-test</artifactId>
@@ -131,7 +149,7 @@
     </dependency>
     <dependency>
       <groupId>org.testcontainers</groupId>
-      <artifactId>junit-jupiter</artifactId>
+      <artifactId>testcontainers-junit-jupiter</artifactId>
       <scope>test</scope>
     </dependency>
     <dependency>
