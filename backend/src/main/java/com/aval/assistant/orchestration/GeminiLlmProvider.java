@@ -2,13 +2,12 @@ package com.aval.assistant.orchestration;
 
 import com.aval.platform.config.AvalProperties;
 import com.fasterxml.jackson.annotation.JsonInclude;
-import java.time.Duration;
 import java.util.ArrayList;
 import java.util.List;
 import java.util.Map;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
-import org.springframework.http.client.SimpleClientHttpRequestFactory;
+import org.springframework.beans.factory.annotation.Qualifier;
 import org.springframework.stereotype.Service;
 import org.springframework.web.client.RestClient;
 import org.springframework.web.client.RestClientException;
@@ -35,10 +34,18 @@ class GeminiLlmProvider implements LlmProvider {
 
   private final AvalProperties.Gemini config;
   private final ObjectMapper objectMapper;
+  private final RestClient restClient;
 
-  GeminiLlmProvider(AvalProperties properties, ObjectMapper objectMapper) {
+  /**
+   * {@code restClient} is a fully-built, already-timeout-configured bean (see {@link
+   * GeminiRestClientConfig}) — injected rather than built inline so a test can substitute one
+   * bound to Spring's {@code MockRestServiceServer} (no real network, no fake HTTP server
+   * process) without touching this class's production wiring at all.
+   */
+  GeminiLlmProvider(AvalProperties properties, ObjectMapper objectMapper, @Qualifier("geminiRestClient") RestClient restClient) {
     this.config = properties.gemini();
     this.objectMapper = objectMapper;
+    this.restClient = restClient;
   }
 
   @Override
@@ -48,13 +55,12 @@ class GeminiLlmProvider implements LlmProvider {
       throw new LlmProviderException("GEMINI_API_KEY/GEMINI_API nao configurada");
     }
     String model = config.model() != null && !config.model().isBlank() ? config.model() : "gemini-2.5-flash";
-    long timeoutMs = config.timeoutMs() > 0 ? config.timeoutMs() : 15_000;
 
     GeminiRequestBody body = toGeminiRequest(request);
     GeminiResponseBody response;
     try {
       response =
-          restClient(timeoutMs)
+          restClient
               .post()
               .uri(API_BASE + model + ":generateContent")
               .header("x-goog-api-key", apiKey)
@@ -63,17 +69,14 @@ class GeminiLlmProvider implements LlmProvider {
               .retrieve()
               .body(GeminiResponseBody.class);
     } catch (RestClientException e) {
-      throw new LlmProviderException("Falha na chamada ao provedor de IA", e);
+      // Never includes e's message/body in what's logged here beyond the exception type — a
+      // 4xx/5xx response body from the provider could itself echo request content back; see
+      // docs/architecture/assistant-foundation.md "Logging".
+      log.error("Gemini call failed: {}", e.getClass().getSimpleName());
+      throw new LlmProviderException("Falha na chamada ao provedor de IA");
     }
 
     return toLlmResponse(response);
-  }
-
-  private RestClient restClient(long timeoutMs) {
-    SimpleClientHttpRequestFactory factory = new SimpleClientHttpRequestFactory();
-    factory.setConnectTimeout(Duration.ofMillis(timeoutMs));
-    factory.setReadTimeout(Duration.ofMillis(timeoutMs));
-    return RestClient.builder().requestFactory(factory).build();
   }
 
   // ---- Generic -> Gemini wire format ----
