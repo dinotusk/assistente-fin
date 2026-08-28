@@ -120,3 +120,35 @@ export interface AssistantMessageResponse {
 export async function sendAssistantMessage(message: string): Promise<AssistantMessageResponse> {
   return authorizedPost<AssistantMessageResponse>("/api/v1/assistant/messages", { message });
 }
+
+/** Mirrors the backend's SimulatePurchaseResponse — see SimulatePurchaseController. */
+export interface SimulatePurchaseResponse {
+  purchaseAmount: string;
+  installments: number;
+  installmentSchedule: string[];
+  currentBudget: string;
+  currentTotal: string;
+  currentFree: string;
+  projectedTotal: string;
+  projectedFree: string;
+  status: "FEASIBLE" | "WARNING" | "NOT_FEASIBLE";
+  assumptions: string[];
+  warnings: string[];
+}
+
+export interface SimulatePurchaseRequest {
+  month: string;
+  scope: "me" | "household" | "profile";
+  /** Only meaningful (and only sent) when scope is "profile". */
+  profileId?: string;
+  /** Decimal string, scale 2 (e.g. "1500.00") — never a raw JS number, see SimulationLimits. */
+  purchaseAmount: string;
+  installments?: number;
+}
+
+/** POST /api/v1/tools/simulate-purchase — see SimulatePurchaseController/SimulatePurchaseTool. */
+export async function simulatePurchase(
+  request: SimulatePurchaseRequest,
+): Promise<SimulatePurchaseResponse> {
+  return authorizedPost<SimulatePurchaseResponse>("/api/v1/tools/simulate-purchase", request);
+}

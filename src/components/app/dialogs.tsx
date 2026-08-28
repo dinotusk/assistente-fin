@@ -1,4 +1,4 @@
-import { useEffect, useState } from "react";
+import { useEffect, useRef, useState } from "react";
 import {
   Bell,
   BellOff,
@@ -15,7 +15,12 @@ import {
 
 import { Drawer, DrawerContent, DrawerHeader, DrawerTitle } from "@/components/ui/drawer";
 import { Switch } from "@/components/ui/switch";
-import { categories, paymentMethods } from "@/lib/finance/constants";
+import {
+  BackendApiError,
+  simulatePurchase,
+  type SimulatePurchaseResponse,
+} from "@/lib/api/backendClient";
+import { categories, paymentMethods, VIEW_ALL, VIEW_ME } from "@/lib/finance/constants";
 import {
   calc,
   categoryLabel,
@@ -1467,6 +1472,59 @@ function getPurchaseResult(
   };
 }
 
+/**
+ * Same 3-tier judgment as getPurchaseResult, but sourced from the backend's authoritative
+ * projectedFree/status instead of a client-computed `free - amount` — P8: never recompute the
+ * financial rule itself, only the "pesada" (weeklyAllowance) classification stays client-side,
+ * per the precedence explicitly decided for this round: NOT_FEASIBLE first, then weeklyAllowance,
+ * then safe.
+ */
+function getRemotePurchaseResult(
+  name: string,
+  amount: number,
+  result: SimulatePurchaseResponse,
+  weeklyAllowance: number,
+  formatMoney: (value: number) => string,
+) {
+  const projectedFree = Number(result.projectedFree);
+  if (result.status === "NOT_FEASIBLE") {
+    return {
+      ok: false,
+      title: "Melhor não comprar agora",
+      body: `Essa compra deixaria o mês negativo em ${formatMoney(Math.abs(projectedFree))}. O ideal é adiar ou trocar por uma opção menor.`,
+    };
+  }
+  if (amount > weeklyAllowance && weeklyAllowance > 0) {
+    return {
+      ok: false,
+      title: "Compra possível, mas pesada",
+      body: `Você ainda ficaria com ${formatMoney(projectedFree)}, mas passaria do limite saudável da semana. Vale negociar ou planejar para o próximo mês.`,
+    };
+  }
+  return {
+    ok: true,
+    title: "Compra segura para este mês",
+    body: `Se comprar ${name.trim()} hoje, ainda sobra ${formatMoney(projectedFree)} no orçamento selecionado.`,
+  };
+}
+
+/** Explicit, never-masked message for a 4xx the backend returned — never a computed financial claim. */
+function explicitSimulationErrorMessage(status: number): string {
+  if (status === 401) return "Sua sessão expirou. Entre novamente para simular pela Railway.";
+  if (status === 403) return "Você não tem permissão para simular agora.";
+  if (status === 429)
+    return "Muitas simulações em pouco tempo. Aguarde um instante e tente de novo.";
+  return "Não foi possível simular agora. Confira os dados e tente novamente.";
+}
+
+/** network failures and 5xx fall back to the local calculator; every other status is an explicit error. */
+function isNetworkOrServerFailure(error: unknown): boolean {
+  if (!(error instanceof BackendApiError)) return true;
+  return error.status === 0 || error.status >= 500;
+}
+
+type SimStatus = "idle" | "loading" | "remote" | "fallback" | "error";
+
 export function PurchaseSimulatorDialog({
   open,
   onOpenChange,
@@ -1483,15 +1541,92 @@ export function PurchaseSimulatorDialog({
 
   const [name, setName] = useState("");
   const [value, setValue] = useState("");
+  const [simStatus, setSimStatus] = useState<SimStatus>("idle");
+  const [remoteResult, setRemoteResult] = useState<SimulatePurchaseResponse | null>(null);
+  const [errorMessage, setErrorMessage] = useState<string | null>(null);
+  // Identifies which (name, amount, view, month) tuple the current sim* state was computed for —
+  // an input change after simulating must not keep showing that result as if it still applied.
+  const [simulatedFor, setSimulatedFor] = useState<string | null>(null);
+  const mountedRef = useRef(true);
+
+  useEffect(() => {
+    mountedRef.current = true;
+    return () => {
+      mountedRef.current = false;
+    };
+  }, []);
 
   useEffect(() => {
     if (!open) return;
     setName("");
     setValue("");
+    setSimStatus("idle");
+    setRemoteResult(null);
+    setErrorMessage(null);
+    setSimulatedFor(null);
   }, [open]);
 
   const amount = parseCurrencyInput(value);
-  const result = getPurchaseResult(name, amount, numbers.free, weeklyAllowance, money);
+  const inputsKey = `${name.trim()}|${amount}|${view}|${state.activeMonth}`;
+  const isStale = simulatedFor !== null && simulatedFor !== inputsKey;
+  const effectiveStatus: SimStatus = isStale ? "idle" : simStatus;
+
+  // household/me map directly; a profile-specific view has no financial_profiles UUID available
+  // client-side yet (P8 audit) — that mapping is deliberately out of scope this round, so those
+  // views always use the local calculator and never call Railway.
+  const remoteScope: "me" | "household" | null =
+    view === VIEW_ALL ? "household" : view === VIEW_ME ? "me" : null;
+
+  async function runSimulation() {
+    if (simStatus === "loading") return; // never a duplicate in-flight request
+    if (!name.trim() || amount <= 0) return;
+    const requestKey = inputsKey;
+
+    if (remoteScope === null) {
+      setSimStatus("fallback");
+      setRemoteResult(null);
+      setErrorMessage(null);
+      setSimulatedFor(requestKey);
+      return;
+    }
+
+    setSimStatus("loading");
+    setErrorMessage(null);
+    try {
+      const result = await simulatePurchase({
+        month: state.activeMonth,
+        scope: remoteScope,
+        purchaseAmount: amount.toFixed(2),
+      });
+      if (!mountedRef.current) return;
+      setRemoteResult(result);
+      setSimStatus("remote");
+      setSimulatedFor(requestKey);
+    } catch (error) {
+      if (!mountedRef.current) return;
+      if (isNetworkOrServerFailure(error)) {
+        setSimStatus("fallback");
+        setRemoteResult(null);
+        setErrorMessage(null);
+      } else {
+        const status = error instanceof BackendApiError ? error.status : 0;
+        setSimStatus("error");
+        setErrorMessage(explicitSimulationErrorMessage(status));
+        setRemoteResult(null);
+      }
+      setSimulatedFor(requestKey);
+    }
+  }
+
+  const localPreview = getPurchaseResult(name, amount, numbers.free, weeklyAllowance, money);
+  const display =
+    effectiveStatus === "loading"
+      ? { ok: true, title: "Calculando…", body: "Consultando seu orçamento." }
+      : effectiveStatus === "error"
+        ? { ok: false, title: "Não foi possível simular", body: errorMessage ?? "" }
+        : effectiveStatus === "remote" && remoteResult
+          ? getRemotePurchaseResult(name, amount, remoteResult, weeklyAllowance, money)
+          : localPreview; // idle, stale, and "fallback" all show the same local calculator
 
   function save() {
     const trimmed = name.trim();
@@ -1500,8 +1635,8 @@ export function PurchaseSimulatorDialog({
       id: uid(),
       name: trimmed,
       amount,
-      rank: result.ok ? 2 : 3,
-      status: result.ok ? "A pagar" : "Adiar",
+      rank: display.ok ? 2 : 3,
+      status: display.ok ? "A pagar" : "Adiar",
       responsavel: resolveViewOwner(view, state.people) || state.people[0] || "Minha casa",
       createdAt: new Date().toISOString(),
     });
@@ -1536,20 +1671,39 @@ export function PurchaseSimulatorDialog({
             placeholder="Ex.: 1500"
           />
         </Field>
+        <button
+          type="button"
+          onClick={runSimulation}
+          disabled={!name.trim() || amount <= 0 || simStatus === "loading"}
+          className="press focus-ring h-11 rounded-2xl border border-primary/25 bg-primary-soft text-sm font-bold text-primary disabled:cursor-not-allowed disabled:opacity-45"
+        >
+          {simStatus === "loading" ? "Simulando…" : "Simular"}
+        </button>
         <div
-          className={`rounded-[1.6rem] border p-4 ${result.ok ? "border-success/30 bg-success/10" : "border-warning/30 bg-warning/10"}`}
+          className={`rounded-[1.6rem] border p-4 ${display.ok ? "border-success/30 bg-success/10" : "border-warning/30 bg-warning/10"}`}
         >
           <div className="flex items-start gap-3">
             <span
-              className={`flex h-10 w-10 shrink-0 items-center justify-center rounded-2xl ${result.ok ? "bg-success/15 text-success" : "bg-warning/20 text-warning"}`}
+              className={`flex h-10 w-10 shrink-0 items-center justify-center rounded-2xl ${display.ok ? "bg-success/15 text-success" : "bg-warning/20 text-warning"}`}
             >
-              {result.ok ? <CheckCircle2 className="h-5 w-5" /> : <Clock3 className="h-5 w-5" />}
+              {effectiveStatus === "loading" ? (
+                <Loader2 className="h-5 w-5 animate-spin" />
+              ) : display.ok ? (
+                <CheckCircle2 className="h-5 w-5" />
+              ) : (
+                <Clock3 className="h-5 w-5" />
+              )}
             </span>
             <div>
-              <strong className="block text-sm font-bold text-foreground">{result.title}</strong>
+              <strong className="block text-sm font-bold text-foreground">{display.title}</strong>
               <p className="mt-1 text-[13px] leading-relaxed text-muted-foreground">
-                {result.body}
+                {display.body}
               </p>
+              {effectiveStatus === "fallback" && (
+                <span className="mt-2 block text-[11px] font-bold text-muted-foreground">
+                  Cálculo local — sem conexão com o servidor agora
+                </span>
+              )}
             </div>
           </div>
         </div>

@@ -6,7 +6,7 @@ const mockSupabase = {
 vi.mock("../supabase/client", () => ({ supabase: mockSupabase }));
 
 // Dynamic import: a static one would resolve before the mock above finishes initializing.
-const { BackendApiError, sendAssistantMessage } = await import("./backendClient");
+const { BackendApiError, sendAssistantMessage, simulatePurchase } = await import("./backendClient");
 
 function mockFetchOnce(status: number, body: unknown) {
   vi.stubGlobal("fetch", vi.fn().mockResolvedValue(new Response(JSON.stringify(body), { status })));
@@ -162,5 +162,124 @@ describe("sendAssistantMessage — response handling", () => {
     vi.stubGlobal("fetch", vi.fn().mockRejectedValue(new TypeError("Failed to fetch")));
 
     await expect(sendAssistantMessage("oi")).rejects.toBeInstanceOf(BackendApiError);
+  });
+});
+
+describe("simulatePurchase — request shape", () => {
+  function mockResponse() {
+    return {
+      purchaseAmount: "1500.00",
+      installments: 1,
+      installmentSchedule: ["1500.00"],
+      currentBudget: "5000.00",
+      currentTotal: "1000.00",
+      currentFree: "4000.00",
+      projectedTotal: "2500.00",
+      projectedFree: "2500.00",
+      status: "FEASIBLE" as const,
+      assumptions: ["HYPOTHETICAL_SCENARIO", "NO_INTEREST_INSTALLMENTS"],
+      warnings: [],
+    };
+  }
+
+  it("posts to /api/v1/tools/simulate-purchase with month/scope/purchaseAmount", async () => {
+    mockFetchOnce(200, mockResponse());
+
+    await simulatePurchase({ month: "2026-08", scope: "household", purchaseAmount: "1500.00" });
+
+    const [url, init] = (fetch as ReturnType<typeof vi.fn>).mock.calls[0];
+    expect(url).toBe("https://backend.example/api/v1/tools/simulate-purchase");
+    expect(JSON.parse(init.body as string)).toEqual({
+      month: "2026-08",
+      scope: "household",
+      purchaseAmount: "1500.00",
+    });
+  });
+
+  it("uses the same Authorization mechanism as sendAssistantMessage", async () => {
+    mockFetchOnce(200, mockResponse());
+    await simulatePurchase({ month: "2026-08", scope: "me", purchaseAmount: "10.00" });
+    const [, init] = (fetch as ReturnType<typeof vi.fn>).mock.calls[0];
+    const headers = init.headers as Record<string, string>;
+    expect(headers.Authorization).toBe("Bearer token-123");
+  });
+
+  it("sends scope=household as-is", async () => {
+    mockFetchOnce(200, mockResponse());
+    await simulatePurchase({ month: "2026-08", scope: "household", purchaseAmount: "10.00" });
+    const [, init] = (fetch as ReturnType<typeof vi.fn>).mock.calls[0];
+    expect(JSON.parse(init.body as string).scope).toBe("household");
+  });
+
+  it("sends scope=me as-is", async () => {
+    mockFetchOnce(200, mockResponse());
+    await simulatePurchase({ month: "2026-08", scope: "me", purchaseAmount: "10.00" });
+    const [, init] = (fetch as ReturnType<typeof vi.fn>).mock.calls[0];
+    expect(JSON.parse(init.body as string).scope).toBe("me");
+  });
+
+  it("sends purchaseAmount as a scale-2 decimal string, never a raw number", async () => {
+    mockFetchOnce(200, mockResponse());
+    await simulatePurchase({ month: "2026-08", scope: "household", purchaseAmount: "1234.50" });
+    const [, init] = (fetch as ReturnType<typeof vi.fn>).mock.calls[0];
+    const body = JSON.parse(init.body as string);
+    expect(body.purchaseAmount).toBe("1234.50");
+    expect(typeof body.purchaseAmount).toBe("string");
+  });
+
+  it("resolves the typed response on 200", async () => {
+    mockFetchOnce(200, mockResponse());
+    const result = await simulatePurchase({
+      month: "2026-08",
+      scope: "household",
+      purchaseAmount: "1500.00",
+    });
+    expect(result.status).toBe("FEASIBLE");
+    expect(result.projectedFree).toBe("2500.00");
+  });
+
+  it("classifies a 400 (validation) as a BackendApiError", async () => {
+    mockFetchOnce(400, {
+      type: "VALIDATION_ERROR",
+      message: "purchaseAmount deve ser maior que zero.",
+    });
+    await expect(
+      simulatePurchase({ month: "2026-08", scope: "household", purchaseAmount: "0.00" }),
+    ).rejects.toMatchObject({ status: 400, type: "VALIDATION_ERROR" });
+  });
+
+  it("classifies a 401 as a BackendApiError", async () => {
+    mockFetchOnce(401, { type: "AUTHENTICATION_REQUIRED", message: "Autenticacao necessaria." });
+    await expect(
+      simulatePurchase({ month: "2026-08", scope: "household", purchaseAmount: "10.00" }),
+    ).rejects.toMatchObject({ status: 401 });
+  });
+
+  it("classifies a 403 as a BackendApiError", async () => {
+    mockFetchOnce(403, { type: "ACCESS_DENIED", message: "Acesso negado." });
+    await expect(
+      simulatePurchase({ month: "2026-08", scope: "household", purchaseAmount: "10.00" }),
+    ).rejects.toMatchObject({ status: 403 });
+  });
+
+  it("classifies a 429 as a BackendApiError", async () => {
+    mockFetchOnce(429, { type: "RATE_LIMITED", message: "Muitas perguntas." });
+    await expect(
+      simulatePurchase({ month: "2026-08", scope: "household", purchaseAmount: "10.00" }),
+    ).rejects.toMatchObject({ status: 429 });
+  });
+
+  it("classifies a 5xx as a BackendApiError", async () => {
+    mockFetchOnce(500, { type: "INTERNAL_ERROR", message: "Erro interno." });
+    await expect(
+      simulatePurchase({ month: "2026-08", scope: "household", purchaseAmount: "10.00" }),
+    ).rejects.toMatchObject({ status: 500 });
+  });
+
+  it("classifies a raw network failure as a BackendApiError", async () => {
+    vi.stubGlobal("fetch", vi.fn().mockRejectedValue(new TypeError("Failed to fetch")));
+    await expect(
+      simulatePurchase({ month: "2026-08", scope: "household", purchaseAmount: "10.00" }),
+    ).rejects.toBeInstanceOf(BackendApiError);
   });
 });
