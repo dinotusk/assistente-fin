@@ -1,0 +1,21 @@
+# Staging profile (P6 — Cloud Run). Activate together with `production`, e.g.
+# SPRING_PROFILES_ACTIVE=production,staging — this profile only adds settings
+# specific to running as a small, low-traffic Cloud Run service on top of
+# production's already-narrow posture (Swagger/OpenAPI off, Actuator only
+# `health`); it does not replace it.
+spring:
+  datasource:
+    hikari:
+      # Sized for THIS staging deployment only — Cloud Run max-instances=2 against
+      # the Supabase Supavisor session-mode pooler (port 5432, one pooled Postgres
+      # connection held per Hikari connection). Ceiling: maxInstances(2) x
+      # maximum-pool-size(3) = 6 concurrent connections against the pooler, chosen
+      # to stay well clear of a connection storm on a low-traffic staging
+      # environment. NOT a production capacity decision — revisit explicitly,
+      # with the pooler's actually-configured pool size in hand, before this
+      # profile is ever asked to carry real production load.
+      maximum-pool-size: 3
+      minimum-idle: 1
+      connection-timeout: 10000
+      idle-timeout: 300000
+      max-lifetime: 1700000

@@ -35,8 +35,15 @@ spring:
           issuer-uri: ${SUPABASE_JWT_ISSUER:}
           jwk-set-uri: ${SUPABASE_JWKS_URL:}
 
+  lifecycle:
+    timeout-per-shutdown-phase: 15s
+
 server:
   port: ${SERVER_PORT:8081}
+  # Lets in-flight requests finish (bounded by the timeout above) instead of being
+  # cut off mid-response on SIGTERM — matters on any host that scales instances
+  # down or replaces them on deploy (e.g. Cloud Run), harmless everywhere else.
+  shutdown: graceful
 
 aval:
   cors:
