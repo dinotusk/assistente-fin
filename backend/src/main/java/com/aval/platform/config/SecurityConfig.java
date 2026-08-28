@@ -17,6 +17,7 @@ import org.springframework.security.config.annotation.web.builders.HttpSecurity;
 import org.springframework.security.config.annotation.web.configuration.EnableWebSecurity;
 import org.springframework.security.config.http.SessionCreationPolicy;
 import org.springframework.security.oauth2.core.DelegatingOAuth2TokenValidator;
+import org.springframework.security.oauth2.jose.jws.SignatureAlgorithm;
 import org.springframework.security.oauth2.jwt.JwtClaimValidator;
 import org.springframework.security.oauth2.jwt.JwtDecoder;
 import org.springframework.security.oauth2.jwt.JwtValidators;
@@ -101,6 +102,17 @@ public class SecurityConfig {
    * issuer, expiry, and audience. Identity is derived exclusively from this
    * — nothing here trusts a client-supplied user id.
    *
+   * <p>Restricted to {@code ES256} — the only algorithm Supabase's own JWKS
+   * for this project actually publishes (an EC P-256 key; confirmed live,
+   * not assumed). {@code NimbusJwtDecoder.withJwkSetUri(...).build()}
+   * without an explicit {@code jwsAlgorithm} defaults to trusting only
+   * {@code RS256}, which would reject every real token this project issues
+   * — the gap that let every real Supabase JWT 401 undetected through P1-P6
+   * (every test here uses Spring Security Test's {@code jwt()}
+   * post-processor, which bypasses this bean entirely). Deliberately fail
+   * closed on exactly one algorithm rather than trusting a broader set
+   * "just in case" — see {@code SecurityConfigJwtDecoderTest}.
+   *
    * <p>The default JWKS URL/issuer are syntactically valid placeholders so
    * the application context always starts even without real Supabase
    * environment variables configured — JWKS fetching is lazy (only happens
@@ -114,22 +126,25 @@ public class SecurityConfig {
   public JwtDecoder jwtDecoder(
       @Value("${SUPABASE_JWKS_URL:https://example.invalid/.well-known/jwks.json}") String jwksUrl,
       @Value("${SUPABASE_JWT_ISSUER:https://example.invalid/auth/v1}") String issuer) {
-    NimbusJwtDecoder decoder = NimbusJwtDecoder.withJwkSetUri(jwksUrl).build();
+    NimbusJwtDecoder decoder =
+        NimbusJwtDecoder.withJwkSetUri(jwksUrl).jwsAlgorithm(SignatureAlgorithm.ES256).build();
     decoder.setJwtValidator(
         new DelegatingOAuth2TokenValidator<>(
             JwtValidators.createDefaultWithIssuer(issuer),
-            new JwtClaimValidator<String>("aud", this::matchesAudience)));
+            new JwtClaimValidator<List<String>>("aud", this::matchesAudience)));
     return decoder;
   }
 
-  // Assumes Supabase's documented JWT shape: `aud` is a single string
-  // ("authenticated"), not a JSON array — true as of Supabase Auth's stable,
-  // long-established token format. If that ever changes, this validator
-  // needs a JwtClaimValidator<List<String>> instead.
-  private boolean matchesAudience(String audienceClaim) {
+  // On the wire, Supabase's `aud` claim is a single string ("authenticated"), not a JSON array —
+  // but Spring Security's NimbusJwtDecoder always normalizes it to List<String> internally
+  // (MappedJwtClaimSetConverter.withDefaults()'s default `aud` conversion), regardless of the raw
+  // JWT's shape. A validator typed on String here throws ClassCastException on every real token —
+  // confirmed against a real signed token, not assumed; see SecurityConfigJwtDecoderTest.
+  private boolean matchesAudience(List<String> audienceClaim) {
     return avalProperties.supabase() != null
         && avalProperties.supabase().jwtAudience() != null
-        && avalProperties.supabase().jwtAudience().equals(audienceClaim);
+        && audienceClaim != null
+        && audienceClaim.contains(avalProperties.supabase().jwtAudience());
   }
 
   /** No custom scopes/roles come from Supabase today — an empty authority set is correct, not an oversight. */
