@@ -71,21 +71,19 @@ describe("askGemini consent gate", () => {
 
   it("throws and never calls fetch when consent has not been granted", async () => {
     const { askGemini } = await import("./ai");
-    await expect(askGemini("Quanto falta pagar?", {})).rejects.toThrow(
+    await expect(askGemini("Quanto falta pagar?")).rejects.toThrow(
       "Consentimento de IA necessario",
     );
     expect(fetch).not.toHaveBeenCalled();
   });
 
-  it("proceeds past the consent check once granted (fails later on invalid context, not on consent)", async () => {
+  it("proceeds past the consent check once granted (fails later for an unrelated reason, not consent)", async () => {
     const { grantAiConsent } = await import("./aiConsent");
     grantAiConsent();
     const { askGemini } = await import("./ai");
-    // Malformed context on purpose — this asserts the failure is a validation
-    // error, not the consent error, proving the gate let it through.
-    await expect(askGemini("Quanto falta pagar?", { notTheRealShape: true })).rejects.toThrow(
-      "Contexto financeiro invalido",
-    );
+    // No VITE_API_BASE_URL configured in this test env — this asserts the failure
+    // is classified as "unavailable" (not "consent"), proving the gate let it through.
+    await expect(askGemini("Quanto falta pagar?")).rejects.toMatchObject({ reason: "unavailable" });
     expect(fetch).not.toHaveBeenCalled();
   });
 });

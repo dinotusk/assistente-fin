@@ -13,13 +13,12 @@ import {
 } from "./calc";
 import { VIEW_ME, VIEW_SPOUSE } from "./constants";
 import type { FinanceState } from "./types";
-import { supabase } from "../supabase/client";
 import { hasAiConsent } from "./aiConsent";
+import { BackendApiError, sendAssistantMessage } from "../api/backendClient";
 import {
   MAX_AI_CATEGORY_ITEMS,
   MAX_CONTEXT_ITEMS,
   MAX_CONTEXT_TEXT_LENGTH,
-  validateAiChatRequest,
   type AiBillEntry,
   type AiChatContext,
   type AiGoalEntry,
@@ -348,47 +347,37 @@ export function describeFallback(reason: AiFailureReason): string {
 }
 
 /**
- * Call the secure Gemini backend; throws GeminiRequestError (always classified) if
- * unavailable so callers can fall back with an honest, specific reason instead of a
- * generic catch-all. Hard-blocks without consent and validates the outgoing payload —
- * this is the last line of defense even though the caller (AssistantView) is expected
- * to gate the UI before ever reaching this call.
+ * Call the Aval Assistant backend (Railway — see AssistantController); throws
+ * GeminiRequestError (always classified) if unavailable so callers can fall back with an
+ * honest, specific reason instead of a generic catch-all. Hard-blocks without consent —
+ * the last line of defense even though the caller (AssistantView) is expected to gate the
+ * UI before ever reaching this call; the server independently re-checks consent regardless
+ * (AiConsentGate), so this is a UX shortcut, not the enforcement boundary.
+ *
+ * <p>P7: no financial context is built or sent from the client anymore — the backend
+ * resolves everything itself via the Financial Tools, from the caller's own JWT. See
+ * buildAiContext's own callers (now none, kept for its unit tests/possible future use).
  */
-export async function askGemini(question: string, context: unknown): Promise<string> {
+export async function askGemini(question: string): Promise<string> {
   if (!hasAiConsent()) {
     throw new GeminiRequestError("Consentimento de IA necessario", "consent");
   }
-  const validated = validateAiChatRequest({ question, context });
-  if (!validated.ok) {
-    throw new GeminiRequestError(validated.error, "unavailable");
-  }
 
-  const { data: sessionData } = await supabase.auth.getSession();
-  const token = sessionData.session?.access_token;
-  if (!token) throw new GeminiRequestError("Sessao nao encontrada", "unavailable");
-
-  let response: Response;
   try {
-    response = await fetch("/api/gemini-chat", {
-      method: "POST",
-      headers: { "Content-Type": "application/json", Authorization: `Bearer ${token}` },
-      body: JSON.stringify(validated.value),
-    });
-  } catch (networkError) {
+    const result = await sendAssistantMessage(question);
+    if (!result.answer) throw new GeminiRequestError("Resposta vazia", "unavailable");
+    return result.answer;
+  } catch (error) {
+    if (error instanceof GeminiRequestError) throw error;
+    if (error instanceof BackendApiError) {
+      console.warn("Assistant backend unavailable:", error.message);
+      const reason: AiFailureReason =
+        error.status === 403 ? "consent" : error.status === 429 ? "rate_limit" : "unavailable";
+      throw new GeminiRequestError(error.message, reason);
+    }
     throw new GeminiRequestError(
-      networkError instanceof Error ? networkError.message : "Falha de rede",
+      error instanceof Error ? error.message : "Falha de rede",
       "unavailable",
     );
   }
-
-  const data = await response.json().catch(() => ({}));
-  if (!response.ok) {
-    const message = typeof data?.error === "string" ? data.error : "Assistente indisponivel";
-    console.warn("Gemini backend unavailable:", message);
-    const reason: AiFailureReason =
-      response.status === 403 ? "consent" : response.status === 429 ? "rate_limit" : "unavailable";
-    throw new GeminiRequestError(message, reason);
-  }
-  if (!data.answer) throw new GeminiRequestError("Resposta vazia", "unavailable");
-  return data.answer as string;
 }

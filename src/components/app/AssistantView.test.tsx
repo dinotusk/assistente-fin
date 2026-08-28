@@ -79,7 +79,6 @@ vi.mock("@/lib/finance/ai", async (importOriginal) => {
     ...actual,
     askGemini: mockAskGemini,
     answerLocally: mockAnswerLocally,
-    buildAiContext: () => ({}),
   };
 });
 
@@ -111,6 +110,21 @@ describe("a real Gemini answer renders as a plain bubble — no fallback marker"
     expect(mockAnswerLocally).not.toHaveBeenCalled();
     // none of the fallback labels leaked in
     expect(screen.queryByText(/Resposta local/i)).toBeNull();
+  });
+
+  it("calls askGemini with only the question — no financial context built/sent from the client (P7)", async () => {
+    mockAskGemini.mockResolvedValue("Seu mês está tranquilo, ainda sobram R$ 800,00.");
+    await askAndWait("Como está meu mês?");
+
+    expect(mockAskGemini).toHaveBeenCalledWith("Como está meu mês?");
+    expect(mockAskGemini).toHaveBeenCalledTimes(1);
+  });
+
+  it("a local command (e.g. creating a priority) never reaches askGemini/the Railway backend", async () => {
+    await askAndWait("criar meta de 500 para viagem");
+
+    expect(mockAskGemini).not.toHaveBeenCalled();
+    expect(mockFinance.savePriority).toHaveBeenCalled();
   });
 });
 

@@ -3,16 +3,17 @@ import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
 import type { FinanceState } from "./types";
 import type { AiIntent } from "./aiRequestValidation";
 
-const mockSupabase = {
-  auth: { getSession: vi.fn() },
-};
-vi.mock("../supabase/client", () => ({ supabase: mockSupabase }));
-
 const mockConsent = { hasAiConsent: vi.fn(() => true) };
 vi.mock("./aiConsent", () => mockConsent);
 
-// Dynamic, not static: a static top-level import would resolve "../supabase/client"
-// before the mocks above finish initializing — see aiConsentRepository.test.ts.
+const mockBackendClient = { sendAssistantMessage: vi.fn() };
+vi.mock("../api/backendClient", async (importOriginal) => {
+  const actual = await importOriginal<typeof import("../api/backendClient")>();
+  return { ...actual, sendAssistantMessage: mockBackendClient.sendAssistantMessage };
+});
+
+// Dynamic, not static: a static top-level import would resolve the mocked modules above
+// before their factories finish initializing — see aiConsentRepository.test.ts.
 const {
   GeminiRequestError,
   askGemini,
@@ -21,6 +22,7 @@ const {
   classifyAiIntent,
   describeFallback,
 } = await import("./ai");
+const { BackendApiError } = await import("../api/backendClient");
 
 const ALL_INTENTS: AiIntent[] = [
   "BALANCE",
@@ -110,19 +112,11 @@ function baseState(): FinanceState {
   };
 }
 
-function mockFetchOnce(status: number, body: unknown) {
-  vi.stubGlobal("fetch", vi.fn().mockResolvedValue(new Response(JSON.stringify(body), { status })));
-}
-
 beforeEach(() => {
   mockConsent.hasAiConsent.mockReturnValue(true);
-  mockSupabase.auth.getSession.mockResolvedValue({
-    data: { session: { access_token: "token-123" } },
-  });
 });
 
 afterEach(() => {
-  vi.unstubAllGlobals();
   vi.clearAllMocks();
 });
 
@@ -370,45 +364,62 @@ describe("P0-FRONTEND-1C.1 — ActiveUser.email can never leak into the AI conte
 describe("askGemini — failure classification (so the UI can be honest about why it fell back)", () => {
   it("classifies missing local consent as 'consent' before ever touching the network", async () => {
     mockConsent.hasAiConsent.mockReturnValue(false);
-    await expect(askGemini("oi", {})).rejects.toMatchObject({ reason: "consent" });
-    expect(mockSupabase.auth.getSession).not.toHaveBeenCalled();
+    await expect(askGemini("oi")).rejects.toMatchObject({ reason: "consent" });
+    expect(mockBackendClient.sendAssistantMessage).not.toHaveBeenCalled();
   });
 
-  it("classifies a server 403 (consent revoked/out of date) as 'consent'", async () => {
-    mockFetchOnce(403, { error: "Consentimento de IA necessario ou desatualizado" });
-    await expect(askGemini("oi", validContext())).rejects.toMatchObject({ reason: "consent" });
+  it("sends only the question — no financial context — to the backend", async () => {
+    mockBackendClient.sendAssistantMessage.mockResolvedValue({ answer: "ok" });
+    await askGemini("Qual meu saldo?");
+    expect(mockBackendClient.sendAssistantMessage).toHaveBeenCalledWith("Qual meu saldo?");
+    expect(mockBackendClient.sendAssistantMessage).toHaveBeenCalledTimes(1);
   });
 
-  it("classifies a server 429 as 'rate_limit'", async () => {
-    mockFetchOnce(429, { error: "Muitas perguntas em pouco tempo." });
-    await expect(askGemini("oi", validContext())).rejects.toMatchObject({ reason: "rate_limit" });
+  it("classifies a backend 403 (AiConsentGate) as 'consent'", async () => {
+    mockBackendClient.sendAssistantMessage.mockRejectedValue(
+      new BackendApiError("Consentimento de IA necessario ou desatualizado.", 403, "ACCESS_DENIED"),
+    );
+    await expect(askGemini("oi")).rejects.toMatchObject({ reason: "consent" });
   });
 
-  it("classifies a server 504 (timeout) as 'unavailable', never as if Gemini had answered", async () => {
-    mockFetchOnce(504, { error: "Tempo de resposta excedido. Tente novamente." });
-    await expect(askGemini("oi", validContext())).rejects.toMatchObject({ reason: "unavailable" });
+  it("classifies a backend 429 (AiRateLimiter) as 'rate_limit'", async () => {
+    mockBackendClient.sendAssistantMessage.mockRejectedValue(
+      new BackendApiError("Muitas perguntas em pouco tempo.", 429, "RATE_LIMITED"),
+    );
+    await expect(askGemini("oi")).rejects.toMatchObject({ reason: "rate_limit" });
   });
 
-  it("classifies a server 502 (upstream/blocked) as 'unavailable'", async () => {
-    mockFetchOnce(502, { error: "Assistente de IA indisponivel no momento" });
-    await expect(askGemini("oi", validContext())).rejects.toMatchObject({ reason: "unavailable" });
+  it("classifies a backend 5xx (EXTERNAL_SERVICE_ERROR) as 'unavailable', never as if the assistant had answered", async () => {
+    mockBackendClient.sendAssistantMessage.mockRejectedValue(
+      new BackendApiError("Assistente indisponivel no momento.", 502, "EXTERNAL_SERVICE_ERROR"),
+    );
+    await expect(askGemini("oi")).rejects.toMatchObject({ reason: "unavailable" });
   });
 
-  it("classifies a raw network failure (fetch throws) as 'unavailable', not a silent generic Error", async () => {
-    vi.stubGlobal("fetch", vi.fn().mockRejectedValue(new TypeError("Failed to fetch")));
-    const result = askGemini("oi", validContext());
+  it("classifies a missing/expired session (401 from backendClient) as 'unavailable'", async () => {
+    mockBackendClient.sendAssistantMessage.mockRejectedValue(
+      new BackendApiError("Sessao nao encontrada", 401),
+    );
+    await expect(askGemini("oi")).rejects.toMatchObject({ reason: "unavailable" });
+  });
+
+  it("classifies a raw network failure as 'unavailable', not a silent generic Error", async () => {
+    mockBackendClient.sendAssistantMessage.mockRejectedValue(new TypeError("Failed to fetch"));
+    const result = askGemini("oi");
     await expect(result).rejects.toBeInstanceOf(GeminiRequestError);
     await expect(result).rejects.toMatchObject({ reason: "unavailable" });
   });
 
   it("classifies an empty answer body as 'unavailable' rather than resolving with nothing", async () => {
-    mockFetchOnce(200, {});
-    await expect(askGemini("oi", validContext())).rejects.toMatchObject({ reason: "unavailable" });
+    mockBackendClient.sendAssistantMessage.mockResolvedValue({ answer: "" });
+    await expect(askGemini("oi")).rejects.toMatchObject({ reason: "unavailable" });
   });
 
-  it("still resolves normally on a clean 200 with an answer", async () => {
-    mockFetchOnce(200, { answer: "Voce esta dentro do orcamento." });
-    await expect(askGemini("oi", validContext())).resolves.toBe("Voce esta dentro do orcamento.");
+  it("still resolves normally on a clean answer", async () => {
+    mockBackendClient.sendAssistantMessage.mockResolvedValue({
+      answer: "Voce esta dentro do orcamento.",
+    });
+    await expect(askGemini("oi")).resolves.toBe("Voce esta dentro do orcamento.");
   });
 });
 
@@ -444,7 +455,3 @@ describe("answerLocally — never returns a blank fallback", () => {
     expect(answer.length).toBeGreaterThan(0);
   });
 });
-
-function validContext() {
-  return buildAiContext(baseState(), "GENERAL");
-}
