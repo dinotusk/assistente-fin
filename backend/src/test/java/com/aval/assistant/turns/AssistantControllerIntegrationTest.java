@@ -205,6 +205,44 @@ class AssistantControllerIntegrationTest extends AbstractIntegrationTest {
   }
 
   @Test
+  void simulatePurchaseToolCallWorksAndAnswerDistinguishesHypotheticalFromReal() throws Exception {
+    DELEGATE.set(
+        FakeLlmProvider.script(
+            toolCall("simulate_purchase", Map.of("month", "2026-08", "scope", "household", "purchaseAmount", "500")),
+            finalAnswer("Nesse cenario hipotetico, a compra de R$500 caberia no orcamento.")));
+
+    mockMvc
+        .perform(
+            post("/api/v1/assistant/messages")
+                .contentType("application/json")
+                .content(bodyOf("posso comprar algo de 500 reais?"))
+                .with(jwt().jwt(b -> b.subject(userA.toString()))))
+        .andExpect(status().isOk())
+        .andExpect(jsonPath("$.toolsUsed[0]", is("simulate_purchase")))
+        .andExpect(jsonPath("$.answer", org.hamcrest.Matchers.containsString("cenario")));
+  }
+
+  @Test
+  void simulateSavingsToolCallWorks() throws Exception {
+    DELEGATE.set(
+        FakeLlmProvider.script(
+            toolCall(
+                "simulate_savings",
+                Map.of(
+                    "mode", "FUTURE_VALUE", "month", "2026-08", "currentSaved", "0", "monthlyContribution", "500", "months", "12")),
+            finalAnswer("Se voce guardar R$500 por 12 meses, teria R$6000, sem rendimento.")));
+
+    mockMvc
+        .perform(
+            post("/api/v1/assistant/messages")
+                .contentType("application/json")
+                .content(bodyOf("se eu guardar 500 por mes, quanto tenho em um ano?"))
+                .with(jwt().jwt(b -> b.subject(userA.toString()))))
+        .andExpect(status().isOk())
+        .andExpect(jsonPath("$.toolsUsed[0]", is("simulate_savings")));
+  }
+
+  @Test
   void nonexistentToolRequestedByThePromptInjectionNeverExecutesAndStillAnswers() throws Exception {
     DELEGATE.set(
         FakeLlmProvider.script(
