@@ -6,6 +6,7 @@ import com.aval.finance.budgets.FinancialMonth;
 import com.aval.finance.expenses.EntryType;
 import com.aval.finance.expenses.ExpenseStatus;
 import com.aval.finance.expenses.FinancialEntry;
+import com.aval.finance.goals.Priority;
 import com.aval.household.FinancialProfile;
 import com.aval.household.FinancialScope;
 import java.util.Comparator;
@@ -76,6 +77,30 @@ public final class FinancialCalculator {
       }
       case FinancialScope.Profile(UUID profileId) ->
           allEntriesInMonth.stream().filter(e -> e.ownerProfileId().equals(profileId)).toList();
+    };
+  }
+
+  /**
+   * P3-FINANCIAL-TOOLS — the same positional ("position, not kind") resolution as {@link
+   * #entriesFor}, applied to {@code priorities} instead of {@code expenses}: {@code Household}
+   * matches every priority in the month; {@code Me} matches the sortOrder-0 profile's priorities;
+   * {@code Profile} matches that exact profile id, no positional indirection. This mirrors
+   * calc.ts's {@code priorityMatchesView}, which resolves a priority's owner the same way
+   * {@code expenseMatchesView} does. Kept here (not in {@code finance.goals}) so the one
+   * "resolve a scope to a profile id" rule stays centralized, exactly as
+   * docs/architecture/financial-domain.md requires for {@code sortOrder} resolution.
+   */
+  public static List<Priority> prioritiesFor(
+      FinancialScope scope, List<Priority> allPrioritiesInMonth, List<FinancialProfile> activeProfilesBySortOrder) {
+    return switch (scope) {
+      case FinancialScope.Household ignored -> allPrioritiesInMonth;
+      case FinancialScope.Me ignored -> {
+        if (activeProfilesBySortOrder.isEmpty()) yield List.of();
+        UUID meId = activeProfilesBySortOrder.get(0).id();
+        yield allPrioritiesInMonth.stream().filter(p -> p.profileId().equals(meId)).toList();
+      }
+      case FinancialScope.Profile(UUID profileId) ->
+          allPrioritiesInMonth.stream().filter(p -> p.profileId().equals(profileId)).toList();
     };
   }
 

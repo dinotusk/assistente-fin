@@ -33,6 +33,56 @@ class JdbcExpenseRepository implements ExpenseRepository {
         .list();
   }
 
+  @Override
+  public List<FinancialEntry> search(ExpenseSearchCriteria criteria) {
+    // Every filter below is appended as a parameterized clause, never string-concatenated into
+    // the SQL text itself — the WHERE clause's shape changes per request, but every value is
+    // always bound, exactly like the fixed-shape queries elsewhere in this package.
+    StringBuilder filters = new StringBuilder();
+    if (criteria.ownerProfileId().isPresent()) filters.append(" and owner_profile_id = :ownerProfileId");
+    if (criteria.category().isPresent()) filters.append(" and category = :category");
+    if (criteria.status().isPresent()) filters.append(" and status = :status");
+    if (criteria.entryType().isPresent()) filters.append(" and entry_type = :entryType");
+
+    String sql =
+        """
+        select id, owner_profile_id, description, entry_type, category, amount, status,
+               expense_date, due_date
+        from expenses
+        where household_id = :householdId and month_id = :monthId
+        """
+            + filters
+            + " order by expense_date desc, id desc limit :limit offset :offset";
+
+    var query =
+        jdbcClient
+            .sql(sql)
+            .param("householdId", criteria.householdId())
+            .param("monthId", criteria.monthId())
+            .param("limit", criteria.limit() + 1)
+            .param("offset", criteria.offset());
+    if (criteria.ownerProfileId().isPresent()) query = query.param("ownerProfileId", criteria.ownerProfileId().get());
+    if (criteria.category().isPresent()) query = query.param("category", criteria.category().get());
+    if (criteria.status().isPresent()) query = query.param("status", toDbStatus(criteria.status().get()));
+    if (criteria.entryType().isPresent()) query = query.param("entryType", toDbEntryType(criteria.entryType().get()));
+
+    return query.query(JdbcExpenseRepository::mapRow).list();
+  }
+
+  private static String toDbStatus(ExpenseStatus status) {
+    return switch (status) {
+      case PAID -> "Pago";
+      case PENDING -> "A pagar";
+    };
+  }
+
+  private static String toDbEntryType(EntryType type) {
+    return switch (type) {
+      case EXPENSE -> "expense";
+      case INCOME -> "income";
+    };
+  }
+
   private static FinancialEntry mapRow(ResultSet rs, int rowNum) throws SQLException {
     return new FinancialEntry(
         UUID.fromString(rs.getString("id")),

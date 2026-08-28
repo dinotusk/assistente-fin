@@ -294,4 +294,47 @@ class FinancialCalculatorTest {
       assertThat(totals).extracting(CategoryTotal::category).containsExactly("Transporte", "Casa");
     }
   }
+
+  /** P3-FINANCIAL-TOOLS — {@code get_goals}' scope filter. Same "position, not kind" rule as {@code EntriesForTests}. */
+  @Nested
+  class PrioritiesForTests {
+
+    private com.aval.finance.goals.Priority priority(UUID profileId, String description) {
+      return new com.aval.finance.goals.Priority(
+          UUID.randomUUID(),
+          HOUSEHOLD,
+          MONTH_ID,
+          profileId,
+          description,
+          Money.of("1000"),
+          Money.of("400"),
+          2,
+          com.aval.finance.goals.PriorityStatus.PENDING);
+    }
+
+    @Test
+    void householdScopeIncludesEveryPriorityRegardlessOfOwner() {
+      List<com.aval.finance.goals.Priority> all =
+          List.of(priority(ANA_ID, "Viagem"), priority(RAFAEL_ID, "Curso"), priority(BETO_ID, "Bike"));
+      List<com.aval.finance.goals.Priority> result =
+          FinancialCalculator.prioritiesFor(new FinancialScope.Household(), all, activeProfiles());
+      assertThat(result).hasSize(3);
+    }
+
+    @Test
+    void meScopeMatchesOnlyTheSortOrderZeroProfileNeverByName() {
+      List<com.aval.finance.goals.Priority> all = List.of(priority(ANA_ID, "Viagem"), priority(RAFAEL_ID, "Curso"));
+      List<com.aval.finance.goals.Priority> result =
+          FinancialCalculator.prioritiesFor(new FinancialScope.Me(), all, activeProfiles());
+      assertThat(result).extracting(com.aval.finance.goals.Priority::description).containsExactly("Viagem");
+    }
+
+    @Test
+    void profileScopeMatchesTheExactProfileIdNoPositionalIndirection() {
+      List<com.aval.finance.goals.Priority> all = List.of(priority(ANA_ID, "Viagem"), priority(BETO_ID, "Bike"));
+      List<com.aval.finance.goals.Priority> result =
+          FinancialCalculator.prioritiesFor(new FinancialScope.Profile(BETO_ID), all, activeProfiles());
+      assertThat(result).extracting(com.aval.finance.goals.Priority::description).containsExactly("Bike");
+    }
+  }
 }
