@@ -47,16 +47,22 @@ final class AssistantToolArguments {
 
   /**
    * Parses a monetary argument — the model is instructed (via the tool's JSON schema) to send a
-   * decimal string, e.g. {@code "3500.00"}, never a bare JSON number (a double round-trip could
-   * silently lose exact cents). A {@code Number} is still accepted defensively, converted via
-   * {@link BigDecimal#valueOf(double)} (exact-decimal-string based, not {@code new
-   * BigDecimal(double)}) — never trusted as the primary contract.
+   * decimal string, e.g. {@code "3500.00"}. {@code Money} never touches a {@code double}/{@code
+   * float} here, not even on this defensive, off-contract path: a {@link BigDecimal} argument
+   * (Jackson can deserialize a JSON number straight into one) is used exactly as given; an
+   * integral {@link Number} (e.g. an {@code Integer}/{@code Long} the model sent for a
+   * whole-currency amount) is converted via its exact {@code longValue()} — safe, since it
+   * carries no fractional part to lose. A {@code Double}/{@code Float} argument is rejected
+   * outright rather than silently accepted through a lossy binary-floating-point round-trip.
    */
   static Money requireMoney(Map<String, Object> arguments, String key) {
     Object value = arguments.get(key);
     try {
       if (value instanceof String s && !s.isBlank()) return Money.of(new BigDecimal(s.trim()));
-      if (value instanceof Number n) return Money.of(BigDecimal.valueOf(n.doubleValue()));
+      if (value instanceof BigDecimal bd) return Money.of(bd);
+      if (value instanceof Integer || value instanceof Long || value instanceof Short || value instanceof Byte) {
+        return Money.of(BigDecimal.valueOf(((Number) value).longValue()));
+      }
     } catch (NumberFormatException | ArithmeticException e) {
       throw new ApiException(ApiErrorType.VALIDATION_ERROR, "Argumento monetario invalido: " + key);
     }
