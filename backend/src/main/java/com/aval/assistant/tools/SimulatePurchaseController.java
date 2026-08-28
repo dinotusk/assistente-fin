@@ -2,12 +2,12 @@ package com.aval.assistant.tools;
 
 import com.aval.finance.Money;
 import com.aval.finance.simulations.PurchaseSimulationResult;
+import com.aval.finance.simulations.SimulationLimits;
 import com.aval.household.FinancialScope;
 import com.aval.platform.auth.AuthenticatedUser;
 import com.aval.platform.errors.ApiErrorType;
 import com.aval.platform.errors.ApiException;
 import io.swagger.v3.oas.annotations.Operation;
-import java.math.BigDecimal;
 import java.time.YearMonth;
 import org.springframework.security.core.annotation.AuthenticationPrincipal;
 import org.springframework.security.oauth2.jwt.Jwt;
@@ -44,8 +44,10 @@ public class SimulatePurchaseController {
     if (!purchaseAmount.isPositive()) {
       throw new ApiException(ApiErrorType.VALIDATION_ERROR, "purchaseAmount deve ser maior que zero.");
     }
-    if (installments < 1) {
-      throw new ApiException(ApiErrorType.VALIDATION_ERROR, "installments deve ser >= 1.");
+    if (!SimulationLimits.isWithinInstallmentBounds(installments)) {
+      throw new ApiException(
+          ApiErrorType.VALIDATION_ERROR,
+          "installments deve estar entre " + SimulationLimits.MIN_INSTALLMENTS + " e " + SimulationLimits.MAX_INSTALLMENTS + ".");
     }
 
     PurchaseSimulationResult result = tool.execute(user, month, scope, purchaseAmount, installments);
@@ -61,8 +63,8 @@ public class SimulatePurchaseController {
 
   private static Money parseMoney(String value) {
     try {
-      return Money.of(new BigDecimal(value.trim()));
-    } catch (NumberFormatException | ArithmeticException e) {
+      return SimulationLimits.parseMoneyOrThrow(value);
+    } catch (IllegalArgumentException e) {
       throw new ApiException(ApiErrorType.VALIDATION_ERROR, "Valor monetario invalido.");
     }
   }

@@ -1,6 +1,7 @@
 package com.aval.assistant.tools;
 
 import com.aval.finance.Money;
+import com.aval.finance.simulations.SimulationLimits;
 import com.aval.platform.errors.ApiErrorType;
 import com.aval.platform.errors.ApiException;
 import java.math.BigDecimal;
@@ -54,16 +55,21 @@ final class AssistantToolArguments {
    * whole-currency amount) is converted via its exact {@code longValue()} — safe, since it
    * carries no fractional part to lose. A {@code Double}/{@code Float} argument is rejected
    * outright rather than silently accepted through a lossy binary-floating-point round-trip.
+   *
+   * <p>Every branch is routed through {@link SimulationLimits}' safe parsing/magnitude checks —
+   * a raw string is never handed to {@link BigDecimal#BigDecimal(String)}/{@link
+   * Money#of(BigDecimal)} without the length/precision guards that close the
+   * huge-literal-digit-string and exponent-notation memory-exhaustion vectors documented there.
    */
   static Money requireMoney(Map<String, Object> arguments, String key) {
     Object value = arguments.get(key);
     try {
-      if (value instanceof String s && !s.isBlank()) return Money.of(new BigDecimal(s.trim()));
-      if (value instanceof BigDecimal bd) return Money.of(bd);
+      if (value instanceof String s && !s.isBlank()) return SimulationLimits.parseMoneyOrThrow(s);
+      if (value instanceof BigDecimal bd) return SimulationLimits.toBoundedMoney(bd);
       if (value instanceof Integer || value instanceof Long || value instanceof Short || value instanceof Byte) {
-        return Money.of(BigDecimal.valueOf(((Number) value).longValue()));
+        return SimulationLimits.toBoundedMoney(BigDecimal.valueOf(((Number) value).longValue()));
       }
-    } catch (NumberFormatException | ArithmeticException e) {
+    } catch (ArithmeticException | IllegalArgumentException e) {
       throw new ApiException(ApiErrorType.VALIDATION_ERROR, "Argumento monetario invalido: " + key);
     }
     throw new ApiException(ApiErrorType.VALIDATION_ERROR, "Argumento obrigatorio ausente ou invalido: " + key);

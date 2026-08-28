@@ -37,6 +37,11 @@ public final class SavingsSimulationCalculator {
    */
   public static TimeToTargetResult timeToTarget(
       YearMonth baseMonth, Money targetAmount, Money currentSaved, Money monthlyContribution) {
+    if (SimulationLimits.exceedsMaxMoney(targetAmount)
+        || SimulationLimits.exceedsMaxMoney(currentSaved)
+        || SimulationLimits.exceedsMaxMoney(monthlyContribution)) {
+      throw new IllegalArgumentException("A monetary argument exceeds the maximum representable amount");
+    }
     Money remaining = Money.max(Money.ZERO, targetAmount.subtract(currentSaved));
 
     List<SimulationAssumption> assumptions =
@@ -56,7 +61,22 @@ public final class SavingsSimulationCalculator {
     }
 
     BigDecimal ratio = remaining.value().divide(monthlyContribution.value(), MathContext.DECIMAL64);
-    int monthsRequired = ratio.setScale(0, RoundingMode.CEILING).intValueExact();
+    BigDecimal monthsCeiling = ratio.setScale(0, RoundingMode.CEILING);
+
+    // A large remaining amount against a small contribution can produce a month count with no
+    // sane real-world meaning (and, left unchecked, one large enough to overflow int — this was
+    // found by this hardening round's own test suite, not a synthetic worry: it's real input,
+    // e.g. remaining=999999999999.99 / contribution=100). Bounded by the same MAX_MONTHS this
+    // whole engine already uses as its horizon (see FUTURE_VALUE's own months limit) — not a new,
+    // separately-invented threshold — and reported as NOT_FEASIBLE, never a crash or a guess.
+    if (monthsCeiling.compareTo(BigDecimal.valueOf(SimulationLimits.MAX_MONTHS)) > 0) {
+      return new TimeToTargetResult(
+          targetAmount, currentSaved, monthlyContribution, remaining,
+          Optional.empty(), Optional.empty(), SimulationStatus.NOT_FEASIBLE, assumptions,
+          List.of(SimulationWarning.targetBeyondSupportedHorizon()));
+    }
+
+    int monthsRequired = monthsCeiling.intValueExact();
     YearMonth estimatedTargetMonth = baseMonth.plusMonths(monthsRequired);
 
     return new TimeToTargetResult(
@@ -66,6 +86,13 @@ public final class SavingsSimulationCalculator {
 
   /** {@code projectedSaved = currentSaved + monthlyContribution * months} — accumulated via repeated {@link Money#add}, never a new multiply operation on {@link Money} (deliberately not added — see Money's own javadoc). */
   public static FutureValueResult futureValue(Money currentSaved, Money monthlyContribution, int months) {
+    if (!SimulationLimits.isWithinMonthsBounds(months)) {
+      throw new IllegalArgumentException(
+          "months must be between " + SimulationLimits.MIN_MONTHS + " and " + SimulationLimits.MAX_MONTHS);
+    }
+    if (SimulationLimits.exceedsMaxMoney(currentSaved) || SimulationLimits.exceedsMaxMoney(monthlyContribution)) {
+      throw new IllegalArgumentException("A monetary argument exceeds the maximum representable amount");
+    }
     Money projected = currentSaved;
     for (int i = 0; i < months; i++) {
       projected = projected.add(monthlyContribution);

@@ -15,4 +15,11 @@ public record SimulationWarning(String code, String message) {
     return new SimulationWarning(
         "ZERO_CONTRIBUTION", "Com contribuicao mensal de zero, esta meta nunca sera atingida por este plano.");
   }
+
+  public static SimulationWarning targetBeyondSupportedHorizon() {
+    return new SimulationWarning(
+        "TARGET_BEYOND_SUPPORTED_HORIZON",
+        "Com essa contribuicao mensal, o tempo necessario para atingir a meta ultrapassa o horizonte suportado por esta simulacao ("
+            + SimulationLimits.MAX_MONTHS + " meses).");
+  }
 }

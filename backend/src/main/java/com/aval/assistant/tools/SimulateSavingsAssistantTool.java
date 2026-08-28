@@ -4,6 +4,7 @@ import com.aval.assistant.orchestration.AssistantTool;
 import com.aval.assistant.orchestration.JsonSchema;
 import com.aval.finance.Money;
 import com.aval.finance.simulations.FutureValueResult;
+import com.aval.finance.simulations.SimulationLimits;
 import com.aval.finance.simulations.TimeToTargetResult;
 import com.aval.platform.errors.ApiErrorType;
 import com.aval.platform.errors.ApiException;
@@ -52,7 +53,7 @@ class SimulateSavingsAssistantTool implements AssistantTool {
             "targetAmount", JsonSchema.string("Valor alvo em reais (string decimal) — obrigatorio no modo TIME_TO_TARGET quando goalId ausente"),
             "currentSaved", JsonSchema.string("Valor ja guardado em reais (string decimal) — obrigatorio quando goalId ausente"),
             "monthlyContribution", JsonSchema.string("Contribuicao mensal em reais (string decimal), nunca negativa"),
-            "months", JsonSchema.integer("Numero de meses a projetar — obrigatorio no modo FUTURE_VALUE")),
+            "months", JsonSchema.integer("Numero de meses a projetar, entre 0 e 1200 — obrigatorio no modo FUTURE_VALUE")),
         List.of("mode", "month", "monthlyContribution"));
   }
 
@@ -79,7 +80,11 @@ class SimulateSavingsAssistantTool implements AssistantTool {
         Money currentSaved = requireExplicitOrGoal(arguments, "currentSaved", goalId);
         if (currentSaved.isNegative()) throw new ApiException(ApiErrorType.VALIDATION_ERROR, "currentSaved nao pode ser negativo.");
         int months = AssistantToolArguments.optionalInt(arguments, "months", -1);
-        if (months < 0) throw new ApiException(ApiErrorType.VALIDATION_ERROR, "months e obrigatorio (>= 0) no modo FUTURE_VALUE.");
+        if (!SimulationLimits.isWithinMonthsBounds(months)) {
+          throw new ApiException(
+              ApiErrorType.VALIDATION_ERROR,
+              "months e obrigatorio, entre " + SimulationLimits.MIN_MONTHS + " e " + SimulationLimits.MAX_MONTHS + ".");
+        }
         FutureValueResult result = tool.futureValue(context.user(), month, goalId, currentSaved, monthlyContribution, months);
         yield SimulateSavingsResponse.fromFutureValue(result);
       }

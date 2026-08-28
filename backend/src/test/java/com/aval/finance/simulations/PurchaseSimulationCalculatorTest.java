@@ -2,8 +2,10 @@ package com.aval.finance.simulations;
 
 import static org.assertj.core.api.Assertions.assertThat;
 import static org.assertj.core.api.Assertions.assertThatThrownBy;
+import static org.junit.jupiter.api.Assertions.assertTimeoutPreemptively;
 
 import com.aval.finance.Money;
+import java.time.Duration;
 import java.util.List;
 import org.junit.jupiter.api.Nested;
 import org.junit.jupiter.api.Test;
@@ -46,6 +48,37 @@ class PurchaseSimulationCalculatorTest {
     void zeroOrNegativeInstallmentsIsRejected() {
       assertThatThrownBy(() -> PurchaseSimulationCalculator.splitIntoInstallments(Money.of("100"), 0))
           .isInstanceOf(IllegalArgumentException.class);
+    }
+
+    @Test
+    void oneInstallmentIsAtTheMinimumBound() {
+      assertThat(PurchaseSimulationCalculator.splitIntoInstallments(Money.of("120"), SimulationLimits.MIN_INSTALLMENTS))
+          .containsExactly(Money.of("120"));
+    }
+
+    @Test
+    void oneHundredTwentyInstallmentsIsAtTheMaximumBoundAndStillSumsExactly() {
+      List<Money> schedule = PurchaseSimulationCalculator.splitIntoInstallments(Money.of("100"), SimulationLimits.MAX_INSTALLMENTS);
+      assertThat(schedule).hasSize(SimulationLimits.MAX_INSTALLMENTS);
+      assertThat(schedule.stream().reduce(Money.ZERO, Money::add)).isEqualTo(Money.of("100"));
+    }
+
+    @Test
+    void oneHundredTwentyOneInstallmentsExceedsTheMaximumBound() {
+      assertThatThrownBy(() -> PurchaseSimulationCalculator.splitIntoInstallments(Money.of("100"), SimulationLimits.MAX_INSTALLMENTS + 1))
+          .isInstanceOf(IllegalArgumentException.class);
+    }
+
+    @Test
+    void extremelyLargeInstallmentCountIsRejectedBeforeAnyAllocation() {
+      // If the bound weren't checked before allocating, Integer.MAX_VALUE installments would
+      // attempt to build a multi-gigabyte List<Money> — assertTimeoutPreemptively proves the
+      // rejection is immediate (no attempted allocation), not just eventually correct.
+      assertTimeoutPreemptively(
+          Duration.ofSeconds(2),
+          () ->
+              assertThatThrownBy(() -> PurchaseSimulationCalculator.splitIntoInstallments(Money.of("100"), Integer.MAX_VALUE))
+                  .isInstanceOf(IllegalArgumentException.class));
     }
   }
 
@@ -126,6 +159,30 @@ class PurchaseSimulationCalculatorTest {
     @Test
     void zeroInstallmentsIsRejected() {
       assertThatThrownBy(() -> PurchaseSimulationCalculator.simulate(Money.of("100"), 0, Money.of("5000"), Money.ZERO, Money.of("5000")))
+          .isInstanceOf(IllegalArgumentException.class);
+    }
+
+    @Test
+    void installmentsAboveTheMaximumBoundIsRejected() {
+      assertThatThrownBy(
+              () ->
+                  PurchaseSimulationCalculator.simulate(
+                      Money.of("100"), SimulationLimits.MAX_INSTALLMENTS + 1, Money.of("5000"), Money.ZERO, Money.of("5000")))
+          .isInstanceOf(IllegalArgumentException.class);
+    }
+
+    @Test
+    void purchaseAmountAtTheMaximumRepresentableLimitIsAccepted() {
+      PurchaseSimulationResult result =
+          PurchaseSimulationCalculator.simulate(
+              SimulationLimits.MAX_MONEY_VALUE, 1, SimulationLimits.MAX_MONEY_VALUE, Money.ZERO, SimulationLimits.MAX_MONEY_VALUE);
+      assertThat(result.purchaseAmount()).isEqualTo(SimulationLimits.MAX_MONEY_VALUE);
+    }
+
+    @Test
+    void purchaseAmountAboveTheMaximumRepresentableLimitIsRejected() {
+      Money tooLarge = SimulationLimits.MAX_MONEY_VALUE.add(Money.of("0.01"));
+      assertThatThrownBy(() -> PurchaseSimulationCalculator.simulate(tooLarge, 1, Money.of("5000"), Money.ZERO, Money.of("5000")))
           .isInstanceOf(IllegalArgumentException.class);
     }
   }

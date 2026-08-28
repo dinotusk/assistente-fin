@@ -1,8 +1,11 @@
 package com.aval.finance.simulations;
 
 import static org.assertj.core.api.Assertions.assertThat;
+import static org.assertj.core.api.Assertions.assertThatThrownBy;
+import static org.junit.jupiter.api.Assertions.assertTimeoutPreemptively;
 
 import com.aval.finance.Money;
+import java.time.Duration;
 import java.time.YearMonth;
 import org.junit.jupiter.api.Nested;
 import org.junit.jupiter.api.Test;
@@ -84,6 +87,20 @@ class SavingsSimulationCalculatorTest {
       TimeToTargetResult b = SavingsSimulationCalculator.timeToTarget(AUGUST, Money.of("1000"), Money.of("100"), Money.of("300"));
       assertThat(a).isEqualTo(b);
     }
+
+    @Test
+    void targetAmountAtTheMaximumRepresentableLimitIsAccepted() {
+      TimeToTargetResult result =
+          SavingsSimulationCalculator.timeToTarget(AUGUST, SimulationLimits.MAX_MONEY_VALUE, Money.ZERO, Money.of("100"));
+      assertThat(result.targetAmount()).isEqualTo(SimulationLimits.MAX_MONEY_VALUE);
+    }
+
+    @Test
+    void targetAmountAboveTheMaximumRepresentableLimitIsRejected() {
+      Money tooLarge = SimulationLimits.MAX_MONEY_VALUE.add(Money.of("0.01"));
+      assertThatThrownBy(() -> SavingsSimulationCalculator.timeToTarget(AUGUST, tooLarge, Money.ZERO, Money.of("100")))
+          .isInstanceOf(IllegalArgumentException.class);
+    }
   }
 
   @Nested
@@ -112,6 +129,36 @@ class SavingsSimulationCalculatorTest {
     void noInterestIsAssumedExplicitly() {
       FutureValueResult result = SavingsSimulationCalculator.futureValue(Money.ZERO, Money.of("100"), 5);
       assertThat(result.assumptions()).extracting(SimulationAssumption::code).contains("NO_INTEREST_SAVINGS");
+    }
+
+    @Test
+    void twelveHundredMonthsIsAtTheMaximumBound() {
+      FutureValueResult result = SavingsSimulationCalculator.futureValue(Money.ZERO, Money.of("1"), SimulationLimits.MAX_MONTHS);
+      assertThat(result.projectedSaved()).isEqualTo(Money.of(String.valueOf(SimulationLimits.MAX_MONTHS)));
+    }
+
+    @Test
+    void twelveHundredOneMonthsExceedsTheMaximumBound() {
+      assertThatThrownBy(() -> SavingsSimulationCalculator.futureValue(Money.ZERO, Money.of("1"), SimulationLimits.MAX_MONTHS + 1))
+          .isInstanceOf(IllegalArgumentException.class);
+    }
+
+    @Test
+    void extremelyLargeMonthsIsRejectedBeforeIteratingAtAll() {
+      // If the bound weren't checked before the loop, Integer.MAX_VALUE months would iterate
+      // ~2.1 billion times; assertTimeoutPreemptively proves the rejection is immediate.
+      assertTimeoutPreemptively(
+          Duration.ofSeconds(2),
+          () ->
+              assertThatThrownBy(() -> SavingsSimulationCalculator.futureValue(Money.ZERO, Money.of("1"), Integer.MAX_VALUE))
+                  .isInstanceOf(IllegalArgumentException.class));
+    }
+
+    @Test
+    void currentSavedAboveTheMaximumRepresentableLimitIsRejected() {
+      Money tooLarge = SimulationLimits.MAX_MONEY_VALUE.add(Money.of("0.01"));
+      assertThatThrownBy(() -> SavingsSimulationCalculator.futureValue(tooLarge, Money.of("1"), 1))
+          .isInstanceOf(IllegalArgumentException.class);
     }
   }
 }

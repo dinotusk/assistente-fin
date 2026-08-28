@@ -4,6 +4,7 @@ import com.aval.assistant.orchestration.AssistantTool;
 import com.aval.assistant.orchestration.JsonSchema;
 import com.aval.finance.Money;
 import com.aval.finance.simulations.PurchaseSimulationResult;
+import com.aval.finance.simulations.SimulationLimits;
 import com.aval.household.FinancialScope;
 import com.aval.platform.errors.ApiErrorType;
 import com.aval.platform.errors.ApiException;
@@ -48,7 +49,7 @@ class SimulatePurchaseAssistantTool implements AssistantTool {
             "scope", JsonSchema.stringEnum("Escopo dos dados", "me", "household", "profile"),
             "profileId", JsonSchema.string("UUID do perfil — obrigatorio quando scope=profile"),
             "purchaseAmount", JsonSchema.string("Valor da compra em reais, como string decimal, ex: \"3500.00\""),
-            "installments", JsonSchema.integer("Numero de parcelas, opcional, padrao 1. Sem juros.")),
+            "installments", JsonSchema.integer("Numero de parcelas, opcional, padrao 1, entre 1 e 120. Sem juros.")),
         List.of("month", "scope", "purchaseAmount"));
   }
 
@@ -64,8 +65,10 @@ class SimulatePurchaseAssistantTool implements AssistantTool {
     if (!purchaseAmount.isPositive()) {
       throw new ApiException(ApiErrorType.VALIDATION_ERROR, "purchaseAmount deve ser maior que zero.");
     }
-    if (installments < 1) {
-      throw new ApiException(ApiErrorType.VALIDATION_ERROR, "installments deve ser >= 1.");
+    if (!SimulationLimits.isWithinInstallmentBounds(installments)) {
+      throw new ApiException(
+          ApiErrorType.VALIDATION_ERROR,
+          "installments deve estar entre " + SimulationLimits.MIN_INSTALLMENTS + " e " + SimulationLimits.MAX_INSTALLMENTS + ".");
     }
 
     PurchaseSimulationResult result = tool.execute(context.user(), month, scope, purchaseAmount, installments);

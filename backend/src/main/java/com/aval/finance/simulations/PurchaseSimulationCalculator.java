@@ -27,8 +27,9 @@ public final class PurchaseSimulationCalculator {
    * rounding" heuristic. E.g. 100.00 split 3 ways -> [33.34, 33.33, 33.33].
    */
   public static List<Money> splitIntoInstallments(Money total, int installments) {
-    if (installments < 1) {
-      throw new IllegalArgumentException("installments must be >= 1");
+    if (!SimulationLimits.isWithinInstallmentBounds(installments)) {
+      throw new IllegalArgumentException(
+          "installments must be between " + SimulationLimits.MIN_INSTALLMENTS + " and " + SimulationLimits.MAX_INSTALLMENTS);
     }
     long totalCents = total.value().unscaledValue().longValueExact();
     long baseCents = totalCents / installments;
@@ -55,8 +56,12 @@ public final class PurchaseSimulationCalculator {
     if (!purchaseAmount.isPositive()) {
       throw new IllegalArgumentException("purchaseAmount must be > 0");
     }
-    if (installments < 1) {
-      throw new IllegalArgumentException("installments must be >= 1");
+    if (SimulationLimits.exceedsMaxMoney(purchaseAmount)) {
+      throw new IllegalArgumentException("purchaseAmount exceeds the maximum representable amount");
+    }
+    if (!SimulationLimits.isWithinInstallmentBounds(installments)) {
+      throw new IllegalArgumentException(
+          "installments must be between " + SimulationLimits.MIN_INSTALLMENTS + " and " + SimulationLimits.MAX_INSTALLMENTS);
     }
 
     List<Money> schedule = splitIntoInstallments(purchaseAmount, installments);

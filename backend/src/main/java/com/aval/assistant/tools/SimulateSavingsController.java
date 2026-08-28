@@ -2,12 +2,12 @@ package com.aval.assistant.tools;
 
 import com.aval.finance.Money;
 import com.aval.finance.simulations.FutureValueResult;
+import com.aval.finance.simulations.SimulationLimits;
 import com.aval.finance.simulations.TimeToTargetResult;
 import com.aval.platform.auth.AuthenticatedUser;
 import com.aval.platform.errors.ApiErrorType;
 import com.aval.platform.errors.ApiException;
 import io.swagger.v3.oas.annotations.Operation;
-import java.math.BigDecimal;
 import java.time.YearMonth;
 import java.util.Optional;
 import java.util.UUID;
@@ -60,8 +60,10 @@ public class SimulateSavingsController {
       case "FUTURE_VALUE" -> {
         Money currentSaved = requireExplicitOrGoal(request.currentSaved(), goalId);
         if (currentSaved.isNegative()) throw new ApiException(ApiErrorType.VALIDATION_ERROR, "currentSaved nao pode ser negativo.");
-        if (request.months() == null || request.months() < 0) {
-          throw new ApiException(ApiErrorType.VALIDATION_ERROR, "months e obrigatorio (>= 0) no modo FUTURE_VALUE.");
+        if (request.months() == null || !SimulationLimits.isWithinMonthsBounds(request.months())) {
+          throw new ApiException(
+              ApiErrorType.VALIDATION_ERROR,
+              "months e obrigatorio, entre " + SimulationLimits.MIN_MONTHS + " e " + SimulationLimits.MAX_MONTHS + ".");
         }
         FutureValueResult result = tool.futureValue(user, month, goalId, currentSaved, monthlyContribution, request.months());
         yield SimulateSavingsResponse.fromFutureValue(result);
@@ -95,8 +97,8 @@ public class SimulateSavingsController {
 
   private static Money parseMoney(String value) {
     try {
-      return Money.of(new BigDecimal(value.trim()));
-    } catch (NumberFormatException | ArithmeticException e) {
+      return SimulationLimits.parseMoneyOrThrow(value);
+    } catch (IllegalArgumentException e) {
       throw new ApiException(ApiErrorType.VALIDATION_ERROR, "Valor monetario invalido.");
     }
   }

@@ -195,6 +195,54 @@ controller accepts a `householdId`/`userId` from the client. A `profileId`/`goal
 household is `RESOURCE_NOT_FOUND`, never leaking existence — proven for both simulations by
 `SimulationIntegrationTest` against two real, independent households in Postgres.
 
+## Input hardening (P5.1)
+
+The P5 final review documented a medium risk: `installments`, `months`, and every monetary field
+had no upper bound on the two HTTP endpoints — an authenticated user could send an absurdly large
+value, causing a resource-heavy single request (bounded to that request/thread, requiring a valid
+JWT, but a real gap versus P3's own precedent of capping numeric inputs, e.g. `get_expenses`'s
+`pageSize`). Closed by `com.aval.finance.simulations.SimulationLimits`:
+
+| Limit | Value | Rationale |
+|---|---|---|
+| `installments` | 1–120 | A purchase parcelled over more than 10 years is outside this tool's intended horizon — an operational ceiling, not financial advice. |
+| `months` (`FUTURE_VALUE`) | 0–1200 | Same 10-year horizon, applied to the projection window. |
+| Money magnitude | `numeric(14,2)`'s own capacity (12 integer digits + 2 decimal, i.e. up to `999999999999.99`) | Not an arbitrary smaller cap — the exact ceiling every real money column in this schema already enforces (see `financial-domain.md` "Money"). A simulation input is never persisted, but staying within the same magnitude every real value here already respects keeps "hypothetical" and "real" directly comparable, and rejects a value no genuine record could ever hold regardless. |
+
+Enforced at two layers, both **before** any allocation/iteration proportional to the input: the
+`AssistantTool` adapters and HTTP controllers (a proper `400 VALIDATION_ERROR`), and defensively
+inside the pure calculators themselves (`IllegalArgumentException` — never reached via the real
+entry points, but a real guard if this package is ever called another way).
+
+### Two real vulnerabilities found while implementing this, neither purely hypothetical
+
+1. **Exponent-notation memory bomb.** `Money.of(new BigDecimal("1e999999999"))` — an 11-character
+   string — forces `BigDecimal.setScale` to materialize a value with roughly one billion digits,
+   because the unscaled value (`1`) must be multiplied by `10^999999999` to reach scale 2. Closed
+   by `SimulationLimits.assertRepresentable`, which checks `precision() - scale()` (cheap — it
+   never touches the value's actual digits) **before** `Money.of()` ever calls `setScale`. A
+   companion length cap (32 characters) closes the simpler "literal string of a billion `9`s"
+   variant, rejected before `new BigDecimal(String)` even runs.
+2. **Extreme negative exponent overflow.** Empirically verified (not assumed): `new
+   BigDecimal("1e-999999999").setScale(2, HALF_UP)` does not hang or exhaust memory — it throws a
+   raw `ArithmeticException` ("BigInteger would overflow supported range"), which
+   `assertRepresentable`'s digit-count check alone does not catch (the magnitude there is tiny,
+   not huge). `SimulationLimits.toBoundedMoney` now catches this specific `ArithmeticException`
+   and normalizes it into the same `IllegalArgumentException` every other rejection uses, so no
+   caller can forget to catch it separately.
+3. **Month-count integer overflow in `TIME_TO_TARGET`.** `remaining / monthlyContribution` can
+   exceed `Integer.MAX_VALUE` for legitimate (if extreme) inputs — e.g. a target near the maximum
+   representable amount against a small monthly contribution — and `BigDecimal.intValueExact()`
+   threw an uncaught `ArithmeticException`. Found by this hardening round's own test suite, not
+   synthesized. Fixed by checking the computed month count against the same `MAX_MONTHS` ceiling
+   `FUTURE_VALUE` already uses (not a new, separately-invented threshold) **before** calling
+   `intValueExact()`; beyond that horizon the result is `NOT_FEASIBLE` with a
+   `TARGET_BEYOND_SUPPORTED_HORIZON` warning, never a crash or a guessed number.
+
+None of this changed any P2/P3/P5 financial formula — every fix rejects an input earlier or
+reclassifies an unreachable plan as `NOT_FEASIBLE`; the math for every value that was already
+being tested (and every value within the new bounds) is byte-for-byte unchanged.
+
 ## Data minimization
 
 Same rule as P3/P4: no JWT, email, userId, householdId, or internal DB id ever reaches the LLM.

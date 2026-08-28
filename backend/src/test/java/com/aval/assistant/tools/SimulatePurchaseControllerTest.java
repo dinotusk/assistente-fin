@@ -81,4 +81,84 @@ class SimulatePurchaseControllerTest {
         .andExpect(status().isBadRequest())
         .andExpect(jsonPath("$.type", is("VALIDATION_ERROR")));
   }
+
+  @Test
+  void oneHundredTwentyInstallmentsIsAccepted() throws Exception {
+    PurchaseSimulationResult result =
+        PurchaseSimulationCalculator.simulate(Money.of("100"), 120, Money.of("5000"), Money.of("0"), Money.of("5000"));
+    when(tool.execute(any(), any(), any(), eq(Money.of("100")), eq(120))).thenReturn(result);
+
+    mockMvc
+        .perform(
+            post("/api/v1/tools/simulate-purchase")
+                .contentType("application/json")
+                .content("{\"month\":\"2026-08\",\"scope\":\"household\",\"purchaseAmount\":\"100\",\"installments\":120}")
+                .with(jwt()))
+        .andExpect(status().isOk());
+  }
+
+  @Test
+  void oneHundredTwentyOneInstallmentsIs400() throws Exception {
+    mockMvc
+        .perform(
+            post("/api/v1/tools/simulate-purchase")
+                .contentType("application/json")
+                .content("{\"month\":\"2026-08\",\"scope\":\"household\",\"purchaseAmount\":\"100\",\"installments\":121}")
+                .with(jwt()))
+        .andExpect(status().isBadRequest())
+        .andExpect(jsonPath("$.type", is("VALIDATION_ERROR")));
+  }
+
+  @Test
+  void extremelyLargeInstallmentsIs400WithoutMassiveAllocation() throws Exception {
+    mockMvc
+        .perform(
+            post("/api/v1/tools/simulate-purchase")
+                .contentType("application/json")
+                .content("{\"month\":\"2026-08\",\"scope\":\"household\",\"purchaseAmount\":\"100\",\"installments\":2000000000}")
+                .with(jwt()))
+        .andExpect(status().isBadRequest())
+        .andExpect(jsonPath("$.type", is("VALIDATION_ERROR")));
+  }
+
+  @Test
+  void purchaseAmountAboveTheRepresentableLimitIs400() throws Exception {
+    mockMvc
+        .perform(
+            post("/api/v1/tools/simulate-purchase")
+                .contentType("application/json")
+                .content("{\"month\":\"2026-08\",\"scope\":\"household\",\"purchaseAmount\":\"1000000000000.00\"}")
+                .with(jwt()))
+        .andExpect(status().isBadRequest())
+        .andExpect(jsonPath("$.type", is("VALIDATION_ERROR")));
+  }
+
+  @Test
+  void exponentNotationAbuseIs400() throws Exception {
+    mockMvc
+        .perform(
+            post("/api/v1/tools/simulate-purchase")
+                .contentType("application/json")
+                .content("{\"month\":\"2026-08\",\"scope\":\"household\",\"purchaseAmount\":\"1e999999999\"}")
+                .with(jwt()))
+        .andExpect(status().isBadRequest())
+        .andExpect(jsonPath("$.type", is("VALIDATION_ERROR")));
+  }
+
+  @Test
+  void validationErrorResponseNeverLeaksStackTraceOrExceptionClassName() throws Exception {
+    String body =
+        mockMvc
+            .perform(
+                post("/api/v1/tools/simulate-purchase")
+                    .contentType("application/json")
+                    .content("{\"month\":\"2026-08\",\"scope\":\"household\",\"purchaseAmount\":\"100\",\"installments\":121}")
+                    .with(jwt()))
+            .andReturn()
+            .getResponse()
+            .getContentAsString();
+    org.junit.jupiter.api.Assertions.assertFalse(body.contains("Exception"));
+    org.junit.jupiter.api.Assertions.assertFalse(body.contains("\tat "));
+    org.junit.jupiter.api.Assertions.assertFalse(body.toLowerCase().contains("select "));
+  }
 }
