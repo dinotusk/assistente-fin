@@ -94,6 +94,89 @@ describe("sendAssistantMessage — request shape", () => {
   });
 });
 
+describe("sendAssistantMessage — context hints (P7.1)", () => {
+  function stubResponse() {
+    mockFetchOnce(200, {
+      answer: "ok",
+      conversationId: "c1",
+      requestId: "r1",
+      toolsUsed: [],
+      generatedAt: "2026-08-28T00:00:00Z",
+    });
+  }
+
+  it("no hints -> body is exactly { message }, unchanged from before P7.1", async () => {
+    stubResponse();
+    await sendAssistantMessage("Análise do mês");
+    const [, init] = (fetch as ReturnType<typeof vi.fn>).mock.calls[0];
+    expect(JSON.parse(init.body as string)).toEqual({ message: "Análise do mês" });
+  });
+
+  it("household hints -> body includes month + scope=household", async () => {
+    stubResponse();
+    await sendAssistantMessage("Análise do mês", { month: "2026-07", scope: "household" });
+    const [, init] = (fetch as ReturnType<typeof vi.fn>).mock.calls[0];
+    expect(JSON.parse(init.body as string)).toEqual({
+      message: "Análise do mês",
+      month: "2026-07",
+      scope: "household",
+    });
+  });
+
+  it("me hints -> body includes month + scope=me", async () => {
+    stubResponse();
+    await sendAssistantMessage("Meu limite", { month: "2026-07", scope: "me" });
+    const [, init] = (fetch as ReturnType<typeof vi.fn>).mock.calls[0];
+    expect(JSON.parse(init.body as string)).toEqual({
+      message: "Meu limite",
+      month: "2026-07",
+      scope: "me",
+    });
+  });
+
+  it("undefined hint fields never enter the body, even when the hints object itself is passed", async () => {
+    stubResponse();
+    await sendAssistantMessage("oi", { month: "2026-07" });
+    const [, init] = (fetch as ReturnType<typeof vi.fn>).mock.calls[0];
+    const body = JSON.parse(init.body as string);
+    expect(body).toEqual({ message: "oi", month: "2026-07" });
+    expect(body).not.toHaveProperty("scope");
+    expect(body).not.toHaveProperty("profileId");
+  });
+
+  it("profileId is only sent when explicitly provided", async () => {
+    stubResponse();
+    await sendAssistantMessage("oi", {
+      month: "2026-07",
+      scope: "profile",
+      profileId: "11111111-1111-1111-1111-111111111111",
+    });
+    const [, init] = (fetch as ReturnType<typeof vi.fn>).mock.calls[0];
+    expect(JSON.parse(init.body as string)).toEqual({
+      message: "oi",
+      month: "2026-07",
+      scope: "profile",
+      profileId: "11111111-1111-1111-1111-111111111111",
+    });
+  });
+
+  it("Authorization/Content-Type headers are unaffected by hints", async () => {
+    stubResponse();
+    await sendAssistantMessage("oi", { month: "2026-07", scope: "household" });
+    const [, init] = (fetch as ReturnType<typeof vi.fn>).mock.calls[0];
+    const headers = init.headers as Record<string, string>;
+    expect(headers.Authorization).toBe("Bearer token-123");
+    expect(headers["Content-Type"]).toBe("application/json");
+  });
+
+  it("existing error handling (403) is unaffected by hints being present", async () => {
+    mockFetchOnce(403, { type: "ACCESS_DENIED", message: "Consentimento necessario." });
+    await expect(
+      sendAssistantMessage("oi", { month: "2026-07", scope: "household" }),
+    ).rejects.toMatchObject({ status: 403, type: "ACCESS_DENIED" });
+  });
+});
+
 describe("sendAssistantMessage — response handling", () => {
   it("parses a clean 200 into the typed response", async () => {
     mockFetchOnce(200, {

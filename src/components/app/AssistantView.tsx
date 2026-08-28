@@ -26,6 +26,7 @@ import {
   sum,
   viewLabelForPeople,
 } from "@/lib/finance/calc";
+import type { AssistantContextHints } from "@/lib/api/backendClient";
 import {
   type AiFailureReason,
   answerLocally,
@@ -76,6 +77,23 @@ interface AssistantViewProps {
 
 function alertsToMessages(alerts: VigiaAlert[]): Message[] {
   return alerts.map((alert) => ({ role: "ai", sender: alert.vigia.name, text: alert.message }));
+}
+
+/**
+ * P7.1 — the single place that derives the Assistant's UI-context hints (never financial data,
+ * see AssistantContextHints's own doc). VIEW_ALL/VIEW_ME map directly to household/me; a
+ * specific-profile view has no financial_profiles UUID available client-side yet (P7.2, not this
+ * round) — it deliberately sends no scope at all rather than degrading to household/me or
+ * fabricating a profileId. Shared by every caller (quick actions and manual questions) so there
+ * is exactly one context-derivation path, not four.
+ */
+export function deriveAssistantContextHints(
+  view: string,
+  activeMonth: string,
+): AssistantContextHints {
+  if (view === VIEW_ALL) return { month: activeMonth, scope: "household" };
+  if (view === VIEW_ME) return { month: activeMonth, scope: "me" };
+  return {};
 }
 
 export function AssistantView({
@@ -181,7 +199,7 @@ export function AssistantView({
     let answer: string;
     let fallbackLabel: string | undefined;
     try {
-      answer = await askGemini(question);
+      answer = await askGemini(question, deriveAssistantContextHints(view, state.activeMonth));
       logAiInteraction("gemini");
     } catch (error) {
       const reason = error instanceof GeminiRequestError ? error.reason : "unavailable";
@@ -253,7 +271,17 @@ export function AssistantView({
       return `Orcamento atualizado.\nPerfil: ${viewLabelForPeople(view, state.people)}\nNovo limite: ${money(amountInfo.amount)}`;
     }
 
-    if (!amountInfo && /\b(paguei|pagar|marcar|marca|quitei|quitar)\b/.test(normalized)) {
+    // "falta pagar" is an informational query ("o que/quanto falta pagar?"),
+    // not a write command — the same phrase classifyAiIntent already treats
+    // as a BILLS query (see AI_INTENT_PATTERNS in ai.ts). Excluding it here
+    // keeps "pagar conta de luz"/"quitar aluguel"/etc. as local commands
+    // while letting bare status queries reach the Assistant.
+    const isInformationalFaltaPagarQuery = /\bfalta\s+pagar\b/.test(normalized);
+    if (
+      !amountInfo &&
+      !isInformationalFaltaPagarQuery &&
+      /\b(paguei|pagar|marcar|marca|quitei|quitar)\b/.test(normalized)
+    ) {
       const term = cleanCommandName(question, "", [
         "paguei",
         "pagar",

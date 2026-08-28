@@ -14,7 +14,11 @@ import {
 import { VIEW_ME, VIEW_SPOUSE } from "./constants";
 import type { FinanceState } from "./types";
 import { hasAiConsent } from "./aiConsent";
-import { BackendApiError, sendAssistantMessage } from "../api/backendClient";
+import {
+  BackendApiError,
+  sendAssistantMessage,
+  type AssistantContextHints,
+} from "../api/backendClient";
 import {
   MAX_AI_CATEGORY_ITEMS,
   MAX_CONTEXT_ITEMS,
@@ -357,14 +361,18 @@ export function describeFallback(reason: AiFailureReason): string {
  * <p>P7: no financial context is built or sent from the client anymore — the backend
  * resolves everything itself via the Financial Tools, from the caller's own JWT. See
  * buildAiContext's own callers (now none, kept for its unit tests/possible future use).
+ *
+ * <p>P7.1: {@code hints} is UI-known context only (month/scope/profileId) — never a financial
+ * number, never a substitute for a tool call; it's passed through verbatim to
+ * {@link sendAssistantMessage}, which only sends the fields that are actually set.
  */
-export async function askGemini(question: string): Promise<string> {
+export async function askGemini(question: string, hints?: AssistantContextHints): Promise<string> {
   if (!hasAiConsent()) {
     throw new GeminiRequestError("Consentimento de IA necessario", "consent");
   }
 
   try {
-    const result = await sendAssistantMessage(question);
+    const result = await sendAssistantMessage(question, hints);
     if (!result.answer) throw new GeminiRequestError("Resposta vazia", "unavailable");
     return result.answer;
   } catch (error) {

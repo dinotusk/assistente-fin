@@ -116,9 +116,29 @@ export interface AssistantMessageResponse {
   generatedAt: string;
 }
 
+/**
+ * UI-known context, never financial data — see AssistantRequest's javadoc: these are only ever
+ * a "what's on screen" hint the model must still confirm via a Financial Tool call, never a
+ * substitute for one. `profileId` is only ever set once a real financial_profiles UUID is
+ * available (P7.2, not this round) — never fabricated from a name.
+ */
+export interface AssistantContextHints {
+  month?: string;
+  scope?: "me" | "household" | "profile";
+  profileId?: string;
+}
+
 /** POST /api/v1/assistant/messages — see AssistantController/AssistantRequest. */
-export async function sendAssistantMessage(message: string): Promise<AssistantMessageResponse> {
-  return authorizedPost<AssistantMessageResponse>("/api/v1/assistant/messages", { message });
+export async function sendAssistantMessage(
+  message: string,
+  hints?: AssistantContextHints,
+): Promise<AssistantMessageResponse> {
+  return authorizedPost<AssistantMessageResponse>("/api/v1/assistant/messages", {
+    message,
+    ...(hints?.month !== undefined ? { month: hints.month } : {}),
+    ...(hints?.scope !== undefined ? { scope: hints.scope } : {}),
+    ...(hints?.profileId !== undefined ? { profileId: hints.profileId } : {}),
+  });
 }
 
 /** Mirrors the backend's SimulatePurchaseResponse — see SimulatePurchaseController. */

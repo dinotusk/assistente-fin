@@ -9,6 +9,7 @@ import { cleanup, fireEvent, render, screen, waitFor } from "@testing-library/re
 import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
 
 import type { FinanceState } from "@/lib/finance/types";
+import { VIEW_ALL, VIEW_ME } from "@/lib/finance/constants";
 
 import { AssistantView } from "./AssistantView";
 
@@ -27,7 +28,42 @@ function baseState(): FinanceState {
         label: "Agosto 2026",
         income: 5000,
         houseContribution: 1000,
-        expenses: [],
+        expenses: [
+          {
+            id: "expense-internet",
+            name: "Internet",
+            category: "Casa",
+            amount: 150,
+            status: "A pagar",
+            owner: "Maria",
+            date: "2026-08-10",
+            dueDate: "2026-08-20",
+            paymentMethod: "Pix",
+            note: "",
+          },
+          {
+            id: "expense-aluguel",
+            name: "Aluguel",
+            category: "Casa",
+            amount: 1200,
+            status: "A pagar",
+            owner: "Maria",
+            date: "2026-08-01",
+            paymentMethod: "Pix",
+            note: "",
+          },
+          {
+            id: "expense-luz",
+            name: "Conta de luz",
+            category: "Casa",
+            amount: 200,
+            status: "A pagar",
+            owner: "Maria",
+            date: "2026-08-05",
+            paymentMethod: "Pix",
+            note: "",
+          },
+        ],
         priorities: [],
       },
     },
@@ -97,6 +133,11 @@ async function askAndWait(question: string) {
 beforeEach(() => {
   mockAskGemini.mockReset();
   mockAnswerLocally.mockClear();
+  mockFinance.saveExpense.mockClear();
+  mockFinance.savePriority.mockClear();
+  mockFinance.saveMonthSettings.mockClear();
+  mockFinance.state = baseState();
+  mockFinance.month = baseState().months[MONTH];
 });
 
 afterEach(() => cleanup());
@@ -112,11 +153,15 @@ describe("a real Gemini answer renders as a plain bubble — no fallback marker"
     expect(screen.queryByText(/Resposta local/i)).toBeNull();
   });
 
-  it("calls askGemini with only the question — no financial context built/sent from the client (P7)", async () => {
+  it("calls askGemini with the question and only UI-known hints — no financial numbers built/sent from the client (P7/P7.1)", async () => {
+    mockFinance.state = { ...baseState(), activePerson: VIEW_ME, activeMonth: "2026-08" };
     mockAskGemini.mockResolvedValue("Seu mês está tranquilo, ainda sobram R$ 800,00.");
     await askAndWait("Como está meu mês?");
 
-    expect(mockAskGemini).toHaveBeenCalledWith("Como está meu mês?");
+    expect(mockAskGemini).toHaveBeenCalledWith("Como está meu mês?", {
+      month: "2026-08",
+      scope: "me",
+    });
     expect(mockAskGemini).toHaveBeenCalledTimes(1);
   });
 
@@ -125,6 +170,154 @@ describe("a real Gemini answer renders as a plain bubble — no fallback marker"
 
     expect(mockAskGemini).not.toHaveBeenCalled();
     expect(mockFinance.savePriority).toHaveBeenCalled();
+  });
+});
+
+describe("P7.1 — automatic context hints (month/scope), no re-asking what the UI already knows", () => {
+  // P7.1.1: "Falta pagar" used to be swallowed by handleAssistantCommand's "mark as
+  // paid" regex before ever reaching askGemini — fixed below (see "write command vs.
+  // informational query" describe block). All four quick actions now share this table.
+  const QUICK_ACTIONS = ["Análise do mês", "Falta pagar", "Meu limite", "Prioridades"];
+
+  it.each(QUICK_ACTIONS)(
+    "VIEW_ALL + quick action %s -> month/scope=household, same derivation as every other quick action",
+    async (label) => {
+      mockFinance.state = { ...baseState(), activePerson: VIEW_ALL, activeMonth: "2026-07" };
+      mockAskGemini.mockResolvedValue("ok");
+      render(<AssistantView onAddExpense={noop} onOpenSimulator={noop} onOpenEnvelopes={noop} />);
+      fireEvent.click(screen.getByText(label));
+      await waitFor(() => expect(mockAskGemini).toHaveBeenCalledTimes(1));
+      expect(mockAskGemini).toHaveBeenCalledWith(label, { month: "2026-07", scope: "household" });
+    },
+  );
+
+  it("VIEW_ME sends scope=me", async () => {
+    mockFinance.state = { ...baseState(), activePerson: VIEW_ME, activeMonth: "2026-07" };
+    mockAskGemini.mockResolvedValue("ok");
+    render(<AssistantView onAddExpense={noop} onOpenSimulator={noop} onOpenEnvelopes={noop} />);
+    fireEvent.click(screen.getByText("Meu limite"));
+    await waitFor(() => expect(mockAskGemini).toHaveBeenCalledTimes(1));
+    expect(mockAskGemini).toHaveBeenCalledWith("Meu limite", { month: "2026-07", scope: "me" });
+  });
+
+  it("a manually typed question receives the same current context as a quick action", async () => {
+    mockFinance.state = { ...baseState(), activePerson: VIEW_ALL, activeMonth: "2026-07" };
+    mockAskGemini.mockResolvedValue("ok");
+    await askAndWait("Quanto ainda posso gastar?");
+    expect(mockAskGemini).toHaveBeenCalledWith("Quanto ainda posso gastar?", {
+      month: "2026-07",
+      scope: "household",
+    });
+  });
+
+  it("a specific-profile view sends no scope/profileId — never degrades to household/me, never fabricates a UUID", async () => {
+    mockFinance.state = { ...baseState(), activePerson: "Maria", activeMonth: "2026-07" };
+    mockAskGemini.mockResolvedValue("ok");
+    await askAndWait("Como está meu mês?");
+    expect(mockAskGemini).toHaveBeenCalledWith("Como está meu mês?", {});
+  });
+
+  it("changing the active month changes the hint sent on the next question", async () => {
+    mockFinance.state = { ...baseState(), activePerson: VIEW_ALL, activeMonth: "2026-07" };
+    mockAskGemini.mockResolvedValue("ok");
+    await askAndWait("pergunta 1");
+    expect(mockAskGemini).toHaveBeenNthCalledWith(1, "pergunta 1", {
+      month: "2026-07",
+      scope: "household",
+    });
+
+    cleanup();
+    mockFinance.state = { ...baseState(), activePerson: VIEW_ALL, activeMonth: "2026-08" };
+    await askAndWait("pergunta 2");
+    expect(mockAskGemini).toHaveBeenNthCalledWith(2, "pergunta 2", {
+      month: "2026-08",
+      scope: "household",
+    });
+  });
+
+  it("changing the active scope changes the hint sent on the next question", async () => {
+    mockFinance.state = { ...baseState(), activePerson: VIEW_ALL, activeMonth: "2026-07" };
+    mockAskGemini.mockResolvedValue("ok");
+    await askAndWait("pergunta 1");
+    expect(mockAskGemini).toHaveBeenNthCalledWith(1, "pergunta 1", {
+      month: "2026-07",
+      scope: "household",
+    });
+
+    cleanup();
+    mockFinance.state = { ...baseState(), activePerson: VIEW_ME, activeMonth: "2026-07" };
+    await askAndWait("pergunta 2");
+    expect(mockAskGemini).toHaveBeenNthCalledWith(2, "pergunta 2", {
+      month: "2026-07",
+      scope: "me",
+    });
+  });
+});
+
+describe("P7.1.1 — write command vs. informational 'falta pagar' query", () => {
+  it("quick action 'Falta pagar' reaches the Assistant with month/scope, not the local command parser", async () => {
+    mockFinance.state = { ...baseState(), activePerson: VIEW_ALL, activeMonth: "2026-07" };
+    mockAskGemini.mockResolvedValue("Você ainda tem 2 contas a pagar.");
+    render(<AssistantView onAddExpense={noop} onOpenSimulator={noop} onOpenEnvelopes={noop} />);
+    fireEvent.click(screen.getByText("Falta pagar"));
+    await waitFor(() => expect(mockAskGemini).toHaveBeenCalledTimes(1));
+    expect(mockAskGemini).toHaveBeenCalledWith("Falta pagar", {
+      month: "2026-07",
+      scope: "household",
+    });
+    expect(mockFinance.saveExpense).not.toHaveBeenCalled();
+  });
+
+  it("'o que falta pagar?' is an informational query — reaches askGemini, not a local command", async () => {
+    mockAskGemini.mockResolvedValue("Você tem 2 contas a pagar.");
+    await askAndWait("o que falta pagar?");
+    expect(mockAskGemini).toHaveBeenCalledWith(
+      "o que falta pagar?",
+      expect.objectContaining({ scope: "me" }),
+    );
+    expect(mockFinance.saveExpense).not.toHaveBeenCalled();
+  });
+
+  it("'quanto falta pagar este mês?' is an informational query — reaches askGemini, not a local command", async () => {
+    mockAskGemini.mockResolvedValue("Você tem 2 contas a pagar.");
+    await askAndWait("quanto falta pagar este mês?");
+    expect(mockAskGemini).toHaveBeenCalledWith(
+      "quanto falta pagar este mês?",
+      expect.objectContaining({ scope: "me" }),
+    );
+    expect(mockFinance.saveExpense).not.toHaveBeenCalled();
+  });
+
+  it("'marcar internet como paga' is still a local write command — zero Railway call", async () => {
+    await askAndWait("marcar internet como paga");
+    expect(mockAskGemini).not.toHaveBeenCalled();
+  });
+
+  it("'marcar internet como pago' is a local write command that finds and pays the matching bill", async () => {
+    await askAndWait("marcar internet como pago");
+    expect(mockAskGemini).not.toHaveBeenCalled();
+    expect(mockFinance.saveExpense).toHaveBeenCalledWith(
+      expect.objectContaining({ id: "expense-internet", status: "Pago" }),
+      "expense-internet",
+    );
+  });
+
+  it("'quitar aluguel' is still a local write command — zero Railway call", async () => {
+    await askAndWait("quitar aluguel");
+    expect(mockAskGemini).not.toHaveBeenCalled();
+    expect(mockFinance.saveExpense).toHaveBeenCalledWith(
+      expect.objectContaining({ id: "expense-aluguel", status: "Pago" }),
+      "expense-aluguel",
+    );
+  });
+
+  it("'pagar conta de luz' is still a local write command — zero Railway call", async () => {
+    await askAndWait("pagar conta de luz");
+    expect(mockAskGemini).not.toHaveBeenCalled();
+    expect(mockFinance.saveExpense).toHaveBeenCalledWith(
+      expect.objectContaining({ id: "expense-luz", status: "Pago" }),
+      "expense-luz",
+    );
   });
 });
 

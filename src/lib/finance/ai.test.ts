@@ -368,11 +368,40 @@ describe("askGemini — failure classification (so the UI can be honest about wh
     expect(mockBackendClient.sendAssistantMessage).not.toHaveBeenCalled();
   });
 
-  it("sends only the question — no financial context — to the backend", async () => {
+  it("sends only the question — no financial context — to the backend, when called with no hints", async () => {
     mockBackendClient.sendAssistantMessage.mockResolvedValue({ answer: "ok" });
     await askGemini("Qual meu saldo?");
-    expect(mockBackendClient.sendAssistantMessage).toHaveBeenCalledWith("Qual meu saldo?");
+    expect(mockBackendClient.sendAssistantMessage).toHaveBeenCalledWith(
+      "Qual meu saldo?",
+      undefined,
+    );
     expect(mockBackendClient.sendAssistantMessage).toHaveBeenCalledTimes(1);
+  });
+
+  it("passes household hints through to sendAssistantMessage verbatim (P7.1)", async () => {
+    mockBackendClient.sendAssistantMessage.mockResolvedValue({ answer: "ok" });
+    await askGemini("Análise do mês", { month: "2026-07", scope: "household" });
+    expect(mockBackendClient.sendAssistantMessage).toHaveBeenCalledWith("Análise do mês", {
+      month: "2026-07",
+      scope: "household",
+    });
+  });
+
+  it("passes me hints through to sendAssistantMessage verbatim (P7.1)", async () => {
+    mockBackendClient.sendAssistantMessage.mockResolvedValue({ answer: "ok" });
+    await askGemini("Meu limite", { month: "2026-07", scope: "me" });
+    expect(mockBackendClient.sendAssistantMessage).toHaveBeenCalledWith("Meu limite", {
+      month: "2026-07",
+      scope: "me",
+    });
+  });
+
+  it("consent gate still runs before hints are ever used, network never touched", async () => {
+    mockConsent.hasAiConsent.mockReturnValue(false);
+    await expect(askGemini("oi", { month: "2026-07", scope: "household" })).rejects.toMatchObject({
+      reason: "consent",
+    });
+    expect(mockBackendClient.sendAssistantMessage).not.toHaveBeenCalled();
   });
 
   it("classifies a backend 403 (AiConsentGate) as 'consent'", async () => {
