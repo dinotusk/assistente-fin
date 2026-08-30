@@ -30,7 +30,13 @@ import {
   timelineMonthEntries,
   viewLabelForPeople,
 } from "@/lib/finance/calc";
-import { categoryColors, categoryIcons, VIEW_ME, VIEW_SPOUSE } from "@/lib/finance/constants";
+import {
+  categoryColors,
+  categoryIcons,
+  VIEW_ALL,
+  VIEW_ME,
+  VIEW_SPOUSE,
+} from "@/lib/finance/constants";
 
 import { DonutChart } from "./charts/DonutChart";
 import { CategoryBars } from "./charts/CategoryBars";
@@ -58,6 +64,8 @@ interface DashboardViewProps {
   onOpenAval: () => void;
   /** Opens the existing ExpenseDialog in edit mode — same flow Gastos uses, not a second dialog. */
   onEditExpense: (id: string) => void;
+  /** Opens the existing PeopleDialog ("Perfis financeiros") — no new dialog, no new persistence. */
+  onEditPeople: () => void;
 }
 
 export function DashboardView({
@@ -67,6 +75,7 @@ export function DashboardView({
   onAddGoal,
   onOpenAval,
   onEditExpense,
+  onEditPeople,
 }: DashboardViewProps) {
   const { state, month, setActiveMonth, setActivePerson } = useFinance();
   const money = useMoney();
@@ -179,6 +188,71 @@ export function DashboardView({
           />
         </div>
       </Panel>
+
+      {/* P9.2 — "Divisão da casa": one card per active profile, each reading
+          calc()/budgetForView() for that profile's own view (same index0 ->
+          VIEW_ME / index1 -> VIEW_SPOUSE / index>=2 -> literal name convention
+          "Divisão familiar" already uses below) — no new financial rule, just
+          the same functions called once per profile instead of once for the
+          active view. Only in VIEW_ALL (the hero above already represents a
+          single profile's own numbers once you're inside its view) and only
+          with 2+ profiles (with exactly one profile it would just repeat the
+          hero). Stacked full-width cards, not a grid, so "Livre" stays
+          comparable at a glance regardless of how many profiles exist. */}
+      {view === VIEW_ALL && state.people.length >= 2 && (
+        <Panel tone="flat">
+          <PanelHead
+            title="Divisão da casa"
+            icon={Users}
+            action={
+              <button
+                type="button"
+                onClick={onEditPeople}
+                className="press focus-ring shrink-0 text-xs font-bold text-primary"
+              >
+                Editar nomes
+              </button>
+            }
+          />
+          <div className="flex flex-col gap-3">
+            {state.people.map((name, index) => {
+              const profileView = index === 0 ? VIEW_ME : index === 1 ? VIEW_SPOUSE : name;
+              const profileNumbers = calc(month, profileView, state.activeMonth, state.people);
+              const profileBudget = budgetForView(month, profileView);
+              const profileOverBudget = profileNumbers.free < 0;
+              return (
+                <button
+                  key={`${profileView}-${index}`}
+                  type="button"
+                  onClick={() => setActivePerson(profileView)}
+                  aria-label={`Ver detalhes financeiros de ${name}`}
+                  className="press focus-ring hover-lift w-full rounded-2xl border border-border bg-secondary/70 p-3.5 text-left transition-colors hover:bg-secondary"
+                >
+                  <strong className="block truncate text-sm font-bold text-foreground">
+                    {name}
+                  </strong>
+                  <div className="mt-2 flex flex-wrap items-baseline gap-x-4 gap-y-1">
+                    <HeroStat label="Disponível" value={money(profileBudget)} />
+                    <HeroStat label="Comprometido" value={money(profileNumbers.total)} />
+                    <div className="min-w-0">
+                      <span className="block text-[11px] font-semibold uppercase tracking-wide text-muted-foreground">
+                        Livre
+                      </span>
+                      <strong
+                        className={`tnum block font-display text-lg leading-none ${
+                          profileOverBudget ? "text-destructive" : "text-success"
+                        }`}
+                      >
+                        {money(profileNumbers.free)}
+                      </strong>
+                    </div>
+                  </div>
+                </button>
+              );
+            })}
+          </div>
+        </Panel>
+      )}
 
       {/* P0-DASHBOARD-REFINE: at >=lg, Situação do mês + Ações rápidas stack in
           a left column next to Movimentações recentes on the right — same DOM

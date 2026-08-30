@@ -37,6 +37,21 @@ function progressCard() {
   return within(card);
 }
 
+/** Scopes queries to the whole P9.2 "Divisão da casa" panel. */
+function divisaoDaCasaPanel() {
+  const panel = screen.getByText("Divisão da casa").closest("section");
+  if (!panel) throw new Error("Divisão da casa panel not found");
+  return within(panel);
+}
+
+/** Scopes queries to one profile's own card inside "Divisão da casa" — each
+    card repeats the same "Disponível"/"Comprometido"/"Livre" labels, so
+    per-profile assertions must never read from the page/panel at large. */
+function familySplitCard(name: string) {
+  const card = screen.getByRole("button", { name: `Ver detalhes financeiros de ${name}` });
+  return within(card);
+}
+
 import type { FinanceState } from "@/lib/finance/types";
 
 const MONTH = "2026-08";
@@ -144,6 +159,7 @@ const actions = {
   onAddGoal: vi.fn(),
   onOpenAval: vi.fn(),
   onEditExpense: vi.fn(),
+  onEditPeople: vi.fn(),
 };
 
 function renderDashboard() {
@@ -228,19 +244,21 @@ describe("DashboardView — hideValues", () => {
 describe("DashboardView — P9.1 hero financeiro e progresso do mês", () => {
   it("1. renders Disponível (budget)", () => {
     renderDashboard();
-    expect(screen.getByText("Disponível")).toBeTruthy();
+    // "Disponível"/"Comprometido"/"Livre" also label each P9.2 per-profile
+    // card, so scope to the hero specifically.
+    expect(heroSection().getByText("Disponível")).toBeTruthy();
     expect(heroSection().getByText("R$ 6000.00")).toBeTruthy();
   });
 
   it("2. renders Comprometido (total)", () => {
     renderDashboard();
-    expect(screen.getByText("Comprometido")).toBeTruthy();
+    expect(heroSection().getByText("Comprometido")).toBeTruthy();
     expect(heroSection().getByText("R$ 1900.00")).toBeTruthy();
   });
 
   it("3. renders Livre (free) with strong visual weight (its own text-[2.1rem] figure)", () => {
     renderDashboard();
-    expect(screen.getByText("Livre")).toBeTruthy();
+    expect(heroSection().getByText("Livre")).toBeTruthy();
     const livre = heroSection().getByText("R$ 4100.00");
     expect(livre.className).toContain("text-[2.1rem]");
   });
@@ -473,8 +491,10 @@ describe("DashboardView — P9.1 hero financeiro e progresso do mês", () => {
     expect(screen.queryByText(/gastos ·/)).toBeNull();
     expect(screen.queryByText(/livre$/)).toBeNull();
     expect(screen.queryByText(/acima$/)).toBeNull();
-    // Exactly one "Livre" label (the new hero's) — not a second, redundant one.
-    expect(screen.getAllByText("Livre").length).toBe(1);
+    // Exactly one "Livre" label inside the hero itself (P9.2's per-profile
+    // cards elsewhere on the page also say "Livre" — that's a different,
+    // intentional block, not old-hero duplication).
+    expect(heroSection().getAllByText("Livre").length).toBe(1);
   });
 });
 
@@ -821,5 +841,246 @@ describe("DashboardView — frase de atenção e saldo livre continuam estático
       const panel = screen.getByText(title).closest("section");
       expect(panel?.className).not.toMatch(/glass-/);
     });
+  });
+});
+
+// P9.2 — "Divisão da casa": one card per active profile in VIEW_ALL, each
+// reading calc()/budgetForView() for that profile's own view — no new
+// financial rule, same functions the hero already uses, called once per
+// profile instead of once for the active view.
+describe("DashboardView — P9.2 Divisão da casa", () => {
+  it("1. VIEW_ALL + 2 perfis -> bloco aparece", () => {
+    renderDashboard();
+    expect(screen.getByText("Divisão da casa")).toBeTruthy();
+  });
+
+  it("2. renders one card per profile", () => {
+    renderDashboard();
+    expect(screen.getByRole("button", { name: "Ver detalhes financeiros de Maria" })).toBeTruthy();
+    expect(screen.getByRole("button", { name: "Ver detalhes financeiros de Oziel" })).toBeTruthy();
+  });
+
+  it("3. names come from state.people — no hardcoded name", () => {
+    const renamedState: FinanceState = {
+      ...baseState(),
+      people: ["Ana", "Pedro"],
+      months: {
+        [MONTH]: {
+          ...baseState().months[MONTH],
+          expenses: baseState().months[MONTH].expenses.map((e) => ({
+            ...e,
+            owner: e.owner === "Maria" ? "Ana" : "Pedro",
+          })),
+        },
+      },
+    };
+    Object.assign(mockFinance, { state: renamedState, month: renamedState.months[MONTH] });
+    renderDashboard();
+    expect(screen.getByRole("button", { name: "Ver detalhes financeiros de Ana" })).toBeTruthy();
+    expect(screen.getByRole("button", { name: "Ver detalhes financeiros de Pedro" })).toBeTruthy();
+    expect(screen.queryByText("Maria")).toBeNull();
+    expect(screen.queryByText("Oziel")).toBeNull();
+  });
+
+  it("4. and 11. clicking profile 0's card sets activePerson to 'me' (VIEW_ME)", () => {
+    renderDashboard();
+    fireEvent.click(screen.getByRole("button", { name: "Ver detalhes financeiros de Maria" }));
+    expect(mockFinance.setActivePerson).toHaveBeenCalledWith("me");
+  });
+
+  it("5. and 12. clicking profile 1's card sets activePerson to 'spouse' (VIEW_SPOUSE)", () => {
+    renderDashboard();
+    fireEvent.click(screen.getByRole("button", { name: "Ver detalhes financeiros de Oziel" }));
+    expect(mockFinance.setActivePerson).toHaveBeenCalledWith("spouse");
+  });
+
+  it("6. and 13. and 18. a third profile renders and uses its own literal name as the view", () => {
+    const threePeopleState: FinanceState = {
+      people: ["Maria", "Oziel", "Vovó"],
+      activePerson: "todos",
+      activeMonth: MONTH,
+      months: {
+        [MONTH]: {
+          label: "Agosto 2026",
+          income: 5000,
+          houseContribution: 1000,
+          profileBudgets: { Vovó: 500 },
+          expenses: [
+            {
+              id: "e1",
+              name: "Remédio",
+              category: "Saúde",
+              amount: 200,
+              status: "A pagar",
+              owner: "Vovó",
+              date: `${MONTH}-05`,
+              paymentMethod: "Pix",
+              note: "",
+            },
+          ],
+          priorities: [],
+        },
+      },
+    };
+    Object.assign(mockFinance, { state: threePeopleState, month: threePeopleState.months[MONTH] });
+    renderDashboard();
+    expect(screen.getByRole("button", { name: "Ver detalhes financeiros de Maria" })).toBeTruthy();
+    expect(screen.getByRole("button", { name: "Ver detalhes financeiros de Oziel" })).toBeTruthy();
+    const vovoCard = screen.getByRole("button", { name: "Ver detalhes financeiros de Vovó" });
+    expect(vovoCard).toBeTruthy();
+    fireEvent.click(vovoCard);
+    expect(mockFinance.setActivePerson).toHaveBeenCalledWith("Vovó");
+  });
+
+  it("7. 8. 9. and 10. each card shows its own budget/comprometido/livre — never another profile's numbers", () => {
+    renderDashboard();
+    const maria = familySplitCard("Maria");
+    // Maria (VIEW_ME): budget=income=5000, total=1500 (Aluguel), free=3500
+    expect(maria.getByText("R$ 5000.00")).toBeTruthy();
+    expect(maria.getByText("R$ 1500.00")).toBeTruthy();
+    expect(maria.getByText("R$ 3500.00")).toBeTruthy();
+    // Never Oziel's own numbers leaking into Maria's card.
+    expect(maria.queryByText("R$ 1000.00")).toBeNull();
+    expect(maria.queryByText("R$ 400.00")).toBeNull();
+    expect(maria.queryByText("R$ 600.00")).toBeNull();
+
+    const oziel = familySplitCard("Oziel");
+    // Oziel (VIEW_SPOUSE): budget=houseContribution=1000, total=400 (Mercado), free=600
+    expect(oziel.getByText("R$ 1000.00")).toBeTruthy();
+    expect(oziel.getByText("R$ 400.00")).toBeTruthy();
+    expect(oziel.getByText("R$ 600.00")).toBeTruthy();
+    expect(oziel.queryByText("R$ 5000.00")).toBeNull();
+    expect(oziel.queryByText("R$ 1500.00")).toBeNull();
+    expect(oziel.queryByText("R$ 3500.00")).toBeNull();
+  });
+
+  it("14. VIEW_ME -> bloco ausente", () => {
+    const stateForMaria: FinanceState = { ...baseState(), activePerson: "me" };
+    Object.assign(mockFinance, { state: stateForMaria, month: stateForMaria.months[MONTH] });
+    renderDashboard();
+    expect(screen.queryByText("Divisão da casa")).toBeNull();
+  });
+
+  it("15. VIEW_SPOUSE -> bloco ausente", () => {
+    const stateForOziel: FinanceState = { ...baseState(), activePerson: "spouse" };
+    Object.assign(mockFinance, { state: stateForOziel, month: stateForOziel.months[MONTH] });
+    renderDashboard();
+    expect(screen.queryByText("Divisão da casa")).toBeNull();
+  });
+
+  it("16. a specific-profile view -> bloco ausente", () => {
+    const stateForVovo: FinanceState = { ...baseState(), activePerson: "Oziel" };
+    Object.assign(mockFinance, { state: stateForVovo, month: stateForVovo.months[MONTH] });
+    renderDashboard();
+    expect(screen.queryByText("Divisão da casa")).toBeNull();
+  });
+
+  it("17. only 1 profile -> bloco ausente (no redundant repeat of the hero)", () => {
+    Object.assign(mockFinance, {
+      state: emptyMonthState(),
+      month: emptyMonthState().months[MONTH],
+    });
+    renderDashboard();
+    expect(screen.queryByText("Divisão da casa")).toBeNull();
+  });
+
+  it("19. hideValues masks every profile's Disponível/Comprometido/Livre", () => {
+    mockFinance.hideValues = true;
+    renderDashboard();
+    const maria = familySplitCard("Maria");
+    const oziel = familySplitCard("Oziel");
+    expect(maria.queryByText("R$ 5000.00")).toBeNull();
+    expect(maria.queryByText("R$ 1500.00")).toBeNull();
+    expect(maria.queryByText("R$ 3500.00")).toBeNull();
+    expect(oziel.queryByText("R$ 1000.00")).toBeNull();
+    expect(maria.getAllByText("R$ ••••").length).toBe(3);
+    expect(oziel.getAllByText("R$ ••••").length).toBe(3);
+  });
+
+  it("20. a profile over its own budget renders a negative Livre without crashing", () => {
+    const overBudgetProfileState: FinanceState = {
+      people: ["Maria", "Oziel"],
+      activePerson: "todos",
+      activeMonth: MONTH,
+      months: {
+        [MONTH]: {
+          label: "Agosto 2026",
+          income: 100,
+          houseContribution: 1000,
+          expenses: [
+            {
+              id: "e1",
+              name: "Aluguel",
+              category: "Casa",
+              amount: 1500,
+              status: "A pagar",
+              owner: "Maria",
+              date: `${MONTH}-05`,
+              paymentMethod: "Pix",
+              note: "",
+            },
+          ],
+          priorities: [],
+        },
+      },
+    };
+    Object.assign(mockFinance, {
+      state: overBudgetProfileState,
+      month: overBudgetProfileState.months[MONTH],
+    });
+    renderDashboard();
+    // Maria: budget=100, total=1500, free=-1400
+    const maria = familySplitCard("Maria");
+    const livre = maria.getByText("R$ -1400.00");
+    expect(livre.className).toContain("text-destructive");
+  });
+
+  it("21. a long profile name doesn't break the card structure (truncate class present)", () => {
+    const longNameState: FinanceState = {
+      ...baseState(),
+      people: ["Maria Fernanda de Alcântara Rodrigues", "Oziel"],
+      months: {
+        [MONTH]: {
+          ...baseState().months[MONTH],
+          expenses: baseState().months[MONTH].expenses.map((e) => ({
+            ...e,
+            owner: e.owner === "Maria" ? "Maria Fernanda de Alcântara Rodrigues" : e.owner,
+          })),
+        },
+      },
+    };
+    Object.assign(mockFinance, { state: longNameState, month: longNameState.months[MONTH] });
+    renderDashboard();
+    const card = familySplitCard("Maria Fernanda de Alcântara Rodrigues");
+    const nameEl = card.getByText("Maria Fernanda de Alcântara Rodrigues");
+    expect(nameEl.className).toContain("truncate");
+  });
+
+  it("22. there is no redundant aggregate 'Minha casa' card inside Divisão da casa", () => {
+    renderDashboard();
+    expect(
+      screen.queryByRole("button", { name: "Ver detalhes financeiros de Minha casa" }),
+    ).toBeNull();
+    // Exactly 2 profile cards for the 2-person base fixture — not a 3rd "casa"
+    // one (the panel's own "Editar nomes" button is excluded by name filter).
+    const panel = divisaoDaCasaPanel();
+    const profileCards = panel
+      .getAllByRole("button")
+      .filter((b) => b.getAttribute("aria-label")?.startsWith("Ver detalhes financeiros de"));
+    expect(profileCards.length).toBe(2);
+  });
+
+  it("23. 'Editar nomes' opens the existing PeopleDialog via the passed-in callback", () => {
+    renderDashboard();
+    fireEvent.click(screen.getByText("Editar nomes"));
+    expect(actions.onEditPeople).toHaveBeenCalledTimes(1);
+  });
+
+  it("24. no parallel persistence logic exists — DashboardView never renders a dialog of its own", () => {
+    renderDashboard();
+    fireEvent.click(screen.getByText("Editar nomes"));
+    // DashboardView only calls the callback; the actual PeopleDialog/savePeople
+    // flow lives in AppHome/FinanceContext, never duplicated here.
+    expect(screen.queryByText("Perfis financeiros")).toBeNull();
   });
 });

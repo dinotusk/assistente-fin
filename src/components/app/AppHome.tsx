@@ -259,6 +259,7 @@ export function AppHome() {
           onAddGoal={() => setPriorityDialog({ open: true, id: null })}
           onOpenAval={() => setView("assistant")}
           onEditExpense={(id) => setExpenseDialog({ open: true, id })}
+          onEditPeople={() => setPeopleOpen(true)}
         />
       )}
       {view === "transactions" && (
