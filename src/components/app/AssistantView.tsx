@@ -20,6 +20,7 @@ import {
   getMonthHeadline,
   getNextDueExpense,
   maskMoneyInText,
+  normalizeMoneyInText,
   normalizeText,
   ownerLabelForPeople,
   resolveViewOwner,
@@ -207,12 +208,13 @@ export function AssistantView({
       fallbackLabel = describeFallback(reason);
       logAiInteraction("local_fallback", reason);
     }
+    const displayAnswer = normalizeMoneyInText(answer);
     setMessages((m) => {
       const next = [...m];
       next[next.length - 1] = {
         role: "ai",
         sender: fallbackLabel,
-        text: hideValues ? maskMoneyInText(answer) : answer,
+        text: hideValues ? maskMoneyInText(displayAnswer) : displayAnswer,
       };
       return next;
     });

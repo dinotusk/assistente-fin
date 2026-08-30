@@ -8,6 +8,7 @@ import {
   expensesForView,
   maskMoneyInText,
   money,
+  normalizeMoneyInText,
   normalizeText,
   profileId,
   sum,
@@ -77,6 +78,76 @@ describe("maskMoneyInText", () => {
 
   it("is a no-op when there is no currency amount", () => {
     expect(maskMoneyInText("Nenhum gasto encontrado.")).toBe("Nenhum gasto encontrado.");
+  });
+});
+
+// P7.1.2 — Gemini generates the Assistant's free-text answer itself from a raw
+// decimal string the backend hands it (e.g. "6800.00", see
+// FinancialSummaryResponse's Money-as-string contract) and isn't reliably
+// consistent about pt-BR punctuation. This normalizes only "R$"-led amounts,
+// deterministically, with pure string math (no Number()/parseFloat).
+describe("normalizeMoneyInText", () => {
+  it.each([
+    ["R$6800,00", "R$ 6.800,00"],
+    ["R$ 6800,00", "R$ 6.800,00"],
+    ["R$6800.00", "R$ 6.800,00"],
+    ["R$ 6800.00", "R$ 6.800,00"],
+    ["R$50", "R$ 50,00"],
+    ["R$ 50", "R$ 50,00"],
+    ["R$0,00", "R$ 0,00"],
+    ["R$15100,50", "R$ 15.100,50"],
+  ])("normalizes %s -> %s", (input, expected) => {
+    expect(normalizeMoneyInText(input)).toBe(expected);
+  });
+
+  it("leaves an already-correctly-formatted amount unchanged (idempotent)", () => {
+    expect(normalizeMoneyInText("R$ 6.800,00")).toBe("R$ 6.800,00");
+    expect(normalizeMoneyInText(normalizeMoneyInText("R$6800,00"))).toBe(
+      normalizeMoneyInText("R$6800,00"),
+    );
+  });
+
+  it("normalizes every occurrence in a response with multiple amounts", () => {
+    expect(normalizeMoneyInText("Gastou R$1200,00 de R$6800,00, sobrando R$5600,00")).toBe(
+      "Gastou R$ 1.200,00 de R$ 6.800,00, sobrando R$ 5.600,00",
+    );
+  });
+
+  it("leaves a plain year untouched", () => {
+    expect(normalizeMoneyInText("para julho de 2026, o resumo é R$6800,00")).toBe(
+      "para julho de 2026, o resumo é R$ 6.800,00",
+    );
+  });
+
+  it("leaves a percentage untouched", () => {
+    expect(normalizeMoneyInText("você já usou 12,5% do orçamento de R$6800,00")).toBe(
+      "você já usou 12,5% do orçamento de R$ 6.800,00",
+    );
+  });
+
+  it("leaves an installment count untouched", () => {
+    expect(normalizeMoneyInText("parcelado em 12 parcelas de R$50")).toBe(
+      "parcelado em 12 parcelas de R$ 50,00",
+    );
+  });
+
+  it("is a no-op on text with no currency amount", () => {
+    const text = "Nenhum gasto encontrado para o período selecionado.";
+    expect(normalizeMoneyInText(text)).toBe(text);
+  });
+
+  it("normalizes the full real smoke-test response end to end", () => {
+    const raw =
+      "Certo, para julho de 2026, a sua casa tem um orçamento total de R$6800,00. " +
+      "Até agora, foram gastos R$4330,00, sendo R$1780,00 já pagos e R$2550,00 " +
+      "ainda pendentes.\n\nIsso deixa um saldo livre de R$2470,00. A categoria de " +
+      'maior gasto no mês é "Gasto fixo", com R$1760,00.';
+    const expected =
+      "Certo, para julho de 2026, a sua casa tem um orçamento total de R$ 6.800,00. " +
+      "Até agora, foram gastos R$ 4.330,00, sendo R$ 1.780,00 já pagos e R$ 2.550,00 " +
+      "ainda pendentes.\n\nIsso deixa um saldo livre de R$ 2.470,00. A categoria de " +
+      'maior gasto no mês é "Gasto fixo", com R$ 1.760,00.';
+    expect(normalizeMoneyInText(raw)).toBe(expected);
   });
 });
 

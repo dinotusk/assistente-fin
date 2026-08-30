@@ -18,6 +18,66 @@ export function maskMoneyInText(text: string): string {
   return text.replace(/R\$\s?-?\d{1,3}(?:\.\d{3})*(?:,\d{2})?/g, "R$ ••••");
 }
 
+const BRL_IN_TEXT = /R\$\s?(-?)(\d[\d.,]*\d|\d)/g;
+
+/**
+ * Splits a raw "R$"-prefixed digit run (already known to be a plain number, no
+ * "R$"/sign) into integer/decimal digit strings, pure string ops only — no
+ * Number()/parseFloat, so a value too large for a float (or one where 1234.10
+ * would lose its trailing zero) never gets touched by binary-float rounding.
+ * Comma is always the decimal separator when present (any dots before it are
+ * thousands grouping to discard); with no comma, a lone trailing ".NN" is
+ * treated as the decimal part (the shape the backend's Money/BigDecimal
+ * plain-string values come in, e.g. "6800.00") — anything else is grouping-only.
+ */
+function splitBrlDigits(raw: string): { integer: string; decimal: string } {
+  const lastComma = raw.lastIndexOf(",");
+  const lastDot = raw.lastIndexOf(".");
+  let integer: string;
+  let decimal: string;
+
+  if (lastComma !== -1) {
+    integer = raw.slice(0, lastComma).replace(/[.,]/g, "");
+    decimal = raw.slice(lastComma + 1).replace(/\D/g, "");
+  } else if (lastDot !== -1 && raw.length - lastDot - 1 === 2) {
+    integer = raw.slice(0, lastDot).replace(/[.,]/g, "");
+    decimal = raw.slice(lastDot + 1);
+  } else if (lastDot !== -1) {
+    integer = raw.replace(/[.,]/g, "");
+    decimal = "";
+  } else {
+    integer = raw;
+    decimal = "";
+  }
+
+  integer = integer.replace(/^0+(?=\d)/, "") || "0";
+  decimal = (decimal + "00").slice(0, 2);
+  return { integer, decimal };
+}
+
+/** Groups digits with a "." every 3 places from the right — e.g. "6800" -> "6.800". */
+function groupThousands(digits: string): string {
+  return digits.replace(/\B(?=(\d{3})+(?!\d))/g, ".");
+}
+
+/**
+ * Deterministically reformats every "R$"-led amount in free-form text to pt-BR
+ * (dot thousands, comma decimal, one space after "R$") — used on the
+ * Assistant's answer because the LLM (see askGemini/sendAssistantMessage)
+ * generates that text itself from a plain decimal string the backend tool
+ * returns (e.g. "6800.00", see FinancialSummaryResponse's Money-as-string
+ * contract) and isn't reliably consistent about pt-BR punctuation. Idempotent:
+ * an already-correct "R$ 6.800,00" round-trips unchanged. Only touches
+ * sequences immediately preceded by "R$" — years, percentages, installment
+ * counts, dates, and UUIDs never match this pattern and pass through untouched.
+ */
+export function normalizeMoneyInText(text: string): string {
+  return text.replace(BRL_IN_TEXT, (_match, sign: string, raw: string) => {
+    const { integer, decimal } = splitBrlDigits(raw);
+    return `R$ ${sign}${groupThousands(integer)},${decimal}`;
+  });
+}
+
 /** Compact currency for tight chart labels, e.g. R$ 1,2 mil. */
 export function moneyShort(value: number): string {
   const v = Number(value || 0);

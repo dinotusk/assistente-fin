@@ -254,6 +254,24 @@ describe("P7.1 — automatic context hints (month/scope), no re-asking what the 
   });
 });
 
+describe("P7.1.2 — Assistant answer money formatting", () => {
+  it("reformats a malformed R$ amount from Gemini to pt-BR before rendering", async () => {
+    mockAskGemini.mockResolvedValue("Seu orçamento total é R$6800,00 e o saldo livre é R$2470,00.");
+    await askAndWait("Análise do mês");
+    expect(
+      screen.getByText("Seu orçamento total é R$ 6.800,00 e o saldo livre é R$ 2.470,00."),
+    ).toBeTruthy();
+  });
+
+  it("still masks the (now correctly formatted) amount when hideValues is on", async () => {
+    mockFinance.hideValues = true;
+    mockAskGemini.mockResolvedValue("Saldo: R$6800,00.");
+    await askAndWait("Análise do mês");
+    expect(screen.getByText("Saldo: R$ ••••.")).toBeTruthy();
+    mockFinance.hideValues = false;
+  });
+});
+
 describe("P7.1.1 — write command vs. informational 'falta pagar' query", () => {
   it("quick action 'Falta pagar' reaches the Assistant with month/scope, not the local command parser", async () => {
     mockFinance.state = { ...baseState(), activePerson: VIEW_ALL, activeMonth: "2026-07" };
