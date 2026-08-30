@@ -1486,7 +1486,7 @@ function getRemotePurchaseResult(
   weeklyAllowance: number,
   formatMoney: (value: number) => string,
 ) {
-  const projectedFree = Number(result.projectedFree);
+  const projectedFree = Number(result.projectedFree.value);
   if (result.status === "NOT_FEASIBLE") {
     return {
       ok: false,

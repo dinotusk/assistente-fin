@@ -141,19 +141,44 @@ export async function sendAssistantMessage(
   });
 }
 
+/**
+ * Mirrors the backend's SimulatePurchaseResponse.MoneyValue exactly — every money field on the
+ * wire is this object, never a bare string (P8.1: an earlier version of this file assumed bare
+ * strings, which the real backend never sent; see SimulatePurchaseResponse.java's own MoneyValue/
+ * AssumptionValue/WarningValue records). `provenance` (INPUT vs CALCULATED) is never dropped —
+ * it's the same distinction get_financial_summary's ProvenancedMoney carries.
+ */
+export interface MoneyValue {
+  value: string;
+  provenance: string;
+}
+
+/** Mirrors the backend's SimulatePurchaseResponse.AssumptionValue. */
+export interface AssumptionValue {
+  code: string;
+  description: string;
+}
+
+/** Mirrors the backend's SimulatePurchaseResponse.WarningValue. */
+export interface WarningValue {
+  code: string;
+  message: string;
+}
+
 /** Mirrors the backend's SimulatePurchaseResponse — see SimulatePurchaseController. */
 export interface SimulatePurchaseResponse {
-  purchaseAmount: string;
+  isHypothetical: boolean;
+  purchaseAmount: MoneyValue;
   installments: number;
-  installmentSchedule: string[];
-  currentBudget: string;
-  currentTotal: string;
-  currentFree: string;
-  projectedTotal: string;
-  projectedFree: string;
+  installmentSchedule: MoneyValue[];
+  currentBudget: MoneyValue;
+  currentTotal: MoneyValue;
+  currentFree: MoneyValue;
+  projectedTotal: MoneyValue;
+  projectedFree: MoneyValue;
   status: "FEASIBLE" | "WARNING" | "NOT_FEASIBLE";
-  assumptions: string[];
-  warnings: string[];
+  assumptions: AssumptionValue[];
+  warnings: WarningValue[];
 }
 
 export interface SimulatePurchaseRequest {

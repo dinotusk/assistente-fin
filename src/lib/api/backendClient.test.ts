@@ -249,18 +249,29 @@ describe("sendAssistantMessage — response handling", () => {
 });
 
 describe("simulatePurchase — request shape", () => {
+  // P8.1 — the real backend wire shape: every money field is a {value, provenance} object
+  // (see SimulatePurchaseResponse.java's MoneyValue/AssumptionValue/WarningValue records),
+  // confirmed via a live DevTools capture — not the bare-string shape this mock assumed before.
+  function money(value: string, provenance: "INPUT" | "CALCULATED" = "CALCULATED") {
+    return { value, provenance };
+  }
+
   function mockResponse() {
     return {
-      purchaseAmount: "1500.00",
+      isHypothetical: true,
+      purchaseAmount: money("1500.00", "INPUT"),
       installments: 1,
-      installmentSchedule: ["1500.00"],
-      currentBudget: "5000.00",
-      currentTotal: "1000.00",
-      currentFree: "4000.00",
-      projectedTotal: "2500.00",
-      projectedFree: "2500.00",
+      installmentSchedule: [money("1500.00")],
+      currentBudget: money("5000.00"),
+      currentTotal: money("1000.00"),
+      currentFree: money("4000.00"),
+      projectedTotal: money("2500.00"),
+      projectedFree: money("2500.00"),
       status: "FEASIBLE" as const,
-      assumptions: ["HYPOTHETICAL_SCENARIO", "NO_INTEREST_INSTALLMENTS"],
+      assumptions: [
+        { code: "HYPOTHETICAL_SCENARIO", description: "Cenario hipotetico." },
+        { code: "NO_INTEREST_INSTALLMENTS", description: "Sem juros." },
+      ],
       warnings: [],
     };
   }
@@ -318,7 +329,8 @@ describe("simulatePurchase — request shape", () => {
       purchaseAmount: "1500.00",
     });
     expect(result.status).toBe("FEASIBLE");
-    expect(result.projectedFree).toBe("2500.00");
+    expect(result.projectedFree.value).toBe("2500.00");
+    expect(result.projectedFree.provenance).toBe("CALCULATED");
   });
 
   it("classifies a 400 (validation) as a BackendApiError", async () => {

@@ -8,6 +8,7 @@ import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
 
 import type { FinanceState } from "@/lib/finance/types";
 import { VIEW_ALL, VIEW_ME } from "@/lib/finance/constants";
+import type { MoneyValue, SimulatePurchaseResponse } from "@/lib/api/backendClient";
 
 vi.mock("@/components/ui/drawer", () => ({
   Drawer: ({ open, children }: { open: boolean; children: ReactNode }) =>
@@ -59,22 +60,65 @@ vi.mock("@/lib/api/backendClient", async (importOriginal) => {
 const { PurchaseSimulatorDialog } = await import("./dialogs");
 const { BackendApiError } = await import("@/lib/api/backendClient");
 
-function remoteResponse(overrides: Partial<Record<string, unknown>> = {}) {
+// P8.1 — the real backend wire shape (confirmed via a live DevTools capture, see the P8.1
+// diagnosis): every money field is a {value, provenance} object, never a bare string; an
+// earlier version of this fixture (and of backendClient.ts's own type) assumed bare strings,
+// which the real backend never sent, and it went undetected because nothing here ever
+// exercised the real shape.
+function moneyValue(
+  value: string,
+  provenance: MoneyValue["provenance"] = "CALCULATED",
+): MoneyValue {
+  return { value, provenance };
+}
+
+function remoteResponse(
+  overrides: Partial<SimulatePurchaseResponse> = {},
+): SimulatePurchaseResponse {
   return {
-    purchaseAmount: "100.00",
+    isHypothetical: true,
+    purchaseAmount: moneyValue("100.00", "INPUT"),
     installments: 1,
-    installmentSchedule: ["100.00"],
-    currentBudget: "3000.00",
-    currentTotal: "0.00",
-    currentFree: "3000.00",
-    projectedTotal: "100.00",
-    projectedFree: "2900.00",
+    installmentSchedule: [moneyValue("100.00")],
+    currentBudget: moneyValue("3000.00"),
+    currentTotal: moneyValue("0.00"),
+    currentFree: moneyValue("3000.00"),
+    projectedTotal: moneyValue("100.00"),
+    projectedFree: moneyValue("2900.00"),
     status: "FEASIBLE",
     assumptions: [],
     warnings: [],
     ...overrides,
   };
 }
+
+// The exact payload captured from a real DevTools session against the Railway backend (P8.1
+// diagnosis) — used as the primary "is this realistic" fixture, not a hand-simplified one.
+const REALISTIC_BACKEND_RESPONSE: SimulatePurchaseResponse = {
+  isHypothetical: true,
+  purchaseAmount: { value: "10.00", provenance: "INPUT" },
+  installments: 1,
+  installmentSchedule: [{ value: "10.00", provenance: "CALCULATED" }],
+  currentBudget: { value: "5000.00", provenance: "CALCULATED" },
+  currentTotal: { value: "2570.00", provenance: "CALCULATED" },
+  currentFree: { value: "2430.00", provenance: "CALCULATED" },
+  projectedTotal: { value: "2580.00", provenance: "CALCULATED" },
+  projectedFree: { value: "2420.00", provenance: "CALCULATED" },
+  status: "FEASIBLE",
+  assumptions: [
+    {
+      code: "HYPOTHETICAL_SCENARIO",
+      description:
+        "Este e um cenario hipotetico de simulacao; nenhum dado financeiro real foi alterado.",
+    },
+    {
+      code: "NO_INTEREST_INSTALLMENTS",
+      description:
+        "Parcelamento sem juros — nenhuma taxa foi aplicada, pois nenhuma foi informada.",
+    },
+  ],
+  warnings: [],
+};
 
 async function fillAndSimulate(name: string, value: string) {
   render(<PurchaseSimulatorDialog open onOpenChange={() => {}} />);
@@ -122,18 +166,19 @@ describe("scope mapping", () => {
 });
 
 describe("remote results", () => {
-  it("renders a FEASIBLE result using the backend's projectedFree", async () => {
+  it("renders a FEASIBLE result using the backend's projectedFree.value — no 'Cálculo local' marker on a 200", async () => {
     mockSimulatePurchase.mockResolvedValue(
-      remoteResponse({ status: "FEASIBLE", projectedFree: "2900.00" }),
+      remoteResponse({ status: "FEASIBLE", projectedFree: moneyValue("2900.00") }),
     );
     await fillAndSimulate("Mesa", "100");
     await waitFor(() => expect(screen.getByText("Compra segura para este mês")).toBeTruthy());
     expect(screen.getByText(/R\$ 2900\.00/)).toBeTruthy();
+    expect(screen.queryByText(/Cálculo local/)).toBeNull();
   });
 
   it("renders a NOT_FEASIBLE result as 'Melhor não comprar agora'", async () => {
     mockSimulatePurchase.mockResolvedValue(
-      remoteResponse({ status: "NOT_FEASIBLE", projectedFree: "-500.00" }),
+      remoteResponse({ status: "NOT_FEASIBLE", projectedFree: moneyValue("-500.00") }),
     );
     await fillAndSimulate("Mesa", "3500");
     await waitFor(() => expect(screen.getByText("Melhor não comprar agora")).toBeTruthy());
@@ -142,10 +187,20 @@ describe("remote results", () => {
   it("still classifies as 'pesada' when the amount exceeds weeklyAllowance despite FEASIBLE", async () => {
     // free=3000, daysLeft=30 (Sept, future month) -> weeklyAllowance = 700
     mockSimulatePurchase.mockResolvedValue(
-      remoteResponse({ status: "FEASIBLE", projectedFree: "2200.00" }),
+      remoteResponse({ status: "FEASIBLE", projectedFree: moneyValue("2200.00") }),
     );
     await fillAndSimulate("Mesa", "800"); // 800 > 700
     await waitFor(() => expect(screen.getByText("Compra possível, mas pesada")).toBeTruthy());
+  });
+
+  it("renders the exact realistic backend payload (captured from a live DevTools session) without NaN or a fallback marker", async () => {
+    mockSimulatePurchase.mockResolvedValue(REALISTIC_BACKEND_RESPONSE);
+    await fillAndSimulate("mesa", "10");
+    await waitFor(() => expect(screen.getByText("Compra segura para este mês")).toBeTruthy());
+    expect(screen.getByText(/R\$ 2420\.00/)).toBeTruthy();
+    expect(screen.queryByText(/NaN/)).toBeNull();
+    expect(screen.queryByText(/R\$ 0\.00/)).toBeNull();
+    expect(screen.queryByText(/Cálculo local/)).toBeNull();
   });
 });
 
@@ -219,7 +274,7 @@ describe("request/staleness guards", () => {
 
   it("changing the amount after a result invalidates it — the stale result is not shown as current", async () => {
     mockSimulatePurchase.mockResolvedValue(
-      remoteResponse({ status: "FEASIBLE", projectedFree: "2900.00" }),
+      remoteResponse({ status: "FEASIBLE", projectedFree: moneyValue("2900.00") }),
     );
     render(<PurchaseSimulatorDialog open onOpenChange={() => {}} />);
     fireEvent.change(screen.getByLabelText("O que quer comprar?"), { target: { value: "Mesa" } });
