@@ -10,6 +10,7 @@ import {
   TrendingUp,
   TriangleAlert,
   Users,
+  Wallet,
   Zap,
 } from "lucide-react";
 
@@ -100,37 +101,84 @@ export function DashboardView({
     .sort((a, b) => (b.date || "").localeCompare(a.date || ""))
     .slice(0, RECENT_LIMIT);
 
+  const paidPendingTotal = numbers.paid + numbers.pending;
+  const paidPct =
+    paidPendingTotal > 0 ? Math.min(100, Math.max(0, (numbers.paid / paidPendingTotal) * 100)) : 0;
+
   return (
     <div className="flex flex-col gap-4">
-      {/* Compact budget summary -- the full "Seu dinheiro" hero lives on Inicio, this stays lighter */}
-      <section className="card-surface hero-texture relative flex items-center gap-4 overflow-hidden rounded-3xl p-5 pb-7">
+      {/* P9.1 — the financial hero: Disponível/Comprometido are structural
+          context (same size/weight), Livre is the loudest number on the
+          screen (colored by the same overBudget flag the ring already used).
+          All three come straight from calc()/budgetForView() — no new rule. */}
+      <section className="card-surface hero-texture relative overflow-hidden rounded-3xl p-5">
         <div className="pointer-events-none absolute -right-10 -top-16 h-40 w-40 rounded-full bg-primary/10 blur-2xl" />
-        <BudgetRing percent={usedPct} overBudget={overBudget} size={64} />
-        <div className="relative min-w-0">
-          <span className="text-xs font-semibold uppercase tracking-[0.05em] text-muted-foreground">
-            {view === VIEW_ME
-              ? "Renda do mês"
-              : view === VIEW_SPOUSE
-                ? "Repasse do mês"
-                : "Orçamento do mês"}
-          </span>
-          <strong className="tnum mt-0.5 block font-display text-[1.9rem] leading-none text-foreground">
-            {money(budget)}
-          </strong>
-          <span className="mt-1.5 block text-[13px] text-muted-foreground">
-            {money(numbers.total)} gastos ·{" "}
-            <span
-              className={
-                overBudget ? "font-semibold text-destructive" : "font-semibold text-success"
-              }
-            >
-              {overBudget
-                ? `${money(Math.abs(numbers.free))} acima`
-                : `${money(numbers.free)} livre`}
+        <div className="relative flex items-center gap-4">
+          <BudgetRing percent={usedPct} overBudget={overBudget} size={64} />
+          <div className="min-w-0 flex-1">
+            <span className="text-xs font-semibold uppercase tracking-[0.05em] text-muted-foreground">
+              Seu mês
             </span>
+            <div className="mt-1.5 flex flex-wrap items-baseline gap-x-5 gap-y-1">
+              <HeroStat
+                label={view === VIEW_ME ? "Renda" : view === VIEW_SPOUSE ? "Repasse" : "Disponível"}
+                value={money(budget)}
+              />
+              <HeroStat label="Comprometido" value={money(numbers.total)} />
+            </div>
+          </div>
+        </div>
+        <div className="relative mt-4 border-t border-border/50 pt-3.5">
+          <span className="text-xs font-semibold uppercase tracking-[0.05em] text-muted-foreground">
+            Livre
           </span>
+          <strong
+            className={`tnum mt-0.5 block font-display text-[2.1rem] leading-none ${
+              overBudget ? "text-destructive" : "text-success"
+            }`}
+          >
+            {money(numbers.free)}
+          </strong>
         </div>
       </section>
+
+      {/* P9.1 — Pago vs. falta pagar, straight from calc().paid/pending; the
+          bar is paid/(paid+pending), guarded against 0/0 (renders an empty,
+          neutral track instead of dividing by zero). */}
+      <Panel tone="flat">
+        <PanelHead title="Progresso do mês" icon={Wallet} />
+        <div className="flex items-center justify-between gap-3">
+          <div className="min-w-0">
+            <span className="block text-[11px] font-semibold uppercase tracking-wide text-muted-foreground">
+              Pago
+            </span>
+            <strong className="tnum block font-display text-lg leading-none text-foreground">
+              {money(numbers.paid)}
+            </strong>
+          </div>
+          <div className="min-w-0 text-right">
+            <span className="block text-[11px] font-semibold uppercase tracking-wide text-muted-foreground">
+              Falta pagar
+            </span>
+            <strong className="tnum block font-display text-lg leading-none text-foreground">
+              {money(numbers.pending)}
+            </strong>
+          </div>
+        </div>
+        <div
+          role="progressbar"
+          aria-label="Proporção já paga no mês"
+          aria-valuenow={Math.round(paidPct)}
+          aria-valuemin={0}
+          aria-valuemax={100}
+          className="mt-3 h-2 w-full overflow-hidden rounded-full bg-secondary"
+        >
+          <div
+            className="h-full rounded-full bg-success transition-[width]"
+            style={{ width: `${paidPct}%` }}
+          />
+        </div>
+      </Panel>
 
       {/* P0-DASHBOARD-REFINE: at >=lg, Situação do mês + Ações rápidas stack in
           a left column next to Movimentações recentes on the right — same DOM
@@ -142,7 +190,7 @@ export function DashboardView({
               attention" — same data calc()/getMonthHeadline already produce for
               the hero card and o Aval, surfaced here so it doesn't require
               scrolling past the analytical charts below to find out. */}
-          <Panel tone="flat" className="relative z-10 -mt-3">
+          <Panel tone="flat">
             <PanelHead title="Situação do mês" icon={TriangleAlert} />
             <div className="flex flex-col gap-3">
               {topCategory && (
@@ -387,6 +435,20 @@ export function DashboardView({
           onSelect={setActiveMonth}
         />
       </Panel>
+    </div>
+  );
+}
+
+/** One structural stat in the hero (Disponível/Comprometido/Renda/Repasse) — same size/weight for all, deliberately quieter than "Livre". */
+function HeroStat({ label, value }: { label: string; value: string }) {
+  return (
+    <div className="min-w-0">
+      <span className="block text-[11px] font-semibold uppercase tracking-wide text-muted-foreground">
+        {label}
+      </span>
+      <strong className="tnum block font-display text-lg leading-none text-foreground">
+        {value}
+      </strong>
     </div>
   );
 }

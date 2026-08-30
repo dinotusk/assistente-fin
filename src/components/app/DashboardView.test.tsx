@@ -20,6 +20,23 @@ function recentMovementsPanel() {
   return within(panel);
 }
 
+/** Scopes queries to the new P9.1 hero — its Comprometido/Disponível figures
+    can numerically repeat elsewhere on the page (Movimentações, Situação do
+    mês, Divisão familiar, Histórico de meses all show real amounts too), so
+    tests must not assume page-wide uniqueness of a money string. */
+function heroSection() {
+  const section = screen.getByText("Seu mês").closest("section");
+  if (!section) throw new Error("Hero section not found");
+  return within(section);
+}
+
+/** Scopes queries to the P9.1 "Progresso do mês" card — same repetition risk. */
+function progressCard() {
+  const card = screen.getByText("Progresso do mês").closest("section");
+  if (!card) throw new Error("Progresso do mês card not found");
+  return within(card);
+}
+
 import type { FinanceState } from "@/lib/finance/types";
 
 const MONTH = "2026-08";
@@ -141,12 +158,15 @@ beforeEach(() => {
 afterEach(() => cleanup());
 
 describe("DashboardView — informação principal presente e hierarquia", () => {
-  it("1. shows the primary numbers: orçamento, gastos and livre", () => {
+  it("1. shows the primary numbers: disponível (orçamento), comprometido and livre", () => {
     renderDashboard();
+    const hero = heroSection();
     // budget = income(5000) + houseContribution(1000) for "todos" = 6000
-    expect(screen.getByText("R$ 6000.00")).toBeTruthy();
-    // total spent = 1500 + 400 = 1900
-    expect(screen.getByText(/R\$ 1900\.00 gastos/)).toBeTruthy();
+    expect(hero.getByText("R$ 6000.00")).toBeTruthy();
+    // total spent (comprometido) = 1500 + 400 = 1900
+    expect(hero.getByText("R$ 1900.00")).toBeTruthy();
+    // free (livre) = 6000 - 1900 = 4100
+    expect(hero.getByText("R$ 4100.00")).toBeTruthy();
   });
 
   it("2. hierarquia: hero -> Situação do mês -> Ações rápidas -> Histórico -> Análise detalhada -> painéis analíticos", () => {
@@ -199,6 +219,262 @@ describe("DashboardView — hideValues", () => {
     renderDashboard();
     expect(screen.queryByText("R$ 6000.00")).toBeNull();
     expect(screen.getAllByText("R$ ••••").length).toBeGreaterThan(0);
+  });
+});
+
+// P9.1 — new financial hero (Disponível/Comprometido/Livre) + Progresso do mês
+// (Pago/Falta pagar + bar). Every value comes straight from calc()/
+// budgetForView() — no parallel calculation is introduced or tested here.
+describe("DashboardView — P9.1 hero financeiro e progresso do mês", () => {
+  it("1. renders Disponível (budget)", () => {
+    renderDashboard();
+    expect(screen.getByText("Disponível")).toBeTruthy();
+    expect(heroSection().getByText("R$ 6000.00")).toBeTruthy();
+  });
+
+  it("2. renders Comprometido (total)", () => {
+    renderDashboard();
+    expect(screen.getByText("Comprometido")).toBeTruthy();
+    expect(heroSection().getByText("R$ 1900.00")).toBeTruthy();
+  });
+
+  it("3. renders Livre (free) with strong visual weight (its own text-[2.1rem] figure)", () => {
+    renderDashboard();
+    expect(screen.getByText("Livre")).toBeTruthy();
+    const livre = heroSection().getByText("R$ 4100.00");
+    expect(livre.className).toContain("text-[2.1rem]");
+  });
+
+  it("4. renders Pago (calc().paid) in the Progresso do mês card", () => {
+    renderDashboard();
+    // "Pago" also appears as a StatusPill label elsewhere (Movimentações), so
+    // scope to the Progresso do mês card, which has exactly one "Pago" label.
+    expect(progressCard().getByText("Pago")).toBeTruthy();
+    // paid = Mercado (400, status Pago)
+    expect(progressCard().getByText("R$ 400.00")).toBeTruthy();
+  });
+
+  it("5. renders Falta pagar (calc().pending) in the Progresso do mês card", () => {
+    renderDashboard();
+    expect(screen.getByText("Falta pagar")).toBeTruthy();
+    // pending = Aluguel (1500, status A pagar)
+    expect(progressCard().getByText("R$ 1500.00")).toBeTruthy();
+  });
+
+  it("6. switching the active month updates every hero/progress value", () => {
+    renderDashboard();
+    expect(heroSection().getByText("R$ 6000.00")).toBeTruthy(); // August budget
+
+    const prevMonthState: FinanceState = { ...baseState(), activeMonth: PREV_MONTH };
+    Object.assign(mockFinance, { state: prevMonthState, month: baseState().months[PREV_MONTH] });
+    cleanup();
+    renderDashboard();
+    // July: budget = 5000 + 1000 = 6000 (same total, different composition is
+    // irrelevant here) but total/paid/pending must reflect July's single
+    // expense (Mercado, 100, Pago) instead of August's.
+    expect(heroSection().getByText("R$ 100.00")).toBeTruthy(); // comprometido
+    expect(progressCard().getByText("R$ 100.00")).toBeTruthy(); // pago (same expense, already paid)
+    expect(progressCard().getByText("R$ 0.00")).toBeTruthy(); // falta pagar — nothing pending in July
+  });
+
+  it("7. switching Minha casa -> Maria updates the hero/progress values to Maria's scope only", () => {
+    const stateForMaria: FinanceState = { ...baseState(), activePerson: "me" };
+    Object.assign(mockFinance, { state: stateForMaria, month: stateForMaria.months[MONTH] });
+    renderDashboard();
+    // Maria's budget is just income (5000), not income+houseContribution (6000).
+    expect(heroSection().getByText("R$ 5000.00")).toBeTruthy();
+    expect(heroSection().queryByText("R$ 6000.00")).toBeNull();
+    // Maria's only expense this month is Aluguel (1500, A pagar) — comprometido
+    // and falta pagar both read 1500; pago reads 0.
+    expect(heroSection().getByText("R$ 1500.00")).toBeTruthy();
+    expect(progressCard().getByText("R$ 1500.00")).toBeTruthy();
+    expect(progressCard().getByText("R$ 0.00")).toBeTruthy();
+  });
+
+  it("8. hideValues masks Disponível, Comprometido, Livre, Pago and Falta pagar", () => {
+    mockFinance.hideValues = true;
+    renderDashboard();
+    const hero = heroSection();
+    const progress = progressCard();
+    expect(hero.queryByText("R$ 6000.00")).toBeNull();
+    expect(hero.queryByText("R$ 1900.00")).toBeNull();
+    expect(hero.queryByText("R$ 4100.00")).toBeNull();
+    expect(progress.queryByText("R$ 400.00")).toBeNull();
+    expect(progress.queryByText("R$ 1500.00")).toBeNull();
+    expect(hero.getAllByText("R$ ••••").length).toBe(3);
+    expect(progress.getAllByText("R$ ••••").length).toBe(2);
+  });
+
+  it("9. paid=0 renders R$ 0.00 without crashing, bar stays empty", () => {
+    const noPaidState: FinanceState = {
+      people: ["Maria"],
+      activePerson: "todos",
+      activeMonth: MONTH,
+      months: {
+        [MONTH]: {
+          label: "Agosto 2026",
+          income: 3000,
+          houseContribution: 0,
+          expenses: [
+            {
+              id: "e1",
+              name: "Aluguel",
+              category: "Casa",
+              amount: 1000,
+              status: "A pagar",
+              owner: "Maria",
+              date: `${MONTH}-05`,
+              paymentMethod: "Pix",
+              note: "",
+            },
+          ],
+          priorities: [],
+        },
+      },
+    };
+    Object.assign(mockFinance, { state: noPaidState, month: noPaidState.months[MONTH] });
+    renderDashboard();
+    expect(progressCard().getByText("R$ 0.00")).toBeTruthy(); // pago
+    const bar = screen.getByRole("progressbar", { name: "Proporção já paga no mês" });
+    expect(bar.getAttribute("aria-valuenow")).toBe("0");
+    const fill = bar.firstElementChild as HTMLElement;
+    expect(fill.style.width).toBe("0%");
+  });
+
+  it("10. pending=0 renders R$ 0.00 without crashing, bar fills 100%", () => {
+    const noPendingState: FinanceState = {
+      people: ["Maria"],
+      activePerson: "todos",
+      activeMonth: MONTH,
+      months: {
+        [MONTH]: {
+          label: "Agosto 2026",
+          income: 3000,
+          houseContribution: 0,
+          expenses: [
+            {
+              id: "e1",
+              name: "Mercado",
+              category: "Alimentação",
+              amount: 200,
+              status: "Pago",
+              owner: "Maria",
+              date: `${MONTH}-05`,
+              paymentMethod: "Pix",
+              note: "",
+            },
+          ],
+          priorities: [],
+        },
+      },
+    };
+    Object.assign(mockFinance, { state: noPendingState, month: noPendingState.months[MONTH] });
+    renderDashboard();
+    const bar = screen.getByRole("progressbar", { name: "Proporção já paga no mês" });
+    expect(bar.getAttribute("aria-valuenow")).toBe("100");
+    const fill = bar.firstElementChild as HTMLElement;
+    expect(fill.style.width).toBe("100%");
+  });
+
+  it("11. paid+pending=0 (no expenses at all) renders a neutral, empty bar — never NaN/Infinity", () => {
+    Object.assign(mockFinance, {
+      state: emptyMonthState(),
+      month: emptyMonthState().months[MONTH],
+    });
+    renderDashboard();
+    const bar = screen.getByRole("progressbar", { name: "Proporção já paga no mês" });
+    expect(bar.getAttribute("aria-valuenow")).toBe("0");
+    const fill = bar.firstElementChild as HTMLElement;
+    expect(fill.style.width).toBe("0%");
+    expect(screen.queryByText("NaN")).toBeNull();
+    expect(screen.queryByText(/Infinity/)).toBeNull();
+  });
+
+  it("12. an over-budget month keeps Livre negative and destructive-colored — same semantics as before", () => {
+    const overBudgetState: FinanceState = {
+      people: ["Maria"],
+      activePerson: "todos",
+      activeMonth: MONTH,
+      months: {
+        [MONTH]: {
+          label: "Agosto 2026",
+          income: 1000,
+          houseContribution: 0,
+          expenses: [
+            {
+              id: "e1",
+              name: "Aluguel",
+              category: "Casa",
+              amount: 1500,
+              status: "A pagar",
+              owner: "Maria",
+              date: `${MONTH}-05`,
+              paymentMethod: "Pix",
+              note: "",
+            },
+          ],
+          priorities: [],
+        },
+      },
+    };
+    Object.assign(mockFinance, { state: overBudgetState, month: overBudgetState.months[MONTH] });
+    renderDashboard();
+    // free = 1000 - 1500 = -500
+    const livre = heroSection().getByText("R$ -500.00");
+    expect(livre.className).toContain("text-destructive");
+  });
+
+  it("13. values >= 1000 are formatted through the existing money() formatter, not a parallel one", () => {
+    renderDashboard();
+    // Every hero/progress value here is already >= 1000 in the base fixture
+    // (budget 6000, comprometido 1900) — asserting they render via the exact
+    // shared `useMoney()` mock output proves no separate formatting path.
+    expect(heroSection().getByText("R$ 6000.00")).toBeTruthy();
+    expect(heroSection().getByText("R$ 1900.00")).toBeTruthy();
+  });
+
+  it("14. a large value does not overflow into a broken/garbled string", () => {
+    const bigState: FinanceState = {
+      people: ["Maria"],
+      activePerson: "todos",
+      activeMonth: MONTH,
+      months: {
+        [MONTH]: {
+          label: "Agosto 2026",
+          income: 1_250_000,
+          houseContribution: 0,
+          expenses: [
+            {
+              id: "e1",
+              name: "Aluguel",
+              category: "Casa",
+              amount: 50_000,
+              status: "A pagar",
+              owner: "Maria",
+              date: `${MONTH}-05`,
+              paymentMethod: "Pix",
+              note: "",
+            },
+          ],
+          priorities: [],
+        },
+      },
+    };
+    Object.assign(mockFinance, { state: bigState, month: bigState.months[MONTH] });
+    renderDashboard();
+    expect(heroSection().getByText("R$ 1250000.00")).toBeTruthy(); // disponível
+    expect(heroSection().getByText("R$ 50000.00")).toBeTruthy(); // comprometido
+    expect(heroSection().getByText("R$ 1200000.00")).toBeTruthy(); // livre
+    expect(progressCard().getByText("R$ 50000.00")).toBeTruthy(); // falta pagar
+  });
+
+  it("15. the old compact hero (budget + '{total} gastos · {livre}' single line) is gone — no duplication with the new hero", () => {
+    renderDashboard();
+    expect(screen.queryByText(/gastos ·/)).toBeNull();
+    expect(screen.queryByText(/livre$/)).toBeNull();
+    expect(screen.queryByText(/acima$/)).toBeNull();
+    // Exactly one "Livre" label (the new hero's) — not a second, redundant one.
+    expect(screen.getAllByText("Livre").length).toBe(1);
   });
 });
 
