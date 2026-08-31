@@ -1,6 +1,9 @@
 import {
+  ArrowDown,
   ArrowLeftRight,
+  ArrowUp,
   BarChart3,
+  CalendarClock,
   CalendarRange,
   History,
   PieChart,
@@ -15,6 +18,7 @@ import {
 } from "lucide-react";
 
 import { useFinance, useMoney } from "@/lib/finance/FinanceContext";
+import type { MonthData } from "@/lib/finance/types";
 import {
   calc,
   budgetForView,
@@ -25,6 +29,7 @@ import {
   getCategoryTotals,
   getLargestCategoryGrowth,
   getMonthHeadline,
+  getNextMonthKey,
   ownerLabelForPeople,
   sum,
   timelineMonthEntries,
@@ -113,6 +118,26 @@ export function DashboardView({
   const paidPendingTotal = numbers.paid + numbers.pending;
   const paidPct =
     paidPendingTotal > 0 ? Math.min(100, Math.max(0, (numbers.paid / paidPendingTotal) * 100)) : 0;
+
+  // P9.3 — "Próximos meses": selected month + the next two, via real
+  // Date-based rollover (getNextMonthKey — the same function createNextMonth's
+  // "+ Mês" flow already trusts; no string concatenation, no 30-day
+  // assumptions, correct across Dec->Jan and leap years for free). Reuses
+  // calc() for each key, once per month, exactly like the hero/Divisão da
+  // casa do for people — no parallel financial rule. A month with no
+  // MonthData yet is never faked into a zeroed forecast: `exists` stays
+  // false and the render below shows a neutral placeholder instead.
+  const upcomingMonthKeys = [
+    state.activeMonth,
+    getNextMonthKey(state.activeMonth),
+    getNextMonthKey(getNextMonthKey(state.activeMonth)),
+  ];
+  const upcomingMonths = upcomingMonthKeys.map((key) => {
+    const data: MonthData | undefined = state.months[key];
+    if (!data) return { key, exists: false as const };
+    return { key, exists: true as const, free: calc(data, view, key, state.people).free };
+  });
+  const selectedMonthEntry = upcomingMonths[0];
 
   return (
     <div className="flex flex-col gap-4">
@@ -253,6 +278,27 @@ export function DashboardView({
           </div>
         </Panel>
       )}
+
+      {/* P9.3 — "Próximos meses": compares "livre" (calc().free) for the
+          selected month against the next two, for whichever view is active
+          (household or a specific profile) — same scope the rest of the
+          Home already uses. Compact by design: only "livre" + a delta vs.
+          the selected month, not a repeat of every hero metric per month. */}
+      <Panel tone="flat">
+        <PanelHead title="Próximos meses" icon={CalendarClock} />
+        <div className="flex gap-2">
+          {upcomingMonths.map((entry, index) => (
+            <MonthCompareCard
+              key={entry.key}
+              entry={entry}
+              isSelected={index === 0}
+              referenceFree={selectedMonthEntry.exists ? selectedMonthEntry.free : null}
+              formatMoney={money}
+              onSelect={setActiveMonth}
+            />
+          ))}
+        </div>
+      </Panel>
 
       {/* P0-DASHBOARD-REFINE: at >=lg, Situação do mês + Ações rápidas stack in
           a left column next to Movimentações recentes on the right — same DOM
@@ -510,6 +556,119 @@ export function DashboardView({
         />
       </Panel>
     </div>
+  );
+}
+
+/** "JAN"/"FEV"/"DEZ" — same real-Date construction as calc.ts's own formatMonthLabel/getNextMonthKey (never string slicing), so rollover/leap-year correctness comes from the same trusted source. */
+function shortMonthLabel(key: string): string {
+  const [year, monthNumber] = key.split("-").map(Number);
+  const date = new Date(year, monthNumber - 1, 1);
+  return date
+    .toLocaleDateString("pt-BR", { month: "short" })
+    .replace(".", "")
+    .toLocaleUpperCase("pt-BR");
+}
+
+interface UpcomingMonthEntry {
+  key: string;
+  exists: boolean;
+  free?: number;
+}
+
+/**
+ * One "Próximos meses" cell. A month that isn't in state.months yet (no
+ * MonthData) never gets a fabricated R$ 0,00 — `entry.exists` stays false and
+ * this renders a neutral, non-interactive placeholder instead (P9.3: "não
+ * inventar dados", "não persistir um mês apenas por visualizar"). A real
+ * month is a genuine button reusing the existing setActiveMonth — no second
+ * month-selection mechanism.
+ */
+function MonthCompareCard({
+  entry,
+  isSelected,
+  referenceFree,
+  formatMoney,
+  onSelect,
+}: {
+  entry: UpcomingMonthEntry;
+  isSelected: boolean;
+  referenceFree: number | null;
+  formatMoney: (value: number) => string;
+  onSelect: (key: string) => void;
+}) {
+  const shortLabel = shortMonthLabel(entry.key);
+
+  if (!entry.exists) {
+    return (
+      <div
+        className="flex min-w-0 flex-1 flex-col items-center gap-1 rounded-2xl border border-dashed border-border bg-secondary/40 p-3 text-center"
+        aria-label={`${shortLabel} — sem dados ainda`}
+      >
+        <span className="text-[11px] font-bold uppercase tracking-wide text-muted-foreground">
+          {shortLabel}
+        </span>
+        <span className="text-xs text-muted-foreground">Sem dados</span>
+      </div>
+    );
+  }
+
+  const free = entry.free as number;
+  const overBudget = free < 0;
+  // Sign is determined first (up/down/flat); the magnitude shown is only
+  // ever the absolute value, applied after the sign already decided the
+  // direction — never the other way around.
+  const delta = !isSelected && referenceFree !== null ? free - referenceFree : null;
+  const direction: "up" | "down" | "flat" | null =
+    delta === null ? null : delta > 0 ? "up" : delta < 0 ? "down" : "flat";
+  const deltaMagnitude = delta === null ? null : formatMoney(Math.abs(delta));
+  const accessibleDelta =
+    direction === null || direction === "flat"
+      ? direction === "flat"
+        ? ", mesmo valor livre que o mês selecionado"
+        : ""
+      : `, ${deltaMagnitude} ${direction === "up" ? "a mais" : "a menos"} livre que o mês selecionado`;
+
+  return (
+    <button
+      type="button"
+      onClick={() => onSelect(entry.key)}
+      aria-label={`Ver ${shortLabel}, livre ${formatMoney(free)}${accessibleDelta}`}
+      className={`press focus-ring hover-lift flex min-w-0 flex-1 flex-col items-center gap-1 rounded-2xl border p-3 text-center transition-colors ${
+        isSelected
+          ? "border-primary bg-primary-soft"
+          : "border-border bg-secondary hover:border-primary/25"
+      }`}
+    >
+      <span className="text-[11px] font-bold uppercase tracking-wide text-muted-foreground">
+        {shortLabel}
+        {isSelected && <span className="text-primary"> · Atual</span>}
+      </span>
+      <strong
+        className={`tnum font-display text-base leading-none ${
+          overBudget ? "text-destructive" : "text-success"
+        }`}
+      >
+        {formatMoney(free)}
+      </strong>
+      <span className="text-[10px] text-muted-foreground">livre</span>
+      {direction && direction !== "flat" && (
+        <span
+          className={`flex items-center gap-0.5 text-[11px] font-semibold ${
+            direction === "up" ? "text-success" : "text-destructive"
+          }`}
+        >
+          {direction === "up" ? (
+            <ArrowUp className="h-3 w-3" strokeWidth={2.5} />
+          ) : (
+            <ArrowDown className="h-3 w-3" strokeWidth={2.5} />
+          )}
+          {deltaMagnitude}
+        </span>
+      )}
+      {direction === "flat" && (
+        <span className="text-[11px] font-semibold text-muted-foreground">Estável</span>
+      )}
+    </button>
   );
 }
 

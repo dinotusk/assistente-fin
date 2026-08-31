@@ -44,6 +44,13 @@ function divisaoDaCasaPanel() {
   return within(panel);
 }
 
+/** Scopes queries to the whole P9.3 "Próximos meses" panel. */
+function proximosMesesPanel() {
+  const panel = screen.getByText("Próximos meses").closest("section");
+  if (!panel) throw new Error("Próximos meses panel not found");
+  return within(panel);
+}
+
 /** Scopes queries to one profile's own card inside "Divisão da casa" — each
     card repeats the same "Disponível"/"Comprometido"/"Livre" labels, so
     per-profile assertions must never read from the page/panel at large. */
@@ -489,7 +496,10 @@ describe("DashboardView — P9.1 hero financeiro e progresso do mês", () => {
   it("15. the old compact hero (budget + '{total} gastos · {livre}' single line) is gone — no duplication with the new hero", () => {
     renderDashboard();
     expect(screen.queryByText(/gastos ·/)).toBeNull();
-    expect(screen.queryByText(/livre$/)).toBeNull();
+    // "livre" also legitimately appears as its own short label inside P9.3's
+    // "Próximos meses" cards — scope this specific old-hero-phrase check to
+    // the hero itself.
+    expect(heroSection().queryByText(/livre$/)).toBeNull();
     expect(screen.queryByText(/acima$/)).toBeNull();
     // Exactly one "Livre" label inside the hero itself (P9.2's per-profile
     // cards elsewhere on the page also say "Livre" — that's a different,
@@ -1082,5 +1092,426 @@ describe("DashboardView — P9.2 Divisão da casa", () => {
     // DashboardView only calls the callback; the actual PeopleDialog/savePeople
     // flow lives in AppHome/FinanceContext, never duplicated here.
     expect(screen.queryByText("Perfis financeiros")).toBeNull();
+  });
+});
+
+// P9.3 — "Próximos meses": selected month + next two, comparing calc().free
+// via getNextMonthKey's real Date-based rollover — no new financial rule, no
+// string-concatenated months, no fabricated data for a month that doesn't
+// exist in state.months yet.
+describe("DashboardView — P9.3 Próximos meses", () => {
+  it("1. shows the selected month and the next two", () => {
+    renderDashboard();
+    const panel = proximosMesesPanel();
+    expect(panel.getByText("AGO")).toBeTruthy();
+    expect(panel.getByText("SET")).toBeTruthy();
+    expect(panel.getByText("OUT")).toBeTruthy();
+  });
+
+  it("2. the selected month is marked 'Atual' and shows its real livre", () => {
+    renderDashboard();
+    const panel = proximosMesesPanel();
+    expect(panel.getByText("· Atual")).toBeTruthy();
+    // August livre = budget(6000) - total(1900) = 4100, same fixture as the hero.
+    expect(panel.getByText("R$ 4100.00")).toBeTruthy();
+  });
+
+  it("8. a future month with no MonthData shows a neutral 'Sem dados' placeholder — never a fabricated R$ 0,00", () => {
+    renderDashboard();
+    const panel = proximosMesesPanel();
+    // base fixture only has 2026-07 and 2026-08 — September/October don't exist.
+    expect(panel.getAllByText("Sem dados").length).toBe(2);
+    expect(panel.queryByText("R$ 0.00")).toBeNull();
+  });
+
+  it("does not render a clickable button for a month with no data", () => {
+    renderDashboard();
+    const panel = proximosMesesPanel();
+    expect(panel.queryByRole("button", { name: /SET/ })).toBeNull();
+    expect(panel.queryByRole("button", { name: /OUT/ })).toBeNull();
+  });
+
+  function stateWithFutureMonths(): FinanceState {
+    return {
+      ...baseState(),
+      months: {
+        ...baseState().months,
+        "2026-09": {
+          label: "Setembro 2026",
+          income: 5000,
+          houseContribution: 1000,
+          expenses: [
+            {
+              id: "sep-1",
+              name: "Aluguel",
+              category: "Casa",
+              amount: 3000,
+              status: "A pagar",
+              owner: "Maria",
+              date: "2026-09-05",
+              paymentMethod: "Pix",
+              note: "",
+            },
+          ],
+          priorities: [],
+        },
+        "2026-10": {
+          label: "Outubro 2026",
+          income: 5000,
+          houseContribution: 1000,
+          expenses: [
+            {
+              id: "oct-1",
+              name: "Mercado",
+              category: "Alimentação",
+              amount: 1000,
+              status: "Pago",
+              owner: "Maria",
+              date: "2026-10-05",
+              paymentMethod: "Pix",
+              note: "",
+            },
+          ],
+          priorities: [],
+        },
+      },
+    };
+  }
+
+  it("7. 9. 12. a month with a lower livre than the selected one shows a negative delta (down arrow, magnitude)", () => {
+    Object.assign(mockFinance, {
+      state: stateWithFutureMonths(),
+      month: stateWithFutureMonths().months[MONTH],
+    });
+    renderDashboard();
+    const panel = proximosMesesPanel();
+    // September: budget=6000, total=3000, free=3000 -> delta vs August(4100) = -1100
+    expect(panel.getByText("R$ 3000.00")).toBeTruthy();
+    expect(panel.getByText("R$ 1100.00")).toBeTruthy();
+    expect(panel.getByRole("button", { name: /a menos livre que o mês selecionado/ })).toBeTruthy();
+  });
+
+  it("13. a month with a higher livre than the selected one shows a positive delta (up arrow, magnitude)", () => {
+    Object.assign(mockFinance, {
+      state: stateWithFutureMonths(),
+      month: stateWithFutureMonths().months[MONTH],
+    });
+    renderDashboard();
+    const panel = proximosMesesPanel();
+    // October: budget=6000, total=1000, free=5000 -> delta vs August(4100) = +900
+    expect(panel.getByText("R$ 5000.00")).toBeTruthy();
+    expect(panel.getByText("R$ 900.00")).toBeTruthy();
+    expect(panel.getByRole("button", { name: /a mais livre que o mês selecionado/ })).toBeTruthy();
+  });
+
+  it("14. a month with the same livre as the selected one shows 'Estável', no arrow", () => {
+    const sameLivreState: FinanceState = {
+      ...baseState(),
+      months: {
+        ...baseState().months,
+        "2026-09": {
+          label: "Setembro 2026",
+          income: 5000,
+          houseContribution: 1000,
+          expenses: [
+            {
+              id: "sep-1",
+              name: "Aluguel",
+              category: "Casa",
+              amount: 1900,
+              status: "A pagar",
+              owner: "Maria",
+              date: "2026-09-05",
+              paymentMethod: "Pix",
+              note: "",
+            },
+          ],
+          priorities: [],
+        },
+      },
+    };
+    Object.assign(mockFinance, { state: sameLivreState, month: sameLivreState.months[MONTH] });
+    renderDashboard();
+    const panel = proximosMesesPanel();
+    // September: budget=6000, total=1900, free=4100 -> same as August.
+    expect(panel.getByText("Estável")).toBeTruthy();
+    expect(
+      panel.getByRole("button", { name: /mesmo valor livre que o mês selecionado/ }),
+    ).toBeTruthy();
+  });
+
+  it("2. e 3. Dezembro -> Janeiro -> Fevereiro rollover uses real date math, correct across the year boundary", () => {
+    const yearRolloverState: FinanceState = {
+      people: ["Maria"],
+      activePerson: "todos",
+      activeMonth: "2026-12",
+      months: {
+        "2026-12": {
+          label: "Dezembro 2026",
+          income: 5000,
+          houseContribution: 0,
+          expenses: [],
+          priorities: [],
+        },
+        "2027-01": {
+          label: "Janeiro 2027",
+          income: 5000,
+          houseContribution: 0,
+          expenses: [],
+          priorities: [],
+        },
+        "2027-02": {
+          label: "Fevereiro 2027",
+          income: 5000,
+          houseContribution: 0,
+          expenses: [],
+          priorities: [],
+        },
+      },
+    };
+    Object.assign(mockFinance, {
+      state: yearRolloverState,
+      month: yearRolloverState.months["2026-12"],
+    });
+    renderDashboard();
+    const panel = proximosMesesPanel();
+    expect(panel.getByText("DEZ")).toBeTruthy();
+    expect(panel.getByText("JAN")).toBeTruthy();
+    expect(panel.getByText("FEV")).toBeTruthy();
+  });
+
+  it("4. household view compares the whole house's livre", () => {
+    renderDashboard(); // base fixture, activePerson "todos"
+    const panel = proximosMesesPanel();
+    expect(panel.getByText("R$ 4100.00")).toBeTruthy(); // household free
+  });
+
+  it("5. first profile (VIEW_ME) compares only that profile's own livre", () => {
+    const stateForMaria: FinanceState = { ...baseState(), activePerson: "me" };
+    Object.assign(mockFinance, { state: stateForMaria, month: stateForMaria.months[MONTH] });
+    renderDashboard();
+    const panel = proximosMesesPanel();
+    // Maria: budget=income(5000), total=1500 (Aluguel), free=3500
+    expect(panel.getByText("R$ 3500.00")).toBeTruthy();
+    expect(panel.queryByText("R$ 4100.00")).toBeNull();
+  });
+
+  it("6. second profile (VIEW_SPOUSE) compares only that profile's own livre", () => {
+    const stateForOziel: FinanceState = { ...baseState(), activePerson: "spouse" };
+    Object.assign(mockFinance, { state: stateForOziel, month: stateForOziel.months[MONTH] });
+    renderDashboard();
+    const panel = proximosMesesPanel();
+    // Oziel: budget=houseContribution(1000), total=400 (Mercado), free=600
+    expect(panel.getByText("R$ 600.00")).toBeTruthy();
+  });
+
+  it("7. a third profile (index >= 2) still renders the panel using its own literal view", () => {
+    const threePeopleState: FinanceState = {
+      people: ["Maria", "Oziel", "Vovó"],
+      activePerson: "Vovó",
+      activeMonth: MONTH,
+      months: {
+        [MONTH]: {
+          label: "Agosto 2026",
+          income: 5000,
+          houseContribution: 1000,
+          profileBudgets: { Vovó: 500 },
+          expenses: [
+            {
+              id: "e1",
+              name: "Remédio",
+              category: "Saúde",
+              amount: 200,
+              status: "A pagar",
+              owner: "Vovó",
+              date: `${MONTH}-05`,
+              paymentMethod: "Pix",
+              note: "",
+            },
+          ],
+          priorities: [],
+        },
+      },
+    };
+    Object.assign(mockFinance, { state: threePeopleState, month: threePeopleState.months[MONTH] });
+    renderDashboard();
+    const panel = proximosMesesPanel();
+    // Vovó: budget=profileBudgets["Vovó"]=500, total=200, free=300
+    expect(panel.getByText("R$ 300.00")).toBeTruthy();
+  });
+
+  it("9. an active budget of zero doesn't crash and renders R$ 0,00 correctly", () => {
+    const zeroBudgetState: FinanceState = {
+      people: ["Maria"],
+      activePerson: "todos",
+      activeMonth: MONTH,
+      months: {
+        [MONTH]: {
+          label: "Agosto 2026",
+          income: 0,
+          houseContribution: 0,
+          expenses: [],
+          priorities: [],
+        },
+      },
+    };
+    Object.assign(mockFinance, { state: zeroBudgetState, month: zeroBudgetState.months[MONTH] });
+    renderDashboard();
+    const panel = proximosMesesPanel();
+    expect(panel.getByText("R$ 0.00")).toBeTruthy();
+  });
+
+  it("11. a negative livre is preserved as negative — never flipped positive", () => {
+    const negativeFreeState: FinanceState = {
+      people: ["Maria"],
+      activePerson: "todos",
+      activeMonth: MONTH,
+      months: {
+        [MONTH]: {
+          label: "Agosto 2026",
+          income: 100,
+          houseContribution: 0,
+          expenses: [
+            {
+              id: "e1",
+              name: "Aluguel",
+              category: "Casa",
+              amount: 1500,
+              status: "A pagar",
+              owner: "Maria",
+              date: `${MONTH}-05`,
+              paymentMethod: "Pix",
+              note: "",
+            },
+          ],
+          priorities: [],
+        },
+      },
+    };
+    Object.assign(mockFinance, {
+      state: negativeFreeState,
+      month: negativeFreeState.months[MONTH],
+    });
+    renderDashboard();
+    const panel = proximosMesesPanel();
+    // free = 100 - 1500 = -1400, must render as a real negative value.
+    const livre = panel.getByText("R$ -1400.00");
+    expect(livre.className).toContain("text-destructive");
+  });
+
+  it("15. hideValues masks every livre and delta figure in the panel", () => {
+    mockFinance.hideValues = true;
+    Object.assign(mockFinance, {
+      state: stateWithFutureMonths(),
+      month: stateWithFutureMonths().months[MONTH],
+    });
+    renderDashboard();
+    const panel = proximosMesesPanel();
+    expect(panel.queryByText("R$ 4100.00")).toBeNull();
+    expect(panel.queryByText("R$ 3000.00")).toBeNull();
+    expect(panel.queryByText("R$ 1100.00")).toBeNull();
+    expect(panel.getAllByText("R$ ••••").length).toBeGreaterThan(0);
+  });
+
+  it("16. a large livre value is formatted through the existing money() formatter, not a parallel one", () => {
+    const bigState: FinanceState = {
+      people: ["Maria"],
+      activePerson: "todos",
+      activeMonth: MONTH,
+      months: {
+        [MONTH]: {
+          label: "Agosto 2026",
+          income: 1_250_000,
+          houseContribution: 0,
+          expenses: [],
+          priorities: [],
+        },
+      },
+    };
+    Object.assign(mockFinance, { state: bigState, month: bigState.months[MONTH] });
+    renderDashboard();
+    const panel = proximosMesesPanel();
+    expect(panel.getByText("R$ 1250000.00")).toBeTruthy();
+  });
+
+  it("17. and 18. clicking (or activating via keyboard) an existing future month calls the existing setActiveMonth", () => {
+    Object.assign(mockFinance, {
+      state: stateWithFutureMonths(),
+      month: stateWithFutureMonths().months[MONTH],
+    });
+    renderDashboard();
+    const panel = proximosMesesPanel();
+    const septemberCard = panel.getByRole("button", { name: /^Ver SET/ });
+    expect(septemberCard.tagName).toBe("BUTTON"); // real button -> Enter/Space work natively
+    fireEvent.click(septemberCard);
+    expect(mockFinance.setActiveMonth).toHaveBeenCalledWith("2026-09");
+    expect(mockFinance.setActiveMonth).toHaveBeenCalledTimes(1);
+  });
+
+  it("19. switching profile recalculates the comparison", () => {
+    Object.assign(mockFinance, {
+      state: stateWithFutureMonths(),
+      month: stateWithFutureMonths().months[MONTH],
+    });
+    renderDashboard();
+    expect(proximosMesesPanel().getByText("R$ 4100.00")).toBeTruthy(); // household
+
+    cleanup();
+    const forMaria: FinanceState = { ...stateWithFutureMonths(), activePerson: "me" };
+    Object.assign(mockFinance, { state: forMaria, month: forMaria.months[MONTH] });
+    renderDashboard();
+    // Maria only (Aluguel 1500 owned by Maria): budget=5000, total=1500, free=3500
+    expect(proximosMesesPanel().getByText("R$ 3500.00")).toBeTruthy();
+    expect(proximosMesesPanel().queryByText("R$ 4100.00")).toBeNull();
+  });
+
+  it("20. viewing/switching to a comparison month never creates a new month entry (no persistence)", () => {
+    renderDashboard();
+    const panel = proximosMesesPanel();
+    // September/October have no data and render as inert placeholders — no
+    // button exists for them, so there is no way to trigger persistence from
+    // this panel; only the real, already-existing setActiveMonth is callable.
+    expect(panel.queryByRole("button", { name: /SET/ })).toBeNull();
+    expect(panel.queryByRole("button", { name: /OUT/ })).toBeNull();
+    expect(mockFinance.setActiveMonth).not.toHaveBeenCalled();
+  });
+
+  it("21. and 22. no NaN or Infinity ever renders in the panel", () => {
+    Object.assign(mockFinance, {
+      state: stateWithFutureMonths(),
+      month: stateWithFutureMonths().months[MONTH],
+    });
+    renderDashboard();
+    const panel = proximosMesesPanel();
+    expect(panel.queryByText(/NaN/)).toBeNull();
+    expect(panel.queryByText(/Infinity/)).toBeNull();
+  });
+
+  it("23. does not render a redundant aggregate 'Minha casa' card — exactly 3 month cells", () => {
+    renderDashboard();
+    const panel = proximosMesesPanel();
+    expect(panel.queryByText("Minha casa")).toBeNull();
+    expect(panel.getAllByText(/^(AGO|SET|OUT)$/).length).toBe(3);
+  });
+
+  it("24. no profile name is hardcoded — a differently named profile still drives the comparison correctly", () => {
+    const renamedState: FinanceState = {
+      ...baseState(),
+      people: ["Ana", "Pedro"],
+      activePerson: "me",
+      months: {
+        [MONTH]: {
+          ...baseState().months[MONTH],
+          expenses: baseState().months[MONTH].expenses.map((e) => ({
+            ...e,
+            owner: e.owner === "Maria" ? "Ana" : "Pedro",
+          })),
+        },
+      },
+    };
+    Object.assign(mockFinance, { state: renamedState, month: renamedState.months[MONTH] });
+    renderDashboard();
+    // Ana (index 0 -> VIEW_ME): same numbers as "Maria" did in the base fixture.
+    expect(proximosMesesPanel().getByText("R$ 3500.00")).toBeTruthy();
   });
 });
