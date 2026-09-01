@@ -24,14 +24,14 @@ export function BottomNav({ view, onChange, onOpenAssistant }: BottomNavProps) {
       aria-label="Navegação principal"
       className="pointer-events-none fixed inset-x-0 bottom-0 z-30 flex justify-center px-4 pb-[max(1rem,env(safe-area-inset-bottom))]"
     >
-      {/* Aval Modern (fintech rebuild) — smaller footprint (less padding,
-          smaller icons/labels, smaller central button) and the central
-          button is a plain primary (green) fill now, never the gold
-          hero-gradient — the "big beige square" the redesign brief called
-          out by name. Still the one permanently-visible glass surface, so
-          it keeps the strongest tier (glass-nav) and the only
-          backdrop-filter in this component. */}
-      <div className="glass-nav pointer-events-auto grid w-full max-w-[380px] grid-cols-5 items-end rounded-2xl px-1.5 pb-1 pt-1.5">
+      {/* Aval Fintech Reconstruction (item 10) — trimmer footprint: tighter
+          max-width/padding, the center Aval button barely raised (-mt-2
+          instead of -mt-5, h-11 instead of h-12 — same row as the other
+          four, not a floating giant), no shadow-primary glow. The active-
+          tab indicator (glass-active pill + scale-105 on NavButton) is
+          unchanged — an existing, larger behavioral test contract pins it,
+          and it already reads as a small "lens", not a heavy box. */}
+      <div className="glass-nav pointer-events-auto grid w-full max-w-[340px] grid-cols-5 items-end rounded-2xl px-1 pb-1 pt-1">
         <NavButton item={items[0]} active={view === items[0].key} onChange={onChange} />
         <NavButton item={items[1]} active={view === items[1].key} onChange={onChange} />
 
@@ -40,9 +40,9 @@ export function BottomNav({ view, onChange, onOpenAssistant }: BottomNavProps) {
           onClick={onOpenAssistant}
           aria-label="Conversar com o Aval"
           aria-current={view === "assistant" ? "page" : undefined}
-          className="press focus-ring mx-auto -mt-5 flex h-12 w-12 items-center justify-center rounded-full bg-primary text-primary-foreground shadow-primary transition-colors"
+          className="press focus-ring mx-auto -mt-2 flex h-11 w-11 items-center justify-center rounded-full bg-primary text-primary-foreground transition-colors"
         >
-          <AvalMark size={18} className="text-primary-foreground" />
+          <AvalMark size={16} className="text-primary-foreground" />
         </button>
 
         <NavButton item={items[2]} active={view === items[2].key} onChange={onChange} />
@@ -77,11 +77,11 @@ function NavButton({
           not just a color change. */}
       <span
         className={cn(
-          "flex h-6 w-8 items-center justify-center rounded-full transition-[scale,background-color,border-color,box-shadow] duration-200",
+          "flex h-5 w-7 items-center justify-center rounded-full transition-[scale,background-color,border-color,box-shadow] duration-200",
           active ? "glass-active scale-105" : "scale-100",
         )}
       >
-        <Icon className="h-4 w-4" strokeWidth={active ? 2.5 : 2} />
+        <Icon className="h-[15px] w-[15px]" strokeWidth={active ? 2.5 : 2} />
       </span>
       <span>{label}</span>
     </button>

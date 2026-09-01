@@ -216,18 +216,17 @@ export function AppHome() {
 
   const monthPicker = (
     <>
-      {/* Aval Modern (fintech rebuild) — a compact chip, not a bar filling
-          the row: shrink-to-content width. Height is h-11 (44px) for a real
-          touch target; the chip still reads as compact because the visual
-          content inside (text-xs, tight padding) stays small — the box is
-          taller than it looks by virtue of vertical centering, not by
-          looking bulky. */}
+      {/* Aval Fintech Reconstruction (item 11) — a bare text chip, not a
+          boxed input: no glass surface, no fill, just the label + a small
+          chevron. Height is h-11 (44px) for a real touch target; the
+          control reads as compact because there is no visible box at all,
+          only vertically-centered text. */}
       <div className="relative inline-flex shrink-0">
         <select
           value={state.activeMonth}
           onChange={(e) => setActiveMonth(e.target.value)}
           aria-label="Selecionar mês"
-          className="glass-surface focus-ring h-11 appearance-none rounded-md pl-3 pr-8 text-xs font-bold text-foreground outline-none transition focus:border-primary"
+          className="focus-ring h-11 appearance-none bg-transparent pl-0 pr-5 text-sm font-bold text-foreground outline-none"
         >
           {Object.entries(state.months)
             .sort(([a], [b]) => a.localeCompare(b))
@@ -237,16 +236,16 @@ export function AppHome() {
               </option>
             ))}
         </select>
-        <ChevronDown className="pointer-events-none absolute right-2.5 top-1/2 h-3.5 w-3.5 -translate-y-1/2 text-muted-foreground" />
+        <ChevronDown className="pointer-events-none absolute right-0 top-1/2 h-3.5 w-3.5 -translate-y-1/2 text-muted-foreground" />
       </div>
       <button
         type="button"
         onClick={() => createNextMonth()}
         aria-label={`Criar ${formatMonthLabel(state.activeMonth)}`}
         title={`Criar ${formatMonthLabel(state.activeMonth)}`}
-        className="press focus-ring flex h-11 w-11 shrink-0 items-center justify-center rounded-md bg-primary-soft text-primary hover:bg-primary/15"
+        className="press focus-ring flex h-11 w-11 shrink-0 items-center justify-center rounded-full text-muted-foreground hover:text-primary"
       >
-        <CalendarPlus className="h-4 w-4" strokeWidth={2.25} />
+        <CalendarPlus className="h-4 w-4" strokeWidth={2} />
       </button>
     </>
   );
@@ -436,24 +435,26 @@ export function AppHome() {
   return (
     <div className="app-backdrop min-h-dvh">
       <div className="relative mx-auto flex min-h-dvh w-full max-w-[440px] flex-col bg-background/30">
-        {/* Header — Aval Modern: compact on purpose so the Home (led by the
-            balance now, not a header heading) starts as early as possible.
-            Greeting is a small caption; the month goes back to being a
-            compact pill control (not an editorial heading — that would
-            compete with the balance for "biggest number on the page"); the
-            profile switcher stays a light context row. */}
-        <header className="sticky top-0 z-20 bg-background/88 px-5 pb-2.5 pt-[max(0.75rem,env(safe-area-inset-top))] backdrop-blur-[22px]">
+        {/* Header — Aval Fintech Reconstruction (item 11): drastically
+            reduced footprint so the Home (led by the balance, not a header
+            heading) starts as early as possible. Identity row stays
+            (title/greeting + hideValues + avatar — required for screen
+            context on every view, and the avatar/toggle keep their glass/
+            gradient treatment, which existing tests pin), tightened to a
+            single compact row. Month + profile switcher now share ONE row
+            below it instead of two stacked boxed rows. */}
+        <header className="sticky top-0 z-20 bg-background/88 px-5 pb-2 pt-[max(0.625rem,env(safe-area-inset-top))] backdrop-blur-[22px]">
           <div className="flex items-center justify-between gap-3">
             <h1 className="min-w-0 truncate text-2xs font-bold uppercase tracking-[0.14em] text-muted-foreground">
               {view === "assistant" ? `Olá, ${firstName}` : titles[view]}
             </h1>
-            <div className="flex shrink-0 items-center gap-2">
+            <div className="flex shrink-0 items-center gap-1">
               <HideValuesToggle hidden={hideValues} onClick={toggleHideValues} />
               <div className="relative" ref={profileMenuRef}>
                 <button
                   type="button"
                   onClick={() => setProfileMenuOpen((value) => !value)}
-                  className="hero-gradient press focus-ring flex h-11 w-11 shrink-0 items-center justify-center rounded-md border border-[var(--glass-border)] text-sm font-bold text-primary-foreground shadow-primary"
+                  className="hero-gradient press focus-ring flex h-11 w-11 shrink-0 items-center justify-center rounded-full border border-[var(--glass-border)] text-sm font-bold text-primary-foreground"
                   aria-label="Abrir opções do perfil"
                 >
                   {initials}
@@ -465,9 +466,10 @@ export function AppHome() {
             </div>
           </div>
 
-          <div className="mt-2 flex items-center gap-2">{monthPicker}</div>
-
-          {personSegmented ? <div className="mt-2">{personSegmented}</div> : null}
+          <div className="mt-1 flex items-center gap-4 overflow-x-auto no-scrollbar">
+            {monthPicker}
+            {personSegmented}
+          </div>
         </header>
 
         {/* Content */}

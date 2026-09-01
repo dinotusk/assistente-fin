@@ -112,9 +112,11 @@
   /* P0-FRONTEND-1B.7 — the bottom nav is the one permanently-visible glass
      surface, so it gets its own single stronger tier ("nav") instead of a
      whole new Level 3 family: more blur/saturation, a touch more
-     transparent than glass-surface-strong, still deep-green tinted. */
-  --glass-nav-bg: rgb(9 27 21 / 0.62);
-  --glass-nav-blur: 26px;
+     transparent than glass-surface-strong, still deep-green tinted.
+     Aval Fintech Reconstruction — blur/opacity trimmed further (item 10:
+     "menos glow") so the capsule reads as a thin, quiet nav strip. */
+  --glass-nav-bg: rgb(9 27 21 / 0.7);
+  --glass-nav-blur: 16px;
 }
 
 .dark {
@@ -192,17 +194,11 @@
   line-height: 1;
 }
 
+/* Aval Fintech Reconstruction — the repeating-stripe "quadriculado" pattern
+   and the loud top-right gold radial are gone: flat, near-black-green depth
+   only, so surfaces (not the backdrop itself) carry the visual interest. */
 @utility app-backdrop {
-  background:
-    repeating-linear-gradient(
-      90deg,
-      rgb(200 173 122 / 0.055) 0,
-      rgb(200 173 122 / 0.055) 1px,
-      transparent 1px,
-      transparent 64px
-    ),
-    radial-gradient(circle at 100% -10%, rgb(200 173 122 / 0.18), transparent 30%),
-    linear-gradient(180deg, #0d2b22 0%, #0a221b 52%, #061a14 100%);
+  background: linear-gradient(180deg, #0a201a 0%, #071c16 55%, #061a14 100%);
 }
 
 @utility card-surface {
@@ -329,11 +325,8 @@
 @utility glass-nav {
   background: var(--glass-nav-bg);
   border: 1px solid var(--glass-border);
-  box-shadow:
-    var(--glass-shadow),
-    0 30px 60px -24px rgb(0 0 0 / 0.6),
-    inset 0 1px 0 var(--glass-highlight);
-  backdrop-filter: blur(var(--glass-nav-blur)) saturate(1.24);
+  box-shadow: var(--glass-shadow);
+  backdrop-filter: blur(var(--glass-nav-blur)) saturate(1.08);
 }
 
 /* Gold-tinted glass fill for an active/selected state on a glass surface —

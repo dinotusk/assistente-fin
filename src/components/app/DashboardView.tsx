@@ -5,21 +5,15 @@ import {
   ArrowUp,
   BarChart3,
   Calculator,
-  CalendarClock,
   CalendarRange,
-  CheckCircle2,
   ChevronDown,
-  Clock3,
-  CreditCard,
   History,
   PieChart,
   Plus,
   Receipt,
   Target,
   TrendingUp,
-  TriangleAlert,
   Users,
-  Wallet,
 } from "lucide-react";
 
 import { useFinance, useMoney } from "@/lib/finance/FinanceContext";
@@ -173,11 +167,8 @@ export function DashboardView({
         </strong>
       </div>
 
-      {/* Aval Modern (fintech rebuild) — two primary actions immediately
-          under the balance (Request/Transfer placement in the reference),
-          both compact (not full-width). Secondary actions are icon tiles
-          below, not pills — matches the reference's "Categories" row more
-          than a scrollable pill carousel. */}
+      {/* Aval Fintech Reconstruction (item 2) — two primary actions
+          immediately under the balance, both compact (not full-width). */}
       <div className="flex gap-2" data-testid="quick-actions">
         <PrimaryActionPill icon={Plus} label="Adicionar gasto" onClick={onAddExpense} />
         <PrimaryActionPill
@@ -187,28 +178,29 @@ export function DashboardView({
           primary={false}
         />
       </div>
-      <div className="grid grid-cols-3 gap-2">
+      {/* Aval Fintech Reconstruction (item 3) — a borderless shortcut row:
+          no tile background, just icon + tiny label, high density. */}
+      <div className="grid grid-cols-3 gap-1">
         <ActionTile icon={Target} label="Adicionar meta" onClick={onAddGoal} />
         <ActionTile icon={null} label="Perguntar ao Aval" onClick={onOpenAval} />
         <ActionTile icon={ArrowLeftRight} label="Ver gastos" onClick={onViewTransactions} />
       </div>
 
-      {/* Aval Modern (fintech rebuild) — Disponível/Comprometido/Pago/Falta
-          pagar as a bare 2x2 tile grid directly on the page background, not
-          inside a Panel (the shared Panel default padding stays untouched —
-          see ui.tsx — this module never uses it). Every value still comes
-          straight from calc()/budgetForView(); the progress bar is still
-          exactly paid/(paid+pending), zero-guarded as before. */}
+      {/* Aval Fintech Reconstruction (item 4) — Disponível/Comprometido/
+          Pago/Falta pagar as a bare, borderless 2x2 text grid: hierarchy
+          comes from typography and space, not from boxed tiles or icons.
+          Every value still comes straight from calc()/budgetForView(); the
+          progress bar is still exactly paid/(paid+pending), zero-guarded as
+          before. */}
       <div data-testid="metrics-panel">
-        <div className="grid grid-cols-2 gap-2">
-          <MetricCell
-            icon={Wallet}
+        <div className="grid grid-cols-2 gap-x-4 gap-y-3">
+          <SummaryStat
             label={view === VIEW_ME ? "Renda" : view === VIEW_SPOUSE ? "Repasse" : "Disponível"}
             value={money(budget)}
           />
-          <MetricCell icon={CreditCard} label="Comprometido" value={money(numbers.total)} />
-          <MetricCell icon={CheckCircle2} label="Pago" value={money(numbers.paid)} />
-          <MetricCell icon={Clock3} label="Falta pagar" value={money(numbers.pending)} />
+          <SummaryStat label="Comprometido" value={money(numbers.total)} />
+          <SummaryStat label="Pago" value={money(numbers.paid)} />
+          <SummaryStat label="Falta pagar" value={money(numbers.pending)} />
         </div>
         <div
           role="progressbar"
@@ -225,12 +217,12 @@ export function DashboardView({
         </div>
       </div>
 
-      {/* P9.2 — "Divisão da casa": mini module, bare tonal surface (not a
-          Panel) — 2-column grid, low height. Only in VIEW_ALL with 2+
-          profiles. Same calc()/budgetForView() calls as always, no new
-          financial rule. */}
+      {/* Aval Fintech Reconstruction (item 6) — "Divisão da casa": no more
+          tonal card wrapping the module, just a hairline top border to
+          separate it from the block above. Same 2-column comparison, same
+          calc()/budgetForView() calls, only in VIEW_ALL with 2+ profiles. */}
       {view === VIEW_ALL && state.people.length >= 2 && (
-        <div className="rounded-lg bg-secondary/30 p-3" data-testid="household-module">
+        <div className="border-t border-border/40 pt-3" data-testid="household-module">
           <div className="mb-2 flex items-center justify-between gap-2">
             <span className="text-xs font-bold uppercase tracking-wide text-muted-foreground">
               Divisão da casa
@@ -289,12 +281,12 @@ export function DashboardView({
         </div>
       )}
 
-      {/* P9.3 — "Próximos meses": an analytics-strip module (3 columns of
-          plain text, no button-card backgrounds) — compares "livre"
+      {/* Aval Fintech Reconstruction (item 5) — "Próximos meses": a plain
+          analytics strip, no wrapping surface at all, separated from the
+          block above by a hairline border only. Compares "livre"
           (calc().free) for the selected month against the next two, for
-          whichever view is active. Only "livre" + a delta vs. the selected
-          month, not a repeat of every hero metric per month. */}
-      <div className="rounded-lg bg-secondary/30 p-3" data-testid="upcoming-months-module">
+          whichever view is active. */}
+      <div className="border-t border-border/40 pt-3" data-testid="upcoming-months-module">
         <span className="mb-2 block text-xs font-bold uppercase tracking-wide text-muted-foreground">
           Próximos meses
         </span>
@@ -318,16 +310,19 @@ export function DashboardView({
           order), so nothing needs a separate desktop layout or new breakpoint. */}
       <div className="flex flex-col gap-3 lg:grid lg:grid-cols-2 lg:items-start">
         <div className="flex flex-col gap-3">
-          {/* Aval Modern — bare tonal module, not a Panel. */}
-          <div className="rounded-lg bg-secondary/30 p-3" data-testid="situacao-modulo">
-            <PanelHead title="Situação do mês" icon={TriangleAlert} />
-            <div className="flex flex-col gap-3">
+          {/* Aval Fintech Reconstruction (item 7) — "Situação do mês" as a
+              compact insight, no wrapping card and no decorative icon: just
+              the title, the top-category row (text only, no boxed
+              background), and the headline. */}
+          <div className="border-t border-border/40 pt-3" data-testid="situacao-modulo">
+            <PanelHead title="Situação do mês" />
+            <div className="flex flex-col gap-2.5">
               {topCategory && (
                 <button
                   type="button"
                   onClick={() => onOpenCategory(topCategory.category)}
                   aria-label={`Ver gastos da categoria ${categoryLabel(topCategory.category)}`}
-                  className="press focus-ring hover-lift flex items-center justify-between gap-3 rounded-md bg-secondary/70 p-2.5 text-left transition-colors hover:bg-secondary"
+                  className="press focus-ring flex items-center justify-between gap-3 py-0.5 text-left"
                 >
                   <div className="min-w-0">
                     <span className="block text-xs font-semibold uppercase tracking-wide text-muted-foreground">
@@ -602,7 +597,7 @@ function MonthCompareCard({
   if (!entry.exists) {
     return (
       <div
-        className="flex min-w-0 flex-col items-center gap-0.5 rounded-md border border-dashed border-border py-2 text-center"
+        className="flex min-w-0 flex-col items-center gap-0.5 py-2 text-center"
         aria-label={`${shortLabel} — sem dados ainda`}
       >
         <span className="text-2xs font-bold uppercase tracking-wide text-muted-foreground">
@@ -634,8 +629,8 @@ function MonthCompareCard({
       type="button"
       onClick={() => onSelect(entry.key)}
       aria-label={`Ver ${shortLabel}, livre ${formatMoney(free)}${accessibleDelta}`}
-      className={`press focus-ring flex min-w-0 flex-col items-center gap-0.5 rounded-md py-2 text-center transition-colors ${
-        isSelected ? "bg-primary-soft" : "hover:bg-secondary/40"
+      className={`press focus-ring flex min-w-0 flex-col items-center gap-0.5 border-t-2 py-2 text-center transition-colors ${
+        isSelected ? "border-primary" : "border-transparent hover:border-border"
       }`}
     >
       <span className="text-2xs font-bold uppercase tracking-wide text-muted-foreground">
@@ -672,27 +667,14 @@ function MonthCompareCard({
   );
 }
 
-/** One compact metric tile (Disponível/Comprometido/Pago/Falta pagar) — bare tonal surface, small icon, no Panel. */
-function MetricCell({
-  icon: Icon,
-  label,
-  value,
-}: {
-  icon: React.ComponentType<{ className?: string; strokeWidth?: number }>;
-  label: string;
-  value: string;
-}) {
+/** One financial summary figure (Disponível/Comprometido/Pago/Falta pagar) — plain label + value, no icon, no box: hierarchy is typography and spacing only. */
+function SummaryStat({ label, value }: { label: string; value: string }) {
   return (
-    <div className="flex items-center gap-2 rounded-md bg-secondary/40 px-2.5 py-2">
-      <Icon className="h-[18px] w-[18px] shrink-0 text-primary/70" strokeWidth={2} />
-      <div className="min-w-0">
-        <span className="block text-2xs font-semibold uppercase tracking-wide text-muted-foreground">
-          {label}
-        </span>
-        <strong className="tnum block text-sm font-bold leading-none text-foreground">
-          {value}
-        </strong>
-      </div>
+    <div>
+      <span className="block text-2xs font-semibold uppercase tracking-wide text-muted-foreground">
+        {label}
+      </span>
+      <strong className="tnum block text-lg font-bold leading-none text-foreground">{value}</strong>
     </div>
   );
 }
@@ -715,9 +697,7 @@ function PrimaryActionPill({
       type="button"
       onClick={onClick}
       className={`press focus-ring flex h-11 flex-1 items-center justify-center gap-1.5 rounded-full text-sm font-bold ${
-        primary
-          ? "bg-primary text-primary-foreground shadow-primary"
-          : "bg-secondary/60 text-foreground"
+        primary ? "bg-primary text-primary-foreground" : "bg-secondary/60 text-foreground"
       }`}
     >
       <Icon className="h-[18px] w-[18px]" strokeWidth={2.4} />
@@ -741,10 +721,10 @@ function ActionTile({
     <button
       type="button"
       onClick={onClick}
-      className="press focus-ring flex min-h-11 flex-col items-center justify-center gap-1 rounded-md bg-secondary/40 py-2 text-center"
+      className="press focus-ring flex min-h-11 flex-col items-center justify-center gap-1 py-2 text-center"
     >
       {Icon ? (
-        <Icon className="h-[18px] w-[18px] text-primary" strokeWidth={2.2} />
+        <Icon className="h-[18px] w-[18px] text-muted-foreground" strokeWidth={2} />
       ) : (
         <AvalMark size={18} />
       )}

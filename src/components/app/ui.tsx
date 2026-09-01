@@ -204,6 +204,11 @@ interface SegmentedProps<T extends string> {
   className?: string;
 }
 
+/** Aval Fintech Reconstruction (item 11) — no more glass pill capsule: plain
+    text tabs with a bottom-border indicator, the only surface being the
+    thin active underline itself. Touch target stays >=44px via min-h-11 on
+    each button; visual weight comes down through the removed
+    background/padding, not the tap area. */
 export function Segmented<T extends string>({
   value,
   options,
@@ -211,9 +216,7 @@ export function Segmented<T extends string>({
   className,
 }: SegmentedProps<T>) {
   return (
-    <div
-      className={cn("glass-surface no-scrollbar flex overflow-x-auto rounded-full p-1", className)}
-    >
+    <div className={cn("no-scrollbar flex items-center gap-4 overflow-x-auto", className)}>
       {options.map((opt) => {
         const active = opt.value === value;
         return (
@@ -222,10 +225,10 @@ export function Segmented<T extends string>({
             type="button"
             onClick={() => onChange(opt.value)}
             className={cn(
-              "focus-ring flex min-h-11 min-w-fit shrink-0 items-center rounded-full px-3 text-xs font-semibold transition-all duration-200 active:scale-[0.97]",
+              "focus-ring flex min-h-11 shrink-0 items-center border-b-2 px-0.5 text-xs font-semibold transition-colors duration-200",
               active
-                ? "bg-primary text-primary-foreground shadow-primary"
-                : "text-muted-foreground hover:text-foreground",
+                ? "border-primary text-foreground"
+                : "border-transparent text-muted-foreground hover:text-foreground",
             )}
           >
             {opt.label}
