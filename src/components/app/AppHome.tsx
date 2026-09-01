@@ -147,7 +147,7 @@ export function AppHome() {
   const firstName = activeUser?.name?.trim().split(/\s+/)[0] || "Você";
 
   const profileMenu = (
-    <div className="glass-surface-strong animate-glass-in rounded-[1.5rem] p-3 text-left">
+    <div className="glass-surface-strong animate-glass-in rounded-xl p-3 text-left">
       <div className="mb-3 flex items-center gap-3 rounded-2xl bg-secondary p-3">
         <div className="hero-gradient flex h-10 w-10 items-center justify-center rounded-2xl text-sm font-bold text-primary-foreground">
           {initials}
@@ -221,7 +221,7 @@ export function AppHome() {
           value={state.activeMonth}
           onChange={(e) => setActiveMonth(e.target.value)}
           aria-label="Selecionar mês"
-          className="glass-surface focus-ring h-11 w-full appearance-none rounded-[1.35rem] px-4 pr-10 text-sm font-bold text-foreground outline-none transition focus:border-primary"
+          className="glass-surface focus-ring h-11 w-full appearance-none rounded-lg px-4 pr-10 text-sm font-bold text-foreground outline-none transition focus:border-primary"
         >
           {Object.entries(state.months)
             .sort(([a], [b]) => a.localeCompare(b))
@@ -236,7 +236,7 @@ export function AppHome() {
       <button
         type="button"
         onClick={() => createNextMonth()}
-        className="press focus-ring flex h-11 items-center gap-1.5 rounded-[1.35rem] bg-primary-soft px-4 text-sm font-bold text-primary shadow-soft hover:bg-primary/15"
+        className="press focus-ring flex h-11 items-center gap-1.5 rounded-lg bg-primary-soft px-4 text-sm font-bold text-primary shadow-soft hover:bg-primary/15"
         title={`Criar ${formatMonthLabel(state.activeMonth)}`}
       >
         <CalendarPlus className="h-4 w-4" strokeWidth={2.25} /> Mês
@@ -387,7 +387,7 @@ export function AppHome() {
           <header className="sticky top-0 z-20 border-b border-border/70 bg-background/70 px-8 py-4 backdrop-blur-xl">
             <div className="mx-auto flex w-full max-w-[1100px] flex-wrap items-center gap-4">
               <div className="min-w-0 flex-1">
-                <p className="text-[11px] font-bold uppercase tracking-[0.16em] text-primary/70">
+                <p className="text-xs font-bold uppercase tracking-[0.16em] text-primary/70">
                   {titles[view]}
                 </p>
                 <h1 className="truncate font-display text-3xl text-foreground">
@@ -402,7 +402,7 @@ export function AppHome() {
                 <button
                   type="button"
                   onClick={() => setExpenseDialog({ open: true, id: null })}
-                  className="press hover-lift focus-ring flex h-11 items-center gap-2 rounded-[1.35rem] bg-primary px-5 text-sm font-bold text-primary-foreground shadow-primary"
+                  className="press hover-lift focus-ring flex h-11 items-center gap-2 rounded-lg bg-primary px-5 text-sm font-bold text-primary-foreground shadow-primary"
                 >
                   <Plus className="h-5 w-5" strokeWidth={2.5} /> Novo gasto
                 </button>
@@ -432,10 +432,10 @@ export function AppHome() {
         <header className="sticky top-0 z-20 border-b border-white/6 bg-background/88 px-5 pb-3 pt-[max(1rem,env(safe-area-inset-top))] backdrop-blur-[22px]">
           <div className="flex items-center justify-between gap-3">
             <div className="min-w-0">
-              <p className="text-[10px] font-bold uppercase tracking-[0.14em] text-muted-foreground">
+              <p className="text-2xs font-bold uppercase tracking-[0.14em] text-muted-foreground">
                 {activeMonthLabel}
               </p>
-              <h1 className="mt-1 truncate font-display text-[2rem] leading-none text-foreground">
+              <h1 className="mt-1 truncate font-display text-display leading-none text-foreground">
                 {view === "assistant" ? `Olá, ${firstName}` : titles[view]}
               </h1>
             </div>
@@ -445,7 +445,7 @@ export function AppHome() {
                 <button
                   type="button"
                   onClick={() => setProfileMenuOpen((value) => !value)}
-                  className="hero-gradient press focus-ring flex h-11 w-11 shrink-0 items-center justify-center rounded-[0.95rem] border border-[var(--glass-border)] text-sm font-bold text-primary-foreground shadow-primary"
+                  className="hero-gradient press focus-ring flex h-11 w-11 shrink-0 items-center justify-center rounded-md border border-[var(--glass-border)] text-sm font-bold text-primary-foreground shadow-primary"
                   aria-label="Abrir opções do perfil"
                 >
                   {initials}
@@ -481,7 +481,7 @@ function HideValuesToggle({ hidden, onClick }: { hidden: boolean; onClick: () =>
       aria-pressed={hidden}
       aria-label={hidden ? "Desativar modo privado" : "Ativar modo privado"}
       title={hidden ? "Desativar modo privado" : "Ativar modo privado"}
-      className={`glass-surface press focus-ring flex h-11 w-11 shrink-0 items-center justify-center rounded-[0.95rem] transition-colors ${
+      className={`glass-surface press focus-ring flex h-11 w-11 shrink-0 items-center justify-center rounded-md transition-colors ${
         hidden ? "glass-active text-primary" : "text-muted-foreground hover:text-foreground"
       }`}
     >

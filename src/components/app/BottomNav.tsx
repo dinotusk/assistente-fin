@@ -27,7 +27,7 @@ export function BottomNav({ view, onChange, onOpenAssistant }: BottomNavProps) {
       {/* P0-FRONTEND-1B.7 — the one permanently-visible glass surface, so it
           gets the strongest tier (glass-nav) and the only backdrop-filter in
           this component; every child below is background/border/shadow only. */}
-      <div className="glass-nav pointer-events-auto grid w-full max-w-[416px] grid-cols-5 items-end rounded-[1.85rem] px-2 pb-2 pt-2.5">
+      <div className="glass-nav pointer-events-auto grid w-full max-w-[416px] grid-cols-5 items-end rounded-2xl px-2 pb-2 pt-2.5">
         <NavButton item={items[0]} active={view === items[0].key} onChange={onChange} />
         <NavButton item={items[1]} active={view === items[1].key} onChange={onChange} />
 
@@ -37,7 +37,7 @@ export function BottomNav({ view, onChange, onOpenAssistant }: BottomNavProps) {
           aria-label="Conversar com o Aval"
           aria-current={view === "assistant" ? "page" : undefined}
           className={cn(
-            "focus-ring press mx-auto -mt-7 flex h-14 w-14 items-center justify-center rounded-[1.25rem] shadow-primary transition-colors",
+            "focus-ring press mx-auto -mt-7 flex h-14 w-14 items-center justify-center rounded-lg shadow-primary transition-colors",
             view === "assistant"
               ? "hero-gradient text-primary-foreground"
               : "bg-primary text-primary-foreground",
@@ -68,7 +68,7 @@ function NavButton({
       onClick={() => onChange(key)}
       aria-current={active ? "page" : undefined}
       className={cn(
-        "focus-ring flex min-h-12 flex-col items-center justify-end gap-1 rounded-xl px-1 py-0.5 text-[9px] font-semibold transition duration-200 active:scale-95",
+        "focus-ring flex min-h-12 flex-col items-center justify-end gap-1 rounded-xl px-1 py-0.5 text-2xs font-semibold transition duration-200 active:scale-95",
         active ? "text-primary" : "text-muted-foreground hover:text-foreground",
       )}
     >

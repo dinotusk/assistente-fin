@@ -30,7 +30,7 @@ export function SideNav({
   return (
     <aside className="sticky top-0 flex h-dvh w-[248px] shrink-0 flex-col gap-1 border-r border-border/70 bg-card/60 px-4 py-6 backdrop-blur-xl">
       <div className="mb-6 flex items-center gap-3 px-2">
-        <div className="flex h-11 w-11 items-center justify-center rounded-[1.1rem] bg-card ring-1 ring-primary/25">
+        <div className="flex h-11 w-11 items-center justify-center rounded-md bg-card ring-1 ring-primary/25">
           <AvalMark size={22} />
         </div>
         <div className="min-w-0">

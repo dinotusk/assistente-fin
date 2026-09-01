@@ -157,6 +157,27 @@
   }
 }
 
+/* Typography scale (P9.5.c) — a small named set of sizes replacing the
+   one-off text-[Npx] values scattered across the shell (BottomNav, SideNav,
+   AppHome, DashboardView, PanelHead). Two genuinely-missing steps
+   (text-2xs/text-hero/text-display) are defined here; everywhere else the
+   scale reuses Tailwind's own built-in text-xs/text-sm so no new token is
+   invented just to preserve an old arbitrary pixel value. */
+@utility text-2xs {
+  font-size: 0.625rem; /* 10px — smallest legible caption: nav labels, deltas */
+  line-height: 1;
+}
+
+@utility text-display {
+  font-size: 2rem; /* AppHome header title */
+  line-height: 1.05;
+}
+
+@utility text-hero {
+  font-size: 2.1rem; /* Dashboard "Livre" hero value */
+  line-height: 1;
+}
+
 @utility app-backdrop {
   background:
     repeating-linear-gradient(

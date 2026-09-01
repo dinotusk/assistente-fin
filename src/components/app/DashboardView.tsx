@@ -49,7 +49,7 @@ import { DonutChart } from "./charts/DonutChart";
 import { CategoryBars } from "./charts/CategoryBars";
 import { MonthlyBars } from "./charts/MonthlyBars";
 import { TrendChart } from "./charts/TrendChart";
-import { AvalMark, BudgetRing, Panel, PanelHead, StatusPill } from "./ui";
+import { AvalMark, BudgetRing, ListItemCard, Panel, PanelHead, StatusPill } from "./ui";
 
 /** Mirrors TransactionsView's own sort — same recency ordering as Gastos, not a new rule. */
 const RECENT_LIMIT = 5;
@@ -175,7 +175,7 @@ export function DashboardView({
             Livre
           </span>
           <strong
-            className={`tnum mt-0.5 block font-display text-[2.1rem] leading-none ${
+            className={`tnum mt-0.5 block font-display text-hero leading-none ${
               overBudget ? "text-destructive" : "text-success"
             }`}
           >
@@ -191,7 +191,7 @@ export function DashboardView({
         <PanelHead title="Progresso do mês" icon={Wallet} />
         <div className="flex items-center justify-between gap-3">
           <div className="min-w-0">
-            <span className="block text-[11px] font-semibold uppercase tracking-wide text-muted-foreground">
+            <span className="block text-xs font-semibold uppercase tracking-wide text-muted-foreground">
               Pago
             </span>
             <strong className="tnum block font-display text-lg leading-none text-foreground">
@@ -199,7 +199,7 @@ export function DashboardView({
             </strong>
           </div>
           <div className="min-w-0 text-right">
-            <span className="block text-[11px] font-semibold uppercase tracking-wide text-muted-foreground">
+            <span className="block text-xs font-semibold uppercase tracking-wide text-muted-foreground">
               Falta pagar
             </span>
             <strong className="tnum block font-display text-lg leading-none text-foreground">
@@ -268,7 +268,7 @@ export function DashboardView({
                     <HeroStat label="Disponível" value={money(profileBudget)} />
                     <HeroStat label="Comprometido" value={money(profileNumbers.total)} />
                     <div className="min-w-0">
-                      <span className="block text-[11px] font-semibold uppercase tracking-wide text-muted-foreground">
+                      <span className="block text-xs font-semibold uppercase tracking-wide text-muted-foreground">
                         Livre
                       </span>
                       <strong
@@ -329,7 +329,7 @@ export function DashboardView({
                   className="press focus-ring hover-lift flex items-center justify-between gap-3 rounded-2xl bg-secondary/70 p-3.5 text-left transition-colors hover:bg-secondary"
                 >
                   <div className="min-w-0">
-                    <span className="block text-[11px] font-semibold uppercase tracking-wide text-muted-foreground">
+                    <span className="block text-xs font-semibold uppercase tracking-wide text-muted-foreground">
                       Categoria que mais pesa
                     </span>
                     <strong className="block truncate text-sm font-bold text-foreground">
@@ -404,29 +404,19 @@ export function DashboardView({
                 const Icon = categoryIcons[item.category] || categoryIcons.Outros;
                 const color = categoryColors[item.category] || "var(--color-primary)";
                 return (
-                  <button
+                  <ListItemCard
                     key={item.id}
-                    type="button"
                     onClick={() => onEditExpense(item.id)}
-                    aria-label={`Editar gasto ${item.name}`}
-                    className="press focus-ring hover-lift flex items-center gap-3 rounded-2xl bg-secondary/70 p-3 text-left transition-colors hover:bg-secondary"
-                  >
-                    <span
-                      className="flex h-10 w-10 shrink-0 items-center justify-center rounded-xl bg-card"
-                      style={{ color }}
-                    >
-                      <Icon className="h-[18px] w-[18px]" strokeWidth={2} />
-                    </span>
-                    <div className="min-w-0 flex-1">
-                      <div className="flex items-start justify-between gap-2">
-                        <strong className="min-w-0 truncate text-sm font-bold text-foreground">
-                          {item.name}
-                        </strong>
-                        <strong className="tnum shrink-0 text-sm font-bold text-foreground">
-                          {money(item.amount)}
-                        </strong>
-                      </div>
-                      <div className="mt-0.5 flex flex-wrap items-center gap-x-2 gap-y-0.5 text-[11px] text-muted-foreground">
+                    ariaLabel={`Editar gasto ${item.name}`}
+                    icon={
+                      <span style={{ color }}>
+                        <Icon className="h-[18px] w-[18px]" strokeWidth={2} />
+                      </span>
+                    }
+                    title={item.name}
+                    value={money(item.amount)}
+                    meta={
+                      <>
                         <span className="truncate">{item.category}</span>
                         <span>·</span>
                         <span>{formatDate(item.date)}</span>
@@ -438,10 +428,10 @@ export function DashboardView({
                             </span>
                           </>
                         )}
-                      </div>
-                    </div>
-                    <StatusPill status={item.status} />
-                  </button>
+                      </>
+                    }
+                    trailing={<StatusPill status={item.status} />}
+                  />
                 );
               })}
             </div>
@@ -471,7 +461,7 @@ export function DashboardView({
               >
                 <span className="text-xs font-medium text-muted-foreground">{data.label}</span>
                 <strong className="tnum text-base font-bold text-foreground">{money(total)}</strong>
-                <small className="text-[11px] text-muted-foreground">
+                <small className="text-xs text-muted-foreground">
                   {data.planned ? "Planejado" : `${money(pending)} pendente`}
                 </small>
               </button>
@@ -560,7 +550,7 @@ export function DashboardView({
                   <span className="tnum mt-2.5 block font-display text-xl leading-none text-primary">
                     {money(sum(mine))}
                   </span>
-                  <small className="mt-1 block text-[11px] text-muted-foreground">
+                  <small className="mt-1 block text-xs text-muted-foreground">
                     Falta pagar {money(pending)}
                   </small>
                 </button>
@@ -636,7 +626,7 @@ function MonthCompareCard({
         className="flex min-w-0 flex-1 flex-col items-center gap-1 rounded-2xl border border-dashed border-border bg-secondary/40 p-3 text-center"
         aria-label={`${shortLabel} — sem dados ainda`}
       >
-        <span className="text-[11px] font-bold uppercase tracking-wide text-muted-foreground">
+        <span className="text-xs font-bold uppercase tracking-wide text-muted-foreground">
           {shortLabel}
         </span>
         <span className="text-xs text-muted-foreground">Sem dados</span>
@@ -671,7 +661,7 @@ function MonthCompareCard({
           : "border-border bg-secondary hover:border-primary/25"
       }`}
     >
-      <span className="text-[11px] font-bold uppercase tracking-wide text-muted-foreground">
+      <span className="text-xs font-bold uppercase tracking-wide text-muted-foreground">
         {shortLabel}
         {isSelected && <span className="text-primary"> · Atual</span>}
       </span>
@@ -682,10 +672,10 @@ function MonthCompareCard({
       >
         {formatMoney(free)}
       </strong>
-      <span className="text-[10px] text-muted-foreground">livre</span>
+      <span className="text-2xs text-muted-foreground">livre</span>
       {direction && direction !== "flat" && (
         <span
-          className={`flex items-center gap-0.5 text-[11px] font-semibold ${
+          className={`flex items-center gap-0.5 text-xs font-semibold ${
             direction === "up" ? "text-success" : "text-destructive"
           }`}
         >
@@ -698,7 +688,7 @@ function MonthCompareCard({
         </span>
       )}
       {direction === "flat" && (
-        <span className="text-[11px] font-semibold text-muted-foreground">Estável</span>
+        <span className="text-xs font-semibold text-muted-foreground">Estável</span>
       )}
     </button>
   );
@@ -708,7 +698,7 @@ function MonthCompareCard({
 function HeroStat({ label, value }: { label: string; value: string }) {
   return (
     <div className="min-w-0">
-      <span className="block text-[11px] font-semibold uppercase tracking-wide text-muted-foreground">
+      <span className="block text-xs font-semibold uppercase tracking-wide text-muted-foreground">
         {label}
       </span>
       <strong className="tnum block font-display text-lg leading-none text-foreground">
@@ -737,7 +727,7 @@ function QuickActionButton({
       <span className="flex h-9 w-9 items-center justify-center rounded-xl bg-primary-soft text-primary">
         {Icon ? <Icon className="h-[18px] w-[18px]" strokeWidth={2.2} /> : <AvalMark size={18} />}
       </span>
-      <span className="text-[11px] font-bold leading-tight text-foreground">{label}</span>
+      <span className="text-xs font-bold leading-tight text-foreground">{label}</span>
     </button>
   );
 }

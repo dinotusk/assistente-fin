@@ -263,11 +263,11 @@ describe("DashboardView — P9.1 hero financeiro e progresso do mês", () => {
     expect(heroSection().getByText("R$ 1900.00")).toBeTruthy();
   });
 
-  it("3. renders Livre (free) with strong visual weight (its own text-[2.1rem] figure)", () => {
+  it("3. renders Livre (free) with strong visual weight (its own text-hero figure)", () => {
     renderDashboard();
     expect(heroSection().getByText("Livre")).toBeTruthy();
     const livre = heroSection().getByText("R$ 4100.00");
-    expect(livre.className).toContain("text-[2.1rem]");
+    expect(livre.className).toContain("text-hero");
   });
 
   it("4. renders Pago (calc().paid) in the Progresso do mês card", () => {

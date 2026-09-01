@@ -174,7 +174,7 @@ export function PanelHead({
 }) {
   return (
     <div className="mb-3 flex items-center justify-between gap-2">
-      <h2 className="flex items-center gap-1.5 text-[13px] font-bold uppercase tracking-[0.06em] text-foreground/62">
+      <h2 className="flex items-center gap-1.5 text-sm font-bold uppercase tracking-[0.06em] text-foreground/62">
         {Icon && <Icon className="h-3.5 w-3.5 text-primary/70" strokeWidth={2.4} />}
         {title}
       </h2>
@@ -221,6 +221,77 @@ export function Segmented<T extends string>({
           </button>
         );
       })}
+    </div>
+  );
+}
+
+/**
+ * P9.5.b — shared row pattern for a horizontal list item (icon + title/value
+ * on one line, optional meta line below, optional trailing element). Reuses
+ * the same surface/radius/press/focus-ring language every ad hoc card in the
+ * Dashboard was already hand-rolling (rounded-2xl bg-secondary/70). Deliberately
+ * narrow: it models exactly the icon+title+meta+value+trailing row shape, not
+ * a general-purpose card — a differently-structured block (e.g. a 2-column
+ * stat card) should stay its own JSX rather than force-fit this component.
+ */
+export function ListItemCard({
+  icon,
+  title,
+  meta,
+  value,
+  trailing,
+  onClick,
+  ariaLabel,
+  className,
+}: {
+  icon?: ReactNode;
+  title: ReactNode;
+  meta?: ReactNode;
+  value?: ReactNode;
+  trailing?: ReactNode;
+  onClick?: () => void;
+  ariaLabel?: string;
+  className?: string;
+}) {
+  const surfaceClassName = cn(
+    "flex items-center gap-3 rounded-2xl bg-secondary/70 p-3 text-left",
+    onClick && "press focus-ring hover-lift transition-colors hover:bg-secondary",
+    className,
+  );
+  const content = (
+    <>
+      {icon && (
+        <span className="flex h-10 w-10 shrink-0 items-center justify-center rounded-xl bg-card">
+          {icon}
+        </span>
+      )}
+      <div className="min-w-0 flex-1">
+        <div className="flex items-start justify-between gap-2">
+          <strong className="min-w-0 truncate text-sm font-bold text-foreground">{title}</strong>
+          {value && (
+            <strong className="tnum shrink-0 text-sm font-bold text-foreground">{value}</strong>
+          )}
+        </div>
+        {meta && (
+          <div className="mt-0.5 flex flex-wrap items-center gap-x-2 gap-y-0.5 text-xs text-muted-foreground">
+            {meta}
+          </div>
+        )}
+      </div>
+      {trailing}
+    </>
+  );
+
+  if (onClick) {
+    return (
+      <button type="button" onClick={onClick} aria-label={ariaLabel} className={surfaceClassName}>
+        {content}
+      </button>
+    );
+  }
+  return (
+    <div aria-label={ariaLabel} className={surfaceClassName}>
+      {content}
     </div>
   );
 }
