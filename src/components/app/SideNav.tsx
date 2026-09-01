@@ -1,4 +1,4 @@
-import { LayoutGrid, ArrowLeftRight, Star, Settings } from "lucide-react";
+import { LayoutGrid, ArrowLeftRight, Target, Settings } from "lucide-react";
 
 import { cn } from "@/lib/utils";
 import type { ViewKey } from "@/lib/finance/types";
@@ -8,11 +8,13 @@ import { AvalMark } from "./ui";
 // P0-FRONTEND-1B.7 — Icon is null for "assistant": that row renders AvalMark
 // instead (see the render loop below), since the assistant is the Aval
 // brand itself, not a generic nav glyph.
+// P9.4: Metas uses the same Target glyph as BottomNav.tsx — previously Star
+// here vs. Target there, the one icon-consistency gap the P9 audit flagged.
 export const NAV_ITEMS: { key: ViewKey; label: string; Icon: typeof LayoutGrid | null }[] = [
   { key: "dashboard", label: "Painel", Icon: LayoutGrid },
   { key: "assistant", label: "Aval", Icon: null },
   { key: "transactions", label: "Gastos", Icon: ArrowLeftRight },
-  { key: "priorities", label: "Metas", Icon: Star },
+  { key: "priorities", label: "Metas", Icon: Target },
   { key: "settings", label: "Config", Icon: Settings },
 ];
 

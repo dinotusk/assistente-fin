@@ -60,3 +60,15 @@ describe("SideNav — marca Aval (P0-FRONTEND-1B.7)", () => {
     });
   });
 });
+
+describe("SideNav — ícone Metas consistente com BottomNav (P9.4)", () => {
+  it("7. Metas uses the same lucide Target glyph BottomNav.tsx uses, not Star", async () => {
+    const { Target } = await import("lucide-react");
+    render(<SideNav view="dashboard" onChange={vi.fn()} />);
+    const button = screen.getByText("Metas").closest("button");
+    const svg = button?.querySelector("svg");
+    const { container: reference } = render(<Target />);
+    const referenceSvg = reference.querySelector("svg");
+    expect(svg?.innerHTML).toBe(referenceSvg?.innerHTML);
+  });
+});

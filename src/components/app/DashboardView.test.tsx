@@ -1515,3 +1515,73 @@ describe("DashboardView — P9.3 Próximos meses", () => {
     expect(proximosMesesPanel().getByText("R$ 3500.00")).toBeTruthy();
   });
 });
+
+/** Scopes queries to the collapsible "Análise detalhada" container by id. */
+function analiseDetalhadaContainer() {
+  const container = document.getElementById("analise-detalhada");
+  if (!container) throw new Error("Análise detalhada container not found");
+  return within(container);
+}
+
+function analiseDetalhadaToggle() {
+  return screen.getByRole("button", { name: "Análise detalhada" });
+}
+
+describe("DashboardView — P9.4 Análise detalhada colapsável", () => {
+  it("1. toggle starts collapsed (aria-expanded=false)", () => {
+    renderDashboard();
+    expect(analiseDetalhadaToggle().getAttribute("aria-expanded")).toBe("false");
+  });
+
+  it("2. collapsed container carries the hidden class (CSS-only hide, not unmounted)", () => {
+    renderDashboard();
+    const container = document.getElementById("analise-detalhada");
+    expect(container?.className).toContain("hidden");
+    expect(container?.className).not.toMatch(/(?:^| )flex(?: |$)/);
+  });
+
+  it("3. all 5 analytical panels remain in the DOM while collapsed — never unmounted", () => {
+    renderDashboard();
+    const scope = analiseDetalhadaContainer();
+    expect(scope.getByText("Distribuição do mês")).toBeTruthy();
+    expect(scope.getByText("Por categoria")).toBeTruthy();
+    expect(scope.getByText("Divisão familiar")).toBeTruthy();
+    expect(scope.getByText("Comparação mensal")).toBeTruthy();
+    expect(scope.getByText("Evolução dos gastos")).toBeTruthy();
+  });
+
+  it("4. clicking the toggle expands: aria-expanded=true and container switches to flex", () => {
+    renderDashboard();
+    fireEvent.click(analiseDetalhadaToggle());
+    expect(analiseDetalhadaToggle().getAttribute("aria-expanded")).toBe("true");
+    const container = document.getElementById("analise-detalhada");
+    expect(container?.className).toMatch(/(?:^| )flex(?: |$)/);
+    expect(container?.className).not.toContain("hidden");
+  });
+
+  it("5. clicking twice collapses again", () => {
+    renderDashboard();
+    const toggle = analiseDetalhadaToggle();
+    fireEvent.click(toggle);
+    fireEvent.click(toggle);
+    expect(toggle.getAttribute("aria-expanded")).toBe("false");
+  });
+
+  it("6. toggle exposes aria-controls pointing at the analysis container id", () => {
+    renderDashboard();
+    expect(analiseDetalhadaToggle().getAttribute("aria-controls")).toBe("analise-detalhada");
+  });
+
+  it("7. desktop override class (lg:flex) is always present regardless of toggle state", () => {
+    renderDashboard();
+    const container = document.getElementById("analise-detalhada");
+    expect(container?.className).toContain("lg:flex");
+    fireEvent.click(analiseDetalhadaToggle());
+    expect(container?.className).toContain("lg:flex");
+  });
+
+  it("8. toggle is keyboard-activatable (native button, Enter/Space)", () => {
+    renderDashboard();
+    expect(analiseDetalhadaToggle().tagName).toBe("BUTTON");
+  });
+});

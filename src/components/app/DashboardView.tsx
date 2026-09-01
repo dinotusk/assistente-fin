@@ -1,3 +1,4 @@
+import { useState } from "react";
 import {
   ArrowDown,
   ArrowLeftRight,
@@ -5,6 +6,7 @@ import {
   BarChart3,
   CalendarClock,
   CalendarRange,
+  ChevronDown,
   History,
   PieChart,
   Plus,
@@ -84,6 +86,12 @@ export function DashboardView({
 }: DashboardViewProps) {
   const { state, month, setActiveMonth, setActivePerson } = useFinance();
   const money = useMoney();
+  // P9.4 — "Análise detalhada" collapses on mobile (Fase-1 plan: reduce the
+  // always-rendered panel count below the fold) and stays always-visible on
+  // desktop via the lg: override in the className below, not this state —
+  // the analytical panels themselves are never unmounted, only hidden via
+  // CSS, so nothing here changes what data is computed or available.
+  const [analysisOpen, setAnalysisOpen] = useState(false);
   const view = state.activePerson;
   const numbers = calc(month, view, state.activeMonth, state.people);
   const byCategory = getCategoryTotals(month, view, state.people);
@@ -473,88 +481,112 @@ export function DashboardView({
       </Panel>
 
       {/* Nível 3 ("análise"): grouped under one label so these read as
-          supporting detail, not five cards competing with the summary above. */}
-      <span className="mt-1 px-1 text-xs font-bold uppercase tracking-wide text-muted-foreground">
-        Análise detalhada
-      </span>
-
-      <Panel tone="elevated" accent="primary">
-        <PanelHead title="Distribuição do mês" hint="por categoria" icon={PieChart} />
-        <DonutChart data={byCategory} total={numbers.total} />
-      </Panel>
-
-      <Panel tone="flat">
-        <PanelHead
-          title="Por categoria"
-          hint={`${byCategory.length} categorias`}
-          icon={BarChart3}
+          supporting detail, not five cards competing with the summary above.
+          P9.4 — on mobile this collapses behind the toggle below (Fase-1
+          plan: "Análise detalhada" passa de sempre-visível para bloco
+          secundário); on desktop (lg:) it stays always-visible regardless of
+          analysisOpen, matching the same panels that already exist today —
+          nothing new is computed, only reordered/regrouped. */}
+      <button
+        type="button"
+        onClick={() => setAnalysisOpen((value) => !value)}
+        aria-expanded={analysisOpen}
+        aria-controls="analise-detalhada"
+        className="press focus-ring hover-lift mt-1 flex items-center justify-between gap-2 rounded-2xl border border-border/70 bg-secondary/40 px-3.5 py-2.5 text-left lg:pointer-events-none lg:cursor-default lg:border-none lg:bg-transparent lg:px-1 lg:py-0"
+      >
+        <span className="text-xs font-bold uppercase tracking-wide text-muted-foreground">
+          Análise detalhada
+        </span>
+        <ChevronDown
+          className={`h-4 w-4 shrink-0 text-muted-foreground transition-transform duration-200 lg:hidden ${
+            analysisOpen ? "rotate-180" : ""
+          }`}
+          strokeWidth={2.4}
         />
-        <CategoryBars data={byCategory} />
-      </Panel>
+      </button>
 
-      <Panel>
-        <PanelHead title="Divisão familiar" hint="por responsável" icon={Users} />
-        <div className="grid grid-cols-2 gap-3">
-          {state.people.map((name, index) => {
-            const key = index === 0 ? VIEW_ME : index === 1 ? VIEW_SPOUSE : name;
-            const mine = expensesForView(month, key, state.people);
-            const pending = sum(mine.filter((e) => e.status === "A pagar"));
-            const active = key === view;
-            return (
-              <button
-                key={key}
-                type="button"
-                onClick={() => {
-                  // Already-selected person: no write, keep the visual state as-is.
-                  if (key !== view) setActivePerson(key);
-                }}
-                aria-pressed={active}
-                aria-label={`Ver gastos de ${name}`}
-                className={`press focus-ring w-full rounded-2xl border p-3.5 text-left transition-colors ${active ? "border-primary bg-primary-soft" : "border-border bg-secondary hover:border-primary/25"}`}
-              >
-                <div className="flex items-center gap-2.5">
-                  <span
-                    className={`flex h-9 w-9 shrink-0 items-center justify-center rounded-full font-display text-sm font-bold ${
-                      active
-                        ? "bg-primary text-primary-foreground shadow-primary"
-                        : "bg-card text-primary"
-                    }`}
-                  >
-                    {initials(name)}
+      <div
+        id="analise-detalhada"
+        className={`flex-col gap-4 lg:flex ${analysisOpen ? "flex" : "hidden"}`}
+      >
+        <Panel tone="elevated" accent="primary">
+          <PanelHead title="Distribuição do mês" hint="por categoria" icon={PieChart} />
+          <DonutChart data={byCategory} total={numbers.total} />
+        </Panel>
+
+        <Panel tone="flat">
+          <PanelHead
+            title="Por categoria"
+            hint={`${byCategory.length} categorias`}
+            icon={BarChart3}
+          />
+          <CategoryBars data={byCategory} />
+        </Panel>
+
+        <Panel>
+          <PanelHead title="Divisão familiar" hint="por responsável" icon={Users} />
+          <div className="grid grid-cols-2 gap-3">
+            {state.people.map((name, index) => {
+              const key = index === 0 ? VIEW_ME : index === 1 ? VIEW_SPOUSE : name;
+              const mine = expensesForView(month, key, state.people);
+              const pending = sum(mine.filter((e) => e.status === "A pagar"));
+              const active = key === view;
+              return (
+                <button
+                  key={key}
+                  type="button"
+                  onClick={() => {
+                    // Already-selected person: no write, keep the visual state as-is.
+                    if (key !== view) setActivePerson(key);
+                  }}
+                  aria-pressed={active}
+                  aria-label={`Ver gastos de ${name}`}
+                  className={`press focus-ring w-full rounded-2xl border p-3.5 text-left transition-colors ${active ? "border-primary bg-primary-soft" : "border-border bg-secondary hover:border-primary/25"}`}
+                >
+                  <div className="flex items-center gap-2.5">
+                    <span
+                      className={`flex h-9 w-9 shrink-0 items-center justify-center rounded-full font-display text-sm font-bold ${
+                        active
+                          ? "bg-primary text-primary-foreground shadow-primary"
+                          : "bg-card text-primary"
+                      }`}
+                    >
+                      {initials(name)}
+                    </span>
+                    <strong className="min-w-0 truncate text-sm font-bold text-foreground">
+                      {name}
+                    </strong>
+                  </div>
+                  <span className="tnum mt-2.5 block font-display text-xl leading-none text-primary">
+                    {money(sum(mine))}
                   </span>
-                  <strong className="min-w-0 truncate text-sm font-bold text-foreground">
-                    {name}
-                  </strong>
-                </div>
-                <span className="tnum mt-2.5 block font-display text-xl leading-none text-primary">
-                  {money(sum(mine))}
-                </span>
-                <small className="mt-1 block text-[11px] text-muted-foreground">
-                  Falta pagar {money(pending)}
-                </small>
-              </button>
-            );
-          })}
-        </div>
-      </Panel>
+                  <small className="mt-1 block text-[11px] text-muted-foreground">
+                    Falta pagar {money(pending)}
+                  </small>
+                </button>
+              );
+            })}
+          </div>
+        </Panel>
 
-      <Panel tone="flat">
-        <PanelHead title="Comparação mensal" hint="histórico" icon={CalendarRange} />
-        <MonthlyBars
-          entries={chartEntries}
-          activeKey={state.activeMonth}
-          onSelect={setActiveMonth}
-        />
-      </Panel>
+        <Panel tone="flat">
+          <PanelHead title="Comparação mensal" hint="histórico" icon={CalendarRange} />
+          <MonthlyBars
+            entries={chartEntries}
+            activeKey={state.activeMonth}
+            onSelect={setActiveMonth}
+          />
+        </Panel>
 
-      <Panel tone="elevated" accent="primary">
-        <PanelHead title="Evolução dos gastos" hint="total por mês" icon={TrendingUp} />
-        <TrendChart
-          entries={chartEntries}
-          activeKey={state.activeMonth}
-          onSelect={setActiveMonth}
-        />
-      </Panel>
+        <Panel tone="elevated" accent="primary">
+          <PanelHead title="Evolução dos gastos" hint="total por mês" icon={TrendingUp} />
+          <TrendChart
+            entries={chartEntries}
+            activeKey={state.activeMonth}
+            onSelect={setActiveMonth}
+          />
+        </Panel>
+      </div>
     </div>
   );
 }
