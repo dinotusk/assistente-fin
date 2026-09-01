@@ -15,7 +15,6 @@ import {
   TrendingUp,
   TriangleAlert,
   Users,
-  Wallet,
   Zap,
 } from "lucide-react";
 
@@ -49,7 +48,7 @@ import { DonutChart } from "./charts/DonutChart";
 import { CategoryBars } from "./charts/CategoryBars";
 import { MonthlyBars } from "./charts/MonthlyBars";
 import { TrendChart } from "./charts/TrendChart";
-import { AvalMark, BudgetRing, ListItemCard, Panel, PanelHead, StatusPill } from "./ui";
+import { AvalMark, ListItemCard, Panel, PanelHead, StatusPill } from "./ui";
 
 /** Mirrors TransactionsView's own sort — same recency ordering as Gastos, not a new rule. */
 const RECENT_LIMIT = 5;
@@ -104,7 +103,6 @@ export function DashboardView({
   }));
   const timeline = timelineMonthEntries(state);
 
-  const usedPct = budget > 0 ? Math.min(100, (numbers.total / budget) * 100) : 0;
   const overBudget = numbers.free < 0;
 
   // Nível 2 ("entendimento"): reuses numbers.topCategory (already computed by
@@ -149,29 +147,19 @@ export function DashboardView({
 
   return (
     <div className="flex flex-col gap-4">
-      {/* P9.1 — the financial hero: Disponível/Comprometido are structural
-          context (same size/weight), Livre is the loudest number on the
-          screen (colored by the same overBudget flag the ring already used).
-          All three come straight from calc()/budgetForView() — no new rule. */}
+      {/* P9.5 Rodada 2 — the financial hero absorbs the old "Progresso do
+          mês" Panel: same two surfaces, one card, "Livre" first and loudest
+          (no ring competing for attention), Disponível/Comprometido/Pago/
+          Falta pagar all one visual tier below it via the shared HeroStat.
+          Every value still comes straight from calc()/budgetForView() — the
+          progress bar is still exactly paid/(paid+pending), zero-guarded. */}
       <section className="card-surface hero-texture relative overflow-hidden rounded-3xl p-5">
         <div className="pointer-events-none absolute -right-10 -top-16 h-40 w-40 rounded-full bg-primary/10 blur-2xl" />
-        <div className="relative flex items-center gap-4">
-          <BudgetRing percent={usedPct} overBudget={overBudget} size={64} />
-          <div className="min-w-0 flex-1">
-            <span className="text-xs font-semibold uppercase tracking-[0.05em] text-muted-foreground">
-              Seu mês
-            </span>
-            <div className="mt-1.5 flex flex-wrap items-baseline gap-x-5 gap-y-1">
-              <HeroStat
-                label={view === VIEW_ME ? "Renda" : view === VIEW_SPOUSE ? "Repasse" : "Disponível"}
-                value={money(budget)}
-              />
-              <HeroStat label="Comprometido" value={money(numbers.total)} />
-            </div>
-          </div>
-        </div>
-        <div className="relative mt-4 border-t border-border/50 pt-3.5">
+        <div className="relative">
           <span className="text-xs font-semibold uppercase tracking-[0.05em] text-muted-foreground">
+            Seu mês
+          </span>
+          <span className="mt-2 block text-xs font-semibold uppercase tracking-[0.05em] text-muted-foreground">
             Livre
           </span>
           <strong
@@ -181,46 +169,35 @@ export function DashboardView({
           >
             {money(numbers.free)}
           </strong>
+
+          <div className="mt-4 flex flex-wrap items-baseline gap-x-5 gap-y-1">
+            <HeroStat
+              label={view === VIEW_ME ? "Renda" : view === VIEW_SPOUSE ? "Repasse" : "Disponível"}
+              value={money(budget)}
+            />
+            <HeroStat label="Comprometido" value={money(numbers.total)} />
+          </div>
+
+          <div className="mt-3 flex flex-wrap items-baseline gap-x-5 gap-y-1">
+            <HeroStat label="Pago" value={money(numbers.paid)} />
+            <HeroStat label="Falta pagar" value={money(numbers.pending)} />
+          </div>
+
+          <div
+            role="progressbar"
+            aria-label="Proporção já paga no mês"
+            aria-valuenow={Math.round(paidPct)}
+            aria-valuemin={0}
+            aria-valuemax={100}
+            className="mt-3 h-2 w-full overflow-hidden rounded-full bg-secondary"
+          >
+            <div
+              className="h-full rounded-full bg-success transition-[width]"
+              style={{ width: `${paidPct}%` }}
+            />
+          </div>
         </div>
       </section>
-
-      {/* P9.1 — Pago vs. falta pagar, straight from calc().paid/pending; the
-          bar is paid/(paid+pending), guarded against 0/0 (renders an empty,
-          neutral track instead of dividing by zero). */}
-      <Panel tone="flat">
-        <PanelHead title="Progresso do mês" icon={Wallet} />
-        <div className="flex items-center justify-between gap-3">
-          <div className="min-w-0">
-            <span className="block text-xs font-semibold uppercase tracking-wide text-muted-foreground">
-              Pago
-            </span>
-            <strong className="tnum block font-display text-lg leading-none text-foreground">
-              {money(numbers.paid)}
-            </strong>
-          </div>
-          <div className="min-w-0 text-right">
-            <span className="block text-xs font-semibold uppercase tracking-wide text-muted-foreground">
-              Falta pagar
-            </span>
-            <strong className="tnum block font-display text-lg leading-none text-foreground">
-              {money(numbers.pending)}
-            </strong>
-          </div>
-        </div>
-        <div
-          role="progressbar"
-          aria-label="Proporção já paga no mês"
-          aria-valuenow={Math.round(paidPct)}
-          aria-valuemin={0}
-          aria-valuemax={100}
-          className="mt-3 h-2 w-full overflow-hidden rounded-full bg-secondary"
-        >
-          <div
-            className="h-full rounded-full bg-success transition-[width]"
-            style={{ width: `${paidPct}%` }}
-          />
-        </div>
-      </Panel>
 
       {/* P9.2 — "Divisão da casa": one card per active profile, each reading
           calc()/budgetForView() for that profile's own view (same index0 ->

@@ -457,9 +457,9 @@ export function AppHome() {
             </div>
           </div>
 
-          <div className="mt-4 flex items-center gap-2">{monthPicker}</div>
+          <div className="mt-3 flex items-center gap-2">{monthPicker}</div>
 
-          {personSegmented ? <div className="mt-3">{personSegmented}</div> : null}
+          {personSegmented ? <div className="mt-2">{personSegmented}</div> : null}
         </header>
 
         {/* Content */}

@@ -30,11 +30,25 @@ function heroSection() {
   return within(section);
 }
 
-/** Scopes queries to the P9.1 "Progresso do mês" card — same repetition risk. */
+/** P9.5 Rodada 2 — "Progresso do mês" was absorbed into the hero itself
+    (Pago/Falta pagar/progressbar now live inside the same <section> as
+    Livre), so this is just an alias for heroSection() kept for the P9.1
+    tests below that predate the merge and still read "progressCard()". */
 function progressCard() {
-  const card = screen.getByText("Progresso do mês").closest("section");
-  if (!card) throw new Error("Progresso do mês card not found");
-  return within(card);
+  return heroSection();
+}
+
+/** Reads the value rendered next to a given hero label (Disponível,
+    Comprometido, Pago, Falta pagar). Needed because the P9.5 Rodada 2 merge
+    put all five hero figures in one <section>, so two labels can legitimately
+    share the same money string in a given fixture (e.g. comprometido ==
+    falta pagar when there's exactly one pending expense) — scoping by
+    section alone is no longer enough to disambiguate them. */
+function heroStatValue(label: string): string {
+  const labelEl = heroSection().getByText(label);
+  const value = labelEl.parentElement?.querySelector("strong");
+  if (!value) throw new Error(`No value found next to hero label "${label}"`);
+  return value.textContent || "";
 }
 
 /** Scopes queries to the whole P9.2 "Divisão da casa" panel. */
@@ -296,38 +310,40 @@ describe("DashboardView — P9.1 hero financeiro e progresso do mês", () => {
     renderDashboard();
     // July: budget = 5000 + 1000 = 6000 (same total, different composition is
     // irrelevant here) but total/paid/pending must reflect July's single
-    // expense (Mercado, 100, Pago) instead of August's.
-    expect(heroSection().getByText("R$ 100.00")).toBeTruthy(); // comprometido
-    expect(progressCard().getByText("R$ 100.00")).toBeTruthy(); // pago (same expense, already paid)
-    expect(progressCard().getByText("R$ 0.00")).toBeTruthy(); // falta pagar — nothing pending in July
+    // expense (Mercado, 100, Pago) instead of August's. Comprometido and
+    // pago coincide at R$ 100.00 in this fixture, so each label is read
+    // from its own value node rather than a section-wide text lookup.
+    expect(heroStatValue("Comprometido")).toBe("R$ 100.00");
+    expect(heroStatValue("Pago")).toBe("R$ 100.00"); // same expense, already paid
+    expect(heroStatValue("Falta pagar")).toBe("R$ 0.00"); // nothing pending in July
   });
 
   it("7. switching Minha casa -> Maria updates the hero/progress values to Maria's scope only", () => {
     const stateForMaria: FinanceState = { ...baseState(), activePerson: "me" };
     Object.assign(mockFinance, { state: stateForMaria, month: stateForMaria.months[MONTH] });
     renderDashboard();
-    // Maria's budget is just income (5000), not income+houseContribution (6000).
-    expect(heroSection().getByText("R$ 5000.00")).toBeTruthy();
+    // Maria's budget is just income (5000), not income+houseContribution
+    // (6000) — and her hero label reads "Renda", not "Disponível" (VIEW_ME).
+    expect(heroStatValue("Renda")).toBe("R$ 5000.00");
     expect(heroSection().queryByText("R$ 6000.00")).toBeNull();
     // Maria's only expense this month is Aluguel (1500, A pagar) — comprometido
     // and falta pagar both read 1500; pago reads 0.
-    expect(heroSection().getByText("R$ 1500.00")).toBeTruthy();
-    expect(progressCard().getByText("R$ 1500.00")).toBeTruthy();
-    expect(progressCard().getByText("R$ 0.00")).toBeTruthy();
+    expect(heroStatValue("Comprometido")).toBe("R$ 1500.00");
+    expect(heroStatValue("Falta pagar")).toBe("R$ 1500.00");
+    expect(heroStatValue("Pago")).toBe("R$ 0.00");
   });
 
   it("8. hideValues masks Disponível, Comprometido, Livre, Pago and Falta pagar", () => {
     mockFinance.hideValues = true;
     renderDashboard();
     const hero = heroSection();
-    const progress = progressCard();
     expect(hero.queryByText("R$ 6000.00")).toBeNull();
     expect(hero.queryByText("R$ 1900.00")).toBeNull();
     expect(hero.queryByText("R$ 4100.00")).toBeNull();
-    expect(progress.queryByText("R$ 400.00")).toBeNull();
-    expect(progress.queryByText("R$ 1500.00")).toBeNull();
-    expect(hero.getAllByText("R$ ••••").length).toBe(3);
-    expect(progress.getAllByText("R$ ••••").length).toBe(2);
+    expect(hero.queryByText("R$ 400.00")).toBeNull();
+    expect(hero.queryByText("R$ 1500.00")).toBeNull();
+    // Livre + Disponível + Comprometido + Pago + Falta pagar = 5 masked values.
+    expect(hero.getAllByText("R$ ••••").length).toBe(5);
   });
 
   it("9. paid=0 renders R$ 0.00 without crashing, bar stays empty", () => {
@@ -487,10 +503,12 @@ describe("DashboardView — P9.1 hero financeiro e progresso do mês", () => {
     };
     Object.assign(mockFinance, { state: bigState, month: bigState.months[MONTH] });
     renderDashboard();
-    expect(heroSection().getByText("R$ 1250000.00")).toBeTruthy(); // disponível
-    expect(heroSection().getByText("R$ 50000.00")).toBeTruthy(); // comprometido
+    // Comprometido and falta pagar coincide at R$ 50000.00 in this fixture
+    // (one pending expense), so each is read from its own value node.
+    expect(heroStatValue("Disponível")).toBe("R$ 1250000.00");
+    expect(heroStatValue("Comprometido")).toBe("R$ 50000.00");
     expect(heroSection().getByText("R$ 1200000.00")).toBeTruthy(); // livre
-    expect(progressCard().getByText("R$ 50000.00")).toBeTruthy(); // falta pagar
+    expect(heroStatValue("Falta pagar")).toBe("R$ 50000.00");
   });
 
   it("15. the old compact hero (budget + '{total} gastos · {livre}' single line) is gone — no duplication with the new hero", () => {
@@ -505,6 +523,32 @@ describe("DashboardView — P9.1 hero financeiro e progresso do mês", () => {
     // cards elsewhere on the page also say "Livre" — that's a different,
     // intentional block, not old-hero duplication).
     expect(heroSection().getAllByText("Livre").length).toBe(1);
+  });
+
+  it("16. P9.5 Rodada 2 — the BudgetRing decorative ring is gone from the hero", () => {
+    renderDashboard();
+    // BudgetRing renders an <svg> with 3 <circle> elements; the merged hero
+    // no longer has any SVG at all.
+    const section = screen.getByText("Seu mês").closest("section");
+    expect(section?.querySelector("svg")).toBeNull();
+  });
+
+  it("17. P9.5 Rodada 2 — 'Progresso do mês' no longer exists as its own Panel", () => {
+    renderDashboard();
+    expect(screen.queryByText("Progresso do mês")).toBeNull();
+  });
+
+  it("18. P9.5 Rodada 2 — Pago/Falta pagar/progressbar render exactly once each, merged inside the hero, not duplicated", () => {
+    renderDashboard();
+    // "Pago" also appears as a StatusPill status label in Movimentações
+    // recentes (the base fixture has one Pago expense), so the hero's own
+    // "Pago" label must be counted within heroSection, not page-wide.
+    expect(heroSection().getAllByText("Pago").length).toBe(1);
+    expect(heroSection().getAllByText("Falta pagar").length).toBe(1);
+    expect(screen.getAllByRole("progressbar", { name: "Proporção já paga no mês" }).length).toBe(1);
+    // Both live inside the same <section> as Livre/Disponível/Comprometido —
+    // there is only one hero <section> on the page, not two split cards.
+    expect(screen.getAllByText("Seu mês").length).toBe(1);
   });
 });
 
