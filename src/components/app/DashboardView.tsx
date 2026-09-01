@@ -149,7 +149,7 @@ export function DashboardView({
   const selectedMonthEntry = upcomingMonths[0];
 
   return (
-    <div className="flex flex-col gap-4">
+    <div className="flex flex-col gap-3">
       {/* Aval Modern — the balance sits directly on the page, not inside an
           editorial hero card: "Livre" is the first thing on the screen, in
           sans (font-sans, not the Lora/serif display face) with real weight
@@ -170,14 +170,17 @@ export function DashboardView({
       </div>
 
       {/* Aval Modern — quick actions sit right under the balance (Request/
-          Transfer-style placement in the reference), not buried below other
-          modules: one primary gold pill + a scrollable row of secondary
-          pills. Same handlers as before, "Simular compra" reuses the
-          existing PurchaseSimulatorDialog via onOpenSimulator. */}
-      <div className="flex flex-col gap-2.5" data-testid="quick-actions">
-        <PrimaryActionPill icon={Plus} label="Adicionar gasto" onClick={onAddExpense} />
+          Transfer-style placement in the reference): two compact buttons
+          side by side, not a full-width banner. "Adicionar gasto" (green,
+          primary) + "Simular" share the row; the remaining 3 actions are a
+          smaller secondary row below. Same handlers as before, "Simular"
+          reuses the existing PurchaseSimulatorDialog via onOpenSimulator. */}
+      <div className="flex flex-col gap-2" data-testid="quick-actions">
+        <div className="flex gap-2">
+          <PrimaryActionPill icon={Plus} label="Adicionar gasto" onClick={onAddExpense} />
+          <SecondaryActionPill icon={Calculator} label="Simular" onClick={onOpenSimulator} />
+        </div>
         <div className="flex gap-2 overflow-x-auto no-scrollbar">
-          <SecondaryActionPill icon={Calculator} label="Simular compra" onClick={onOpenSimulator} />
           <SecondaryActionPill icon={Target} label="Adicionar meta" onClick={onAddGoal} />
           <SecondaryActionPill icon={null} label="Perguntar ao Aval" onClick={onOpenAval} />
           <SecondaryActionPill
@@ -193,8 +196,8 @@ export function DashboardView({
           small cells, not a repeat of the balance treatment. Every value
           still comes straight from calc()/budgetForView(); the progress bar
           is still exactly paid/(paid+pending), zero-guarded as before. */}
-      <Panel tone="flat" data-testid="metrics-panel">
-        <div className="grid grid-cols-2 gap-2">
+      <Panel tone="flat" className="p-3" data-testid="metrics-panel">
+        <div className="grid grid-cols-2 gap-1.5">
           <MetricCell
             label={view === VIEW_ME ? "Renda" : view === VIEW_SPOUSE ? "Repasse" : "Disponível"}
             value={money(budget)}
@@ -209,7 +212,7 @@ export function DashboardView({
           aria-valuenow={Math.round(paidPct)}
           aria-valuemin={0}
           aria-valuemax={100}
-          className="mt-3 h-1.5 w-full overflow-hidden rounded-full bg-secondary"
+          className="mt-2 h-1 w-full overflow-hidden rounded-full bg-secondary"
         >
           <div
             className="h-full rounded-full bg-primary transition-[width]"
@@ -226,7 +229,7 @@ export function DashboardView({
           Modern: a 2-column compact grid instead of full-width stacked
           cards, so Maria/Oziel compare at a glance without scrolling. */}
       {view === VIEW_ALL && state.people.length >= 2 && (
-        <Panel tone="flat">
+        <Panel tone="flat" className="p-3">
           <PanelHead
             title="Divisão da casa"
             icon={Users}
@@ -240,7 +243,7 @@ export function DashboardView({
               </button>
             }
           />
-          <div className="grid grid-cols-2 gap-2">
+          <div className="grid grid-cols-2 gap-1.5">
             {state.people.map((name, index) => {
               const profileView = index === 0 ? VIEW_ME : index === 1 ? VIEW_SPOUSE : name;
               const profileNumbers = calc(month, profileView, state.activeMonth, state.people);
@@ -252,20 +255,20 @@ export function DashboardView({
                   type="button"
                   onClick={() => setActivePerson(profileView)}
                   aria-label={`Ver detalhes financeiros de ${name}`}
-                  className="press focus-ring w-full rounded-2xl bg-secondary/50 p-3 text-left transition-colors hover:bg-secondary"
+                  className="press focus-ring w-full rounded-md bg-secondary/50 px-2.5 py-2 text-left transition-colors hover:bg-secondary"
                 >
-                  <strong className="block truncate text-sm font-bold text-foreground">
+                  <strong className="block truncate text-xs font-bold text-foreground">
                     {name}
                   </strong>
-                  <span className="mt-1.5 block text-xs text-muted-foreground">Livre</span>
+                  <span className="mt-1 block text-2xs text-muted-foreground">Livre</span>
                   <strong
-                    className={`tnum block text-lg font-bold leading-none ${
+                    className={`tnum block text-sm font-bold leading-none ${
                       profileOverBudget ? "text-destructive" : "text-success"
                     }`}
                   >
                     {money(profileNumbers.free)}
                   </strong>
-                  <div className="mt-2 flex flex-col gap-1 border-t border-border/20 pt-2">
+                  <div className="mt-1.5 flex flex-col gap-0.5 border-t border-border/20 pt-1.5">
                     <div className="flex items-center justify-between gap-2">
                       <span className="text-xs text-muted-foreground">Disponível</span>
                       <strong className="tnum text-xs font-bold text-foreground">
@@ -291,9 +294,9 @@ export function DashboardView({
           (household or a specific profile) — same scope the rest of the
           Home already uses. Compact by design: only "livre" + a delta vs.
           the selected month, not a repeat of every hero metric per month. */}
-      <Panel tone="flat">
+      <Panel tone="flat" className="p-3">
         <PanelHead title="Próximos meses" icon={CalendarClock} />
-        <div className="flex gap-2">
+        <div className="flex gap-1.5">
           {upcomingMonths.map((entry, index) => (
             <MonthCompareCard
               key={entry.key}
@@ -316,7 +319,7 @@ export function DashboardView({
           {/* Aval Modern — quick actions now live at the top of the page
               (right under the balance); this panel goes back to being just
               "Situação do mês" on its own. */}
-          <Panel tone="flat">
+          <Panel tone="flat" className="p-3">
             <PanelHead title="Situação do mês" icon={TriangleAlert} />
             <div className="flex flex-col gap-3">
               {topCategory && (
@@ -324,7 +327,7 @@ export function DashboardView({
                   type="button"
                   onClick={() => onOpenCategory(topCategory.category)}
                   aria-label={`Ver gastos da categoria ${categoryLabel(topCategory.category)}`}
-                  className="press focus-ring hover-lift flex items-center justify-between gap-3 rounded-2xl bg-secondary/70 p-3.5 text-left transition-colors hover:bg-secondary"
+                  className="press focus-ring hover-lift flex items-center justify-between gap-3 rounded-2xl bg-secondary/70 p-2.5 text-left transition-colors hover:bg-secondary"
                 >
                   <div className="min-w-0">
                     <span className="block text-xs font-semibold uppercase tracking-wide text-muted-foreground">
@@ -347,7 +350,7 @@ export function DashboardView({
         {/* Nível 3 ("atividade recente"): the same rows Gastos shows for this
             month/view, most recent first — solid cards (no glass), status pill
             reused as-is from ui.tsx, edit reuses the existing ExpenseDialog. */}
-        <Panel tone="flat">
+        <Panel tone="flat" className="p-3">
           <PanelHead
             title="Movimentações recentes"
             action={
@@ -417,8 +420,8 @@ export function DashboardView({
         </Panel>
       </div>
 
-      {/* Month history timeline -- pulled up to overlap the hero card for a layered feel */}
-      <Panel className="relative z-10">
+      {/* Month history timeline */}
+      <Panel tone="flat" className="p-3">
         <PanelHead title="Histórico de meses" hint="toque para abrir" icon={History} />
         <div className="flex gap-2.5 overflow-x-auto no-scrollbar pb-1">
           {timeline.map(([key, data]) => {
@@ -507,7 +510,7 @@ export function DashboardView({
                   }}
                   aria-pressed={active}
                   aria-label={`Ver gastos de ${name}`}
-                  className={`press focus-ring w-full rounded-2xl p-3.5 text-left transition-colors ${active ? "bg-primary-soft" : "bg-secondary/60 hover:bg-secondary"}`}
+                  className={`press focus-ring w-full rounded-2xl p-2.5 text-left transition-colors ${active ? "bg-primary-soft" : "bg-secondary/60 hover:bg-secondary"}`}
                 >
                   <div className="flex items-center gap-2.5">
                     <span
@@ -671,11 +674,11 @@ function MonthCompareCard({
 /** One compact metric cell (Disponível/Comprometido/Pago/Falta pagar) — a small module, not a repeat of the balance treatment. */
 function MetricCell({ label, value }: { label: string; value: string }) {
   return (
-    <div className="rounded-2xl bg-secondary/50 p-3">
-      <span className="block text-xs font-semibold uppercase tracking-wide text-muted-foreground">
+    <div className="rounded-md bg-secondary/50 px-2.5 py-2">
+      <span className="block text-2xs font-semibold uppercase tracking-wide text-muted-foreground">
         {label}
       </span>
-      <strong className="tnum mt-1 block text-base font-bold leading-none text-foreground">
+      <strong className="tnum mt-0.5 block text-sm font-bold leading-none text-foreground">
         {value}
       </strong>
     </div>
@@ -696,7 +699,7 @@ function PrimaryActionPill({
     <button
       type="button"
       onClick={onClick}
-      className="press focus-ring hover-lift flex h-12 w-full items-center justify-center gap-2 rounded-full bg-primary text-sm font-bold text-primary-foreground shadow-primary"
+      className="press focus-ring flex h-10 flex-1 items-center justify-center gap-1.5 rounded-full bg-primary text-sm font-bold text-primary-foreground shadow-primary"
     >
       <Icon className="h-[18px] w-[18px]" strokeWidth={2.4} />
       {label}
@@ -719,7 +722,7 @@ function SecondaryActionPill({
     <button
       type="button"
       onClick={onClick}
-      className="glass-surface press glass-pressed focus-ring hover-lift flex h-11 shrink-0 items-center gap-2 whitespace-nowrap rounded-full px-4 text-xs font-bold text-foreground"
+      className="glass-surface press glass-pressed focus-ring flex h-10 shrink-0 items-center gap-1.5 whitespace-nowrap rounded-full px-3.5 text-xs font-bold text-foreground"
     >
       {Icon ? <Icon className="h-[15px] w-[15px]" strokeWidth={2.2} /> : <AvalMark size={14} />}
       {label}

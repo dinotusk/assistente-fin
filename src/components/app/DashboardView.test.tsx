@@ -749,15 +749,15 @@ describe("DashboardView — Ações rápidas (P0-FRONTEND-1B.4)", () => {
 
   it("26b. secondary actions keep the glass-surface utility", () => {
     renderDashboard();
-    ["Ver gastos", "Simular compra", "Adicionar meta", "Perguntar ao Aval"].forEach((label) => {
+    ["Ver gastos", "Simular", "Adicionar meta", "Perguntar ao Aval"].forEach((label) => {
       const button = screen.getByText(label).closest("button");
       expect(button?.className).toContain("glass-surface");
     });
   });
 
-  it("26c. Simular compra calls onOpenSimulator", () => {
+  it("26c. Simular calls onOpenSimulator", () => {
     renderDashboard();
-    fireEvent.click(screen.getByText("Simular compra"));
+    fireEvent.click(screen.getByText("Simular"));
     expect(actions.onOpenSimulator).toHaveBeenCalledTimes(1);
   });
 
@@ -942,7 +942,7 @@ describe("DashboardView — Movimentações recentes (P0-DASHBOARD-REFINE)", () 
     expect(withinActions.getByText("Ver gastos")).toBeTruthy();
     expect(withinActions.getByText("Adicionar meta")).toBeTruthy();
     expect(withinActions.getByText("Perguntar ao Aval")).toBeTruthy();
-    expect(withinActions.getByText("Simular compra")).toBeTruthy();
+    expect(withinActions.getByText("Simular")).toBeTruthy();
   });
 });
 

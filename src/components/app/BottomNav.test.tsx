@@ -166,9 +166,9 @@ describe("BottomNav — estrutura / safe-area / touch", () => {
     expect(nav.className).toContain("safe-area-inset-bottom");
   });
 
-  it("13. touch targets stay at least 44px tall (min-h-12 = 48px)", () => {
+  it("13. touch targets stay at least 44px tall (min-h-11 = 44px)", () => {
     render(<BottomNav view="dashboard" onChange={vi.fn()} onOpenAssistant={vi.fn()} />);
     const painelButton = screen.getByText("Painel").closest("button");
-    expect(painelButton?.className).toContain("min-h-12");
+    expect(painelButton?.className).toContain("min-h-11");
   });
 });

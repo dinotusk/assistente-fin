@@ -12,12 +12,19 @@
 /* Aval - dark, assistant-first fintech design system. */
 
 @theme inline {
-  --radius-sm: calc(var(--radius) - 6px);
-  --radius-md: calc(var(--radius) - 4px);
-  --radius-lg: var(--radius);
-  --radius-xl: calc(var(--radius) + 4px);
-  --radius-2xl: calc(var(--radius) + 10px);
-  --radius-3xl: calc(var(--radius) + 18px);
+  /* Aval Modern (fintech rebuild) — a genuinely smaller scale (10-22px) so
+     cards read as fintech components, not big rounded-rect "prototype"
+     boxes. Explicit rem values, not offsets from one shared base, so each
+     step is deliberate rather than inherited. */
+  --radius-sm: 0.625rem; /* 10px */
+  --radius-md: 0.75rem; /* 12px */
+  --radius-lg: 1rem; /* 16px */
+  --radius-xl: 1.125rem; /* 18px */
+  --radius-2xl: 1.25rem; /* 20px */
+  --radius-3xl: 1.375rem; /* 22px */
+
+  --color-gold: var(--gold);
+  --color-gold-foreground: var(--gold-foreground);
 
   --color-background: var(--background);
   --color-foreground: var(--foreground);
@@ -48,16 +55,14 @@
   --font-display: "Lora", Georgia, serif;
   --font-sans: "Poppins", ui-sans-serif, system-ui, sans-serif;
 
-  --shadow-soft: 0 8px 24px -18px rgb(0 0 0 / 0.8);
-  --shadow-card: 0 18px 42px -28px rgb(0 0 0 / 0.95);
-  --shadow-float: 0 24px 48px -22px rgb(0 0 0 / 0.95);
-  --shadow-primary: 0 16px 34px -20px rgb(200 173 122 / 0.55);
+  --shadow-soft: 0 4px 12px -8px rgb(0 0 0 / 0.6);
+  --shadow-card: 0 8px 20px -14px rgb(0 0 0 / 0.7);
+  --shadow-float: 0 12px 28px -16px rgb(0 0 0 / 0.75);
+  --shadow-primary: 0 8px 20px -12px rgb(43 217 155 / 0.4);
   --ease-out-soft: cubic-bezier(0.22, 1, 0.36, 1);
 }
 
 :root {
-  --radius: 1.25rem;
-
   color-scheme: dark;
   --background: #061a14;
   --surface: #0d2b22;
@@ -66,15 +71,19 @@
   --card-foreground: #ede8dd;
   --popover: #15392e;
   --popover-foreground: #ede8dd;
-  --primary: #c8ad7a;
-  --primary-foreground: #061a14;
-  --primary-soft: rgb(200 173 122 / 0.14);
+  /* Aval Modern (fintech rebuild) — primary flips from gold to a vivid
+     emerald/mint (the reference's dominant accent); gold survives as the
+     --gold token below, a secondary Aval-identity accent, not the default
+     for every CTA any more. */
+  --primary: #2bd99b;
+  --primary-foreground: #052e1c;
+  --primary-soft: rgb(43 217 155 / 0.14);
   --secondary: #15392e;
   --secondary-foreground: #ede8dd;
   --muted: rgb(237 232 221 / 0.06);
   --muted-foreground: #a7b3a6;
-  --accent: rgb(200 173 122 / 0.16);
-  --accent-foreground: #c8ad7a;
+  --accent: rgb(43 217 155 / 0.16);
+  --accent-foreground: #2bd99b;
   --destructive: #c9705a;
   --destructive-foreground: #061a14;
   --success: #7fa88a;
@@ -83,7 +92,9 @@
   --warning-foreground: #171006;
   --border: rgb(237 232 221 / 0.1);
   --input: rgb(237 232 221 / 0.14);
-  --ring: #c8ad7a;
+  --ring: #2bd99b;
+  --gold: #c8ad7a;
+  --gold-foreground: #061a14;
 
   /* Aval Glass (P0-FRONTEND-1B.5) — translucent chrome for navigation and
      controls only, never over financial content. Tinted with the app's own

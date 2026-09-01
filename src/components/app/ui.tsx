@@ -181,7 +181,11 @@ export function PanelHead({
 }) {
   return (
     <div className="mb-3 flex items-center justify-between gap-2">
-      <h2 className="flex items-center gap-1.5 text-sm font-bold uppercase tracking-[0.06em] text-foreground/62">
+      {/* Aval Modern (fintech rebuild) — explicit font-sans overrides the
+          base h1-h4 { font-family: Lora } rule: panel titles are functional
+          labels, not editorial headings, across every screen that uses
+          PanelHead. */}
+      <h2 className="flex items-center gap-1.5 font-sans text-sm font-bold uppercase tracking-[0.06em] text-foreground/62">
         {Icon && <Icon className="h-3.5 w-3.5 text-primary/70" strokeWidth={2.4} />}
         {title}
       </h2>

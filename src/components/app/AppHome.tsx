@@ -216,12 +216,18 @@ export function AppHome() {
 
   const monthPicker = (
     <>
-      <div className="relative flex-1">
+      {/* Aval Modern (fintech rebuild) — a compact chip, not a bar filling
+          the row: shrink-to-content width. Height is h-11 (44px) for a real
+          touch target; the chip still reads as compact because the visual
+          content inside (text-xs, tight padding) stays small — the box is
+          taller than it looks by virtue of vertical centering, not by
+          looking bulky. */}
+      <div className="relative inline-flex shrink-0">
         <select
           value={state.activeMonth}
           onChange={(e) => setActiveMonth(e.target.value)}
           aria-label="Selecionar mês"
-          className="glass-surface focus-ring h-11 w-full appearance-none rounded-lg px-4 pr-10 text-sm font-bold text-foreground outline-none transition focus:border-primary"
+          className="glass-surface focus-ring h-11 appearance-none rounded-md pl-3 pr-8 text-xs font-bold text-foreground outline-none transition focus:border-primary"
         >
           {Object.entries(state.months)
             .sort(([a], [b]) => a.localeCompare(b))
@@ -231,15 +237,16 @@ export function AppHome() {
               </option>
             ))}
         </select>
-        <ChevronDown className="pointer-events-none absolute right-3 top-1/2 h-4 w-4 -translate-y-1/2 text-muted-foreground" />
+        <ChevronDown className="pointer-events-none absolute right-2.5 top-1/2 h-3.5 w-3.5 -translate-y-1/2 text-muted-foreground" />
       </div>
       <button
         type="button"
         onClick={() => createNextMonth()}
-        className="press focus-ring flex h-11 items-center gap-1.5 rounded-lg bg-primary-soft px-4 text-sm font-bold text-primary shadow-soft hover:bg-primary/15"
+        aria-label={`Criar ${formatMonthLabel(state.activeMonth)}`}
         title={`Criar ${formatMonthLabel(state.activeMonth)}`}
+        className="press focus-ring flex h-11 w-11 shrink-0 items-center justify-center rounded-md bg-primary-soft text-primary hover:bg-primary/15"
       >
-        <CalendarPlus className="h-4 w-4" strokeWidth={2.25} /> Mês
+        <CalendarPlus className="h-4 w-4" strokeWidth={2.25} />
       </button>
     </>
   );
@@ -391,7 +398,7 @@ export function AppHome() {
                 <p className="text-xs font-bold uppercase tracking-[0.16em] text-primary/70">
                   {titles[view]}
                 </p>
-                <h1 className="truncate font-display text-3xl text-foreground">
+                <h1 className="truncate font-sans text-3xl font-bold text-foreground">
                   {activeUser?.name || "Aval"}
                 </h1>
               </div>
