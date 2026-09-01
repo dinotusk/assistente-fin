@@ -3,6 +3,8 @@ import {
   Plus,
   CalendarPlus,
   ChevronDown,
+  ChevronLeft,
+  ChevronRight,
   Eye,
   EyeOff,
   LogOut,
@@ -244,6 +246,76 @@ export function AppHome() {
     </>
   );
 
+  // Aval Modern (P9.5) — mobile-only editorial month header: the same
+  // setActiveMonth/createNextMonth calls the compact monthPicker above uses,
+  // just composed as a large heading with discrete prev/next instead of a
+  // pill-shaped <select>. Prev/next walk state.months' own sorted keys (not
+  // +/-1 calendar month), so they only ever land on a month that already has
+  // data — jumping to any month (including a gap) still works via the
+  // invisible <select> layered over the heading, so no navigation capability
+  // is lost. Desktop keeps the original compact monthPicker untouched.
+  const sortedMonthKeys = Object.keys(state.months).sort();
+  const activeMonthPos = sortedMonthKeys.indexOf(state.activeMonth);
+  const prevMonthKey = activeMonthPos > 0 ? sortedMonthKeys[activeMonthPos - 1] : null;
+  const nextMonthKey =
+    activeMonthPos >= 0 && activeMonthPos < sortedMonthKeys.length - 1
+      ? sortedMonthKeys[activeMonthPos + 1]
+      : null;
+
+  const monthPickerEditorial = (
+    <div className="flex items-center gap-1">
+      <button
+        type="button"
+        onClick={() => prevMonthKey && setActiveMonth(prevMonthKey)}
+        disabled={!prevMonthKey}
+        aria-label="Mês anterior"
+        className="press focus-ring flex h-11 w-11 shrink-0 items-center justify-center rounded-full text-muted-foreground transition-colors hover:text-foreground disabled:pointer-events-none disabled:opacity-25"
+      >
+        <ChevronLeft className="h-5 w-5" strokeWidth={2.25} />
+      </button>
+
+      <div className="relative min-h-11 min-w-0 flex-1 text-center">
+        <select
+          value={state.activeMonth}
+          onChange={(e) => setActiveMonth(e.target.value)}
+          aria-label="Selecionar mês"
+          className="absolute inset-0 h-full w-full cursor-pointer appearance-none opacity-0"
+        >
+          {Object.entries(state.months)
+            .sort(([a], [b]) => a.localeCompare(b))
+            .map(([key, data]) => (
+              <option key={key} value={key}>
+                {data.label}
+              </option>
+            ))}
+        </select>
+        <p className="pointer-events-none truncate font-display text-display leading-[2.75rem] text-foreground">
+          {activeMonthLabel}
+        </p>
+      </div>
+
+      <button
+        type="button"
+        onClick={() => nextMonthKey && setActiveMonth(nextMonthKey)}
+        disabled={!nextMonthKey}
+        aria-label="Próximo mês"
+        className="press focus-ring flex h-11 w-11 shrink-0 items-center justify-center rounded-full text-muted-foreground transition-colors hover:text-foreground disabled:pointer-events-none disabled:opacity-25"
+      >
+        <ChevronRight className="h-5 w-5" strokeWidth={2.25} />
+      </button>
+
+      <button
+        type="button"
+        onClick={() => createNextMonth()}
+        aria-label={`Criar ${formatMonthLabel(state.activeMonth)}`}
+        title={`Criar ${formatMonthLabel(state.activeMonth)}`}
+        className="press focus-ring flex h-11 w-11 shrink-0 items-center justify-center rounded-full text-primary/80 transition-colors hover:text-primary"
+      >
+        <CalendarPlus className="h-[18px] w-[18px]" strokeWidth={2.25} />
+      </button>
+    </div>
+  );
+
   function goToTransactions(category?: string) {
     setTransactionsCategory(category ?? null);
     setView("transactions");
@@ -260,6 +332,7 @@ export function AppHome() {
           onOpenAval={() => setView("assistant")}
           onEditExpense={(id) => setExpenseDialog({ open: true, id })}
           onEditPeople={() => setPeopleOpen(true)}
+          onOpenSimulator={() => setSimulatorOpen(true)}
         />
       )}
       {view === "transactions" && (
@@ -428,17 +501,15 @@ export function AppHome() {
   return (
     <div className="app-backdrop min-h-dvh">
       <div className="relative mx-auto flex min-h-dvh w-full max-w-[440px] flex-col bg-background/30">
-        {/* Header */}
-        <header className="sticky top-0 z-20 border-b border-white/6 bg-background/88 px-5 pb-3 pt-[max(1rem,env(safe-area-inset-top))] backdrop-blur-[22px]">
+        {/* Header — Aval Modern (P9.5): the greeting/view title steps down to
+            a small caption (row 1, alongside hideValues + avatar) so the
+            month becomes the editorial focal point (row 2); the profile
+            switcher (row 3) stays a light context row, not a boxed control. */}
+        <header className="sticky top-0 z-20 bg-background/88 px-5 pb-3 pt-[max(1rem,env(safe-area-inset-top))] backdrop-blur-[22px]">
           <div className="flex items-center justify-between gap-3">
-            <div className="min-w-0">
-              <p className="text-2xs font-bold uppercase tracking-[0.14em] text-muted-foreground">
-                {activeMonthLabel}
-              </p>
-              <h1 className="mt-1 truncate font-display text-display leading-none text-foreground">
-                {view === "assistant" ? `Olá, ${firstName}` : titles[view]}
-              </h1>
-            </div>
+            <h1 className="min-w-0 truncate text-2xs font-bold uppercase tracking-[0.14em] text-muted-foreground">
+              {view === "assistant" ? `Olá, ${firstName}` : titles[view]}
+            </h1>
             <div className="flex shrink-0 items-center gap-2">
               <HideValuesToggle hidden={hideValues} onClick={toggleHideValues} />
               <div className="relative" ref={profileMenuRef}>
@@ -457,9 +528,9 @@ export function AppHome() {
             </div>
           </div>
 
-          <div className="mt-3 flex items-center gap-2">{monthPicker}</div>
+          <div className="mt-1">{monthPickerEditorial}</div>
 
-          {personSegmented ? <div className="mt-2">{personSegmented}</div> : null}
+          {personSegmented ? <div className="mt-1">{personSegmented}</div> : null}
         </header>
 
         {/* Content */}

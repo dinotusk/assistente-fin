@@ -253,9 +253,13 @@ export function ListItemCard({
   ariaLabel?: string;
   className?: string;
 }) {
+  // Aval Modern (P9.5) — a resting row has no background/card of its own;
+  // rows separate by spacing (gap-3 in the list container below) and a
+  // hairline divider, not by each being its own boxed surface. A background
+  // only appears on hover/press, i.e. as interaction feedback, never at rest.
   const surfaceClassName = cn(
-    "flex items-center gap-3 rounded-2xl bg-secondary/70 p-3 text-left",
-    onClick && "press focus-ring hover-lift transition-colors hover:bg-secondary",
+    "flex items-center gap-3 rounded-2xl p-2.5 text-left",
+    onClick && "press focus-ring transition-colors hover:bg-secondary/60",
     className,
   );
   const content = (

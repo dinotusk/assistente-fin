@@ -181,6 +181,7 @@ const actions = {
   onOpenAval: vi.fn(),
   onEditExpense: vi.fn(),
   onEditPeople: vi.fn(),
+  onOpenSimulator: vi.fn(),
 };
 
 function renderDashboard() {
@@ -533,6 +534,21 @@ describe("DashboardView — P9.1 hero financeiro e progresso do mês", () => {
     expect(section?.querySelector("svg")).toBeNull();
   });
 
+  it("21. Aval Modern — the hero uses the finance-hero gradient surface, not the flat card-surface", () => {
+    renderDashboard();
+    const section = screen.getByText("Seu mês").closest("section");
+    expect(section?.className).toContain("finance-hero");
+    expect(section?.className).not.toContain("card-surface");
+  });
+
+  it("22. Aval Modern — the progress fill is the gold accent, not the green success color", () => {
+    renderDashboard();
+    const bar = screen.getByRole("progressbar", { name: "Proporção já paga no mês" });
+    const fill = bar.firstElementChild as HTMLElement;
+    expect(fill.className).toContain("bg-primary");
+    expect(fill.className).not.toContain("bg-success");
+  });
+
   it("17. P9.5 Rodada 2 — 'Progresso do mês' no longer exists as its own Panel", () => {
     renderDashboard();
     expect(screen.queryByText("Progresso do mês")).toBeNull();
@@ -688,14 +704,29 @@ describe("DashboardView — Ações rápidas (P0-FRONTEND-1B.4)", () => {
     expect(actions.onOpenAval).toHaveBeenCalledTimes(1);
   });
 
-  // P0-FRONTEND-1B.5 (Aval Glass): quick actions are controls, so — unlike
-  // the financial panels — they're meant to carry the glass utility.
-  it("26. each quick action button carries the glass-surface utility", () => {
+  // Aval Modern (P9.5): "Adicionar gasto" became the one primary action —
+  // a solid gold pill, not glass (glass is reserved for secondary/chrome
+  // controls). The other actions stay secondary pills and keep the glass
+  // utility, same rule P0-FRONTEND-1B.5 established.
+  it("26. the primary action (Adicionar gasto) is a solid gold pill, not glass", () => {
     renderDashboard();
-    ["Adicionar gasto", "Ver gastos", "Adicionar meta", "Perguntar ao Aval"].forEach((label) => {
+    const button = screen.getByText("Adicionar gasto").closest("button");
+    expect(button?.className).toContain("bg-primary");
+    expect(button?.className).not.toContain("glass-surface");
+  });
+
+  it("26b. secondary actions keep the glass-surface utility", () => {
+    renderDashboard();
+    ["Ver gastos", "Simular compra", "Adicionar meta", "Perguntar ao Aval"].forEach((label) => {
       const button = screen.getByText(label).closest("button");
       expect(button?.className).toContain("glass-surface");
     });
+  });
+
+  it("26c. Simular compra calls onOpenSimulator", () => {
+    renderDashboard();
+    fireEvent.click(screen.getByText("Simular compra"));
+    expect(actions.onOpenSimulator).toHaveBeenCalledTimes(1);
   });
 
   // P0-FRONTEND-1B.7 — "Perguntar ao Aval" uses the real brand mark, not a
@@ -867,6 +898,19 @@ describe("DashboardView — Movimentações recentes (P0-DASHBOARD-REFINE)", () 
     const wrapper = screen.getByText("Situação do mês").closest("section")
       ?.parentElement?.parentElement;
     expect(wrapper?.className).toContain("lg:grid-cols-2");
+  });
+
+  it("44. Aval Modern — Situação do mês and Ações rápidas merged into one panel (same <section>), both headings still present", () => {
+    renderDashboard();
+    const situacaoSection = screen.getByText("Situação do mês").closest("section");
+    const acoesSection = screen.getByText("Ações rápidas").closest("section");
+    expect(situacaoSection).toBe(acoesSection);
+    // All 4 actions still render inside that same merged section.
+    const withinMerged = within(situacaoSection!);
+    expect(withinMerged.getByText("Adicionar gasto")).toBeTruthy();
+    expect(withinMerged.getByText("Ver gastos")).toBeTruthy();
+    expect(withinMerged.getByText("Adicionar meta")).toBeTruthy();
+    expect(withinMerged.getByText("Perguntar ao Aval")).toBeTruthy();
   });
 });
 

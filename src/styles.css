@@ -51,7 +51,7 @@
   --shadow-soft: 0 8px 24px -18px rgb(0 0 0 / 0.8);
   --shadow-card: 0 18px 42px -28px rgb(0 0 0 / 0.95);
   --shadow-float: 0 24px 48px -22px rgb(0 0 0 / 0.95);
-  --shadow-primary: 0 16px 34px -20px rgb(200 173 122 / 0.75);
+  --shadow-primary: 0 16px 34px -20px rgb(200 173 122 / 0.55);
   --ease-out-soft: cubic-bezier(0.22, 1, 0.36, 1);
 }
 
@@ -103,7 +103,7 @@
      whole new Level 3 family: more blur/saturation, a touch more
      transparent than glass-surface-strong, still deep-green tinted. */
   --glass-nav-bg: rgb(9 27 21 / 0.62);
-  --glass-nav-blur: 32px;
+  --glass-nav-blur: 26px;
 }
 
 .dark {
@@ -174,7 +174,10 @@
 }
 
 @utility text-hero {
-  font-size: 2.1rem; /* Dashboard "Livre" hero value */
+  /* Aval Modern (P9.5) — bumped from 2.1rem for stronger contrast against
+     the secondary stats (text-lg=1.125rem), the single loudest number on
+     the screen. */
+  font-size: 2.5rem;
   line-height: 1;
 }
 
