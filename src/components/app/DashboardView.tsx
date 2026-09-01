@@ -150,173 +150,162 @@ export function DashboardView({
 
   return (
     <div className="flex flex-col gap-4">
-      {/* Aval Modern (P9.5) — the hero surface moves from the flat
-          card-surface to finance-hero: a radial gold-tinted gradient with a
-          thin champagne edge, the one deliberately distinctive surface in
-          the Home (every other block stays flat/borderless below). "Livre"
-          is the loudest figure on the screen — text-hero was bumped for
-          stronger contrast — and the four secondary figures sit in one
-          integrated 2x2 grid instead of two separate rows. The progress
-          fill uses the gold accent (a completion indicator, not a financial
-          signal) — the only place color communicates state is still "Livre"
-          itself via overBudget. Every value/percentage is unchanged from
-          calc()/budgetForView(), zero-guarded exactly as before. */}
-      <section className="finance-hero hero-texture relative overflow-hidden rounded-3xl p-6">
-        <div className="relative">
-          <span className="text-xs font-semibold uppercase tracking-[0.08em] text-muted-foreground">
-            Seu mês
-          </span>
-          <span className="mt-3 block text-xs font-semibold uppercase tracking-[0.08em] text-primary/80">
-            Livre
-          </span>
-          <strong
-            className={`tnum mt-1 block font-display text-hero leading-none ${
-              overBudget ? "text-destructive" : "text-success"
-            }`}
-          >
-            {money(numbers.free)}
-          </strong>
+      {/* Aval Modern — the balance sits directly on the page, not inside an
+          editorial hero card: "Livre" is the first thing on the screen, in
+          sans (font-sans, not the Lora/serif display face) with real weight
+          contrast against every label around it. No ring, no gradient card.
+          Color still communicates overBudget exactly as before — the only
+          thing that changed is the surface (none) and the typeface. */}
+      <div className="px-1" data-testid="balance-area">
+        <span className="text-xs font-semibold uppercase tracking-wide text-muted-foreground">
+          Livre
+        </span>
+        <strong
+          className={`tnum mt-1 block font-sans text-hero font-bold leading-none ${
+            overBudget ? "text-destructive" : "text-foreground"
+          }`}
+        >
+          {money(numbers.free)}
+        </strong>
+      </div>
 
-          <div className="mt-5 grid grid-cols-2 gap-x-4 gap-y-3">
-            <HeroStat
-              label={view === VIEW_ME ? "Renda" : view === VIEW_SPOUSE ? "Repasse" : "Disponível"}
-              value={money(budget)}
-            />
-            <HeroStat label="Comprometido" value={money(numbers.total)} />
-            <HeroStat label="Pago" value={money(numbers.paid)} />
-            <HeroStat label="Falta pagar" value={money(numbers.pending)} />
-          </div>
+      {/* Aval Modern — quick actions sit right under the balance (Request/
+          Transfer-style placement in the reference), not buried below other
+          modules: one primary gold pill + a scrollable row of secondary
+          pills. Same handlers as before, "Simular compra" reuses the
+          existing PurchaseSimulatorDialog via onOpenSimulator. */}
+      <div className="flex flex-col gap-2.5" data-testid="quick-actions">
+        <PrimaryActionPill icon={Plus} label="Adicionar gasto" onClick={onAddExpense} />
+        <div className="flex gap-2 overflow-x-auto no-scrollbar">
+          <SecondaryActionPill icon={Calculator} label="Simular compra" onClick={onOpenSimulator} />
+          <SecondaryActionPill icon={Target} label="Adicionar meta" onClick={onAddGoal} />
+          <SecondaryActionPill icon={null} label="Perguntar ao Aval" onClick={onOpenAval} />
+          <SecondaryActionPill
+            icon={ArrowLeftRight}
+            label="Ver gastos"
+            onClick={onViewTransactions}
+          />
+        </div>
+      </div>
 
+      {/* Aval Modern — Disponível/Comprometido/Pago/Falta pagar move out of
+          the (now-removed) hero into their own compact module: a 2x2 grid of
+          small cells, not a repeat of the balance treatment. Every value
+          still comes straight from calc()/budgetForView(); the progress bar
+          is still exactly paid/(paid+pending), zero-guarded as before. */}
+      <Panel tone="flat" data-testid="metrics-panel">
+        <div className="grid grid-cols-2 gap-2">
+          <MetricCell
+            label={view === VIEW_ME ? "Renda" : view === VIEW_SPOUSE ? "Repasse" : "Disponível"}
+            value={money(budget)}
+          />
+          <MetricCell label="Comprometido" value={money(numbers.total)} />
+          <MetricCell label="Pago" value={money(numbers.paid)} />
+          <MetricCell label="Falta pagar" value={money(numbers.pending)} />
+        </div>
+        <div
+          role="progressbar"
+          aria-label="Proporção já paga no mês"
+          aria-valuenow={Math.round(paidPct)}
+          aria-valuemin={0}
+          aria-valuemax={100}
+          className="mt-3 h-1.5 w-full overflow-hidden rounded-full bg-secondary"
+        >
           <div
-            role="progressbar"
-            aria-label="Proporção já paga no mês"
-            aria-valuenow={Math.round(paidPct)}
-            aria-valuemin={0}
-            aria-valuemax={100}
-            className="mt-5 h-1.5 w-full overflow-hidden rounded-full bg-white/10"
-          >
-            <div
-              className="h-full rounded-full bg-primary transition-[width]"
-              style={{ width: `${paidPct}%` }}
-            />
-          </div>
+            className="h-full rounded-full bg-primary transition-[width]"
+            style={{ width: `${paidPct}%` }}
+          />
         </div>
-      </section>
+      </Panel>
 
-      {/* P9.2 — "Divisão da casa": one card per active profile, each reading
+      {/* P9.2 — "Divisão da casa": one cell per active profile, each reading
           calc()/budgetForView() for that profile's own view (same index0 ->
-          VIEW_ME / index1 -> VIEW_SPOUSE / index>=2 -> literal name convention
-          "Divisão familiar" already uses below) — no new financial rule, just
-          the same functions called once per profile instead of once for the
-          active view. Only in VIEW_ALL (the hero above already represents a
-          single profile's own numbers once you're inside its view) and only
-          with 2+ profiles (with exactly one profile it would just repeat the
-          hero). Stacked full-width cards, not a grid, so "Livre" stays
-          comparable at a glance regardless of how many profiles exist. */}
-      {/* Aval Modern (P9.5) — "Divisão da casa" and "Próximos meses" (who vs.
-          when) no longer sit as two separate cards with a gap between them:
-          when both apply they share one continuous grouped surface (the
-          wrapper clips to one rounded outline, a 1px hairline is the only
-          separator — no second card boundary). Each keeps its own <section>
-          (Panel) underneath, so every existing test/helper scoped to either
-          heading via .closest("section") still resolves to that panel alone
-          — only the OUTER visual grouping changed, not the DOM depth either
-          block's own content sits at. */}
-      {view === VIEW_ALL && state.people.length >= 2 ? (
-        <div className="overflow-hidden rounded-3xl">
-          <Panel tone="flat" className="rounded-none">
-            <PanelHead
-              title="Divisão da casa"
-              icon={Users}
-              action={
-                <button
-                  type="button"
-                  onClick={onEditPeople}
-                  className="press focus-ring shrink-0 text-xs font-bold text-primary"
-                >
-                  Editar nomes
-                </button>
-              }
-            />
-            <div className="flex flex-col gap-3">
-              {state.people.map((name, index) => {
-                const profileView = index === 0 ? VIEW_ME : index === 1 ? VIEW_SPOUSE : name;
-                const profileNumbers = calc(month, profileView, state.activeMonth, state.people);
-                const profileBudget = budgetForView(month, profileView);
-                const profileOverBudget = profileNumbers.free < 0;
-                return (
-                  <button
-                    key={`${profileView}-${index}`}
-                    type="button"
-                    onClick={() => setActivePerson(profileView)}
-                    aria-label={`Ver detalhes financeiros de ${name}`}
-                    className="press focus-ring hover-lift w-full rounded-2xl bg-secondary/60 p-3.5 text-left transition-colors hover:bg-secondary"
-                  >
-                    <strong className="block truncate text-sm font-bold text-foreground">
-                      {name}
-                    </strong>
-                    <div className="mt-2 flex flex-wrap items-baseline gap-x-4 gap-y-1">
-                      <HeroStat label="Disponível" value={money(profileBudget)} />
-                      <HeroStat label="Comprometido" value={money(profileNumbers.total)} />
-                      <div className="min-w-0">
-                        <span className="block text-xs font-semibold uppercase tracking-wide text-muted-foreground">
-                          Livre
-                        </span>
-                        <strong
-                          className={`tnum block font-display text-lg leading-none ${
-                            profileOverBudget ? "text-destructive" : "text-success"
-                          }`}
-                        >
-                          {money(profileNumbers.free)}
-                        </strong>
-                      </div>
-                    </div>
-                  </button>
-                );
-              })}
-            </div>
-          </Panel>
-
-          <div className="h-px bg-border/30" />
-
-          <Panel tone="flat" className="rounded-none">
-            <PanelHead title="Próximos meses" icon={CalendarClock} />
-            <div className="flex gap-2">
-              {upcomingMonths.map((entry, index) => (
-                <MonthCompareCard
-                  key={entry.key}
-                  entry={entry}
-                  isSelected={index === 0}
-                  referenceFree={selectedMonthEntry.exists ? selectedMonthEntry.free : null}
-                  formatMoney={money}
-                  onSelect={setActiveMonth}
-                />
-              ))}
-            </div>
-          </Panel>
-        </div>
-      ) : (
-        /* P9.3 — "Próximos meses": compares "livre" (calc().free) for the
-            selected month against the next two, for whichever view is active
-            (household or a specific profile) — same scope the rest of the
-            Home already uses. Compact by design: only "livre" + a delta vs.
-            the selected month, not a repeat of every hero metric per month. */
+          VIEW_ME / index1 -> VIEW_SPOUSE / index>=2 -> literal name
+          convention "Divisão familiar" already uses below) — no new
+          financial rule. Only in VIEW_ALL and only with 2+ profiles. Aval
+          Modern: a 2-column compact grid instead of full-width stacked
+          cards, so Maria/Oziel compare at a glance without scrolling. */}
+      {view === VIEW_ALL && state.people.length >= 2 && (
         <Panel tone="flat">
-          <PanelHead title="Próximos meses" icon={CalendarClock} />
-          <div className="flex gap-2">
-            {upcomingMonths.map((entry, index) => (
-              <MonthCompareCard
-                key={entry.key}
-                entry={entry}
-                isSelected={index === 0}
-                referenceFree={selectedMonthEntry.exists ? selectedMonthEntry.free : null}
-                formatMoney={money}
-                onSelect={setActiveMonth}
-              />
-            ))}
+          <PanelHead
+            title="Divisão da casa"
+            icon={Users}
+            action={
+              <button
+                type="button"
+                onClick={onEditPeople}
+                className="press focus-ring shrink-0 text-xs font-bold text-primary"
+              >
+                Editar nomes
+              </button>
+            }
+          />
+          <div className="grid grid-cols-2 gap-2">
+            {state.people.map((name, index) => {
+              const profileView = index === 0 ? VIEW_ME : index === 1 ? VIEW_SPOUSE : name;
+              const profileNumbers = calc(month, profileView, state.activeMonth, state.people);
+              const profileBudget = budgetForView(month, profileView);
+              const profileOverBudget = profileNumbers.free < 0;
+              return (
+                <button
+                  key={`${profileView}-${index}`}
+                  type="button"
+                  onClick={() => setActivePerson(profileView)}
+                  aria-label={`Ver detalhes financeiros de ${name}`}
+                  className="press focus-ring w-full rounded-2xl bg-secondary/50 p-3 text-left transition-colors hover:bg-secondary"
+                >
+                  <strong className="block truncate text-sm font-bold text-foreground">
+                    {name}
+                  </strong>
+                  <span className="mt-1.5 block text-xs text-muted-foreground">Livre</span>
+                  <strong
+                    className={`tnum block text-lg font-bold leading-none ${
+                      profileOverBudget ? "text-destructive" : "text-success"
+                    }`}
+                  >
+                    {money(profileNumbers.free)}
+                  </strong>
+                  <div className="mt-2 flex flex-col gap-1 border-t border-border/20 pt-2">
+                    <div className="flex items-center justify-between gap-2">
+                      <span className="text-xs text-muted-foreground">Disponível</span>
+                      <strong className="tnum text-xs font-bold text-foreground">
+                        {money(profileBudget)}
+                      </strong>
+                    </div>
+                    <div className="flex items-center justify-between gap-2">
+                      <span className="text-xs text-muted-foreground">Comprometido</span>
+                      <strong className="tnum text-xs font-bold text-foreground">
+                        {money(profileNumbers.total)}
+                      </strong>
+                    </div>
+                  </div>
+                </button>
+              );
+            })}
           </div>
         </Panel>
       )}
+
+      {/* P9.3 — "Próximos meses": compares "livre" (calc().free) for the
+          selected month against the next two, for whichever view is active
+          (household or a specific profile) — same scope the rest of the
+          Home already uses. Compact by design: only "livre" + a delta vs.
+          the selected month, not a repeat of every hero metric per month. */}
+      <Panel tone="flat">
+        <PanelHead title="Próximos meses" icon={CalendarClock} />
+        <div className="flex gap-2">
+          {upcomingMonths.map((entry, index) => (
+            <MonthCompareCard
+              key={entry.key}
+              entry={entry}
+              isSelected={index === 0}
+              referenceFree={selectedMonthEntry.exists ? selectedMonthEntry.free : null}
+              formatMoney={money}
+              onSelect={setActiveMonth}
+            />
+          ))}
+        </div>
+      </Panel>
 
       {/* P0-DASHBOARD-REFINE: at >=lg, Situação do mês + Ações rápidas stack in
           a left column next to Movimentações recentes on the right — same DOM
@@ -324,13 +313,9 @@ export function DashboardView({
           order), so nothing needs a separate desktop layout or new breakpoint. */}
       <div className="flex flex-col gap-4 lg:grid lg:grid-cols-2 lg:items-start">
         <div className="flex flex-col gap-4">
-          {/* Aval Modern (P9.5) — "Situação do mês" and "Ações rápidas" merge
-              into a single surface (they were always the same left column,
-              context + what-to-do-next, split into two boxes only by
-              accident of phasing). Separated by spacing + its own PanelHead
-              label, not a border-t divider — one less independently-boxed
-              panel on the Home without losing either heading (still its own
-              <h2>) or any of the 4 actions. */}
+          {/* Aval Modern — quick actions now live at the top of the page
+              (right under the balance); this panel goes back to being just
+              "Situação do mês" on its own. */}
           <Panel tone="flat">
             <PanelHead title="Situação do mês" icon={TriangleAlert} />
             <div className="flex flex-col gap-3">
@@ -349,44 +334,12 @@ export function DashboardView({
                       {categoryLabel(topCategory.category)}
                     </strong>
                   </div>
-                  <strong className="tnum shrink-0 font-display text-lg text-primary">
+                  <strong className="tnum shrink-0 text-lg font-bold text-primary">
                     {money(topCategory.total)}
                   </strong>
                 </button>
               )}
               <p className="text-sm leading-relaxed text-foreground/85">{headline}</p>
-            </div>
-
-            {/* Aval Modern (P9.5) — actions read as real app actions (pill
-                buttons), not informational mini-cards: one primary (gold,
-                full-width) plus a scrollable row of secondary pills. Same 4
-                flows as before (Novo gasto, Gastos, nova meta, Aval) plus
-                one new entry point — "Simular compra" already exists as a
-                dialog (used from o Aval); this just wires the same
-                onOpenSimulator handler AssistantView already uses, not new
-                functionality. */}
-            <div className="relative z-10 mt-5">
-              <h2 className="mb-2.5 text-xs font-bold uppercase tracking-wide text-muted-foreground">
-                Ações rápidas
-              </h2>
-              <PrimaryActionPill icon={Plus} label="Adicionar gasto" onClick={onAddExpense} />
-              <div className="mt-2.5 flex gap-2 overflow-x-auto no-scrollbar">
-                <SecondaryActionPill
-                  icon={ArrowLeftRight}
-                  label="Ver gastos"
-                  onClick={onViewTransactions}
-                />
-                <SecondaryActionPill
-                  icon={Calculator}
-                  label="Simular compra"
-                  onClick={onOpenSimulator}
-                />
-                <SecondaryActionPill icon={Target} label="Adicionar meta" onClick={onAddGoal} />
-                {/* P0-FRONTEND-1B.7: the Aval brand mark, not a generic AI
-                    icon — icon={null} tells SecondaryActionPill to render
-                    AvalMark instead. */}
-                <SecondaryActionPill icon={null} label="Perguntar ao Aval" onClick={onOpenAval} />
-              </div>
             </div>
           </Panel>
         </div>
@@ -558,7 +511,7 @@ export function DashboardView({
                 >
                   <div className="flex items-center gap-2.5">
                     <span
-                      className={`flex h-9 w-9 shrink-0 items-center justify-center rounded-full font-display text-sm font-bold ${
+                      className={`flex h-9 w-9 shrink-0 items-center justify-center rounded-full text-sm font-bold ${
                         active
                           ? "bg-primary text-primary-foreground shadow-primary"
                           : "bg-card text-primary"
@@ -570,7 +523,7 @@ export function DashboardView({
                       {name}
                     </strong>
                   </div>
-                  <span className="tnum mt-2.5 block font-display text-xl leading-none text-primary">
+                  <span className="tnum mt-2.5 block text-xl font-bold leading-none text-primary">
                     {money(sum(mine))}
                   </span>
                   <small className="mt-1 block text-xs text-muted-foreground">
@@ -687,7 +640,7 @@ function MonthCompareCard({
         {isSelected && <span className="text-primary"> · Atual</span>}
       </span>
       <strong
-        className={`tnum font-display text-base leading-none ${
+        className={`tnum text-base font-bold leading-none ${
           overBudget ? "text-destructive" : "text-success"
         }`}
       >
@@ -715,14 +668,14 @@ function MonthCompareCard({
   );
 }
 
-/** One structural stat in the hero (Disponível/Comprometido/Renda/Repasse) — same size/weight for all, deliberately quieter than "Livre". */
-function HeroStat({ label, value }: { label: string; value: string }) {
+/** One compact metric cell (Disponível/Comprometido/Pago/Falta pagar) — a small module, not a repeat of the balance treatment. */
+function MetricCell({ label, value }: { label: string; value: string }) {
   return (
-    <div className="min-w-0">
+    <div className="rounded-2xl bg-secondary/50 p-3">
       <span className="block text-xs font-semibold uppercase tracking-wide text-muted-foreground">
         {label}
       </span>
-      <strong className="tnum block font-display text-lg leading-none text-foreground">
+      <strong className="tnum mt-1 block text-base font-bold leading-none text-foreground">
         {value}
       </strong>
     </div>

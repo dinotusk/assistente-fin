@@ -20,34 +20,38 @@ function recentMovementsPanel() {
   return within(panel);
 }
 
-/** Scopes queries to the new P9.1 hero — its Comprometido/Disponível figures
-    can numerically repeat elsewhere on the page (Movimentações, Situação do
-    mês, Divisão familiar, Histórico de meses all show real amounts too), so
-    tests must not assume page-wide uniqueness of a money string. */
-function heroSection() {
-  const section = screen.getByText("Seu mês").closest("section");
-  if (!section) throw new Error("Hero section not found");
-  return within(section);
+/** Aval Modern — scopes queries to the balance area ("Livre" + its big
+    value), which sits directly on the page (no <section> wrapper any more),
+    identified by its own data-testid. */
+function balanceArea() {
+  return within(screen.getByTestId("balance-area"));
 }
 
-/** P9.5 Rodada 2 — "Progresso do mês" was absorbed into the hero itself
-    (Pago/Falta pagar/progressbar now live inside the same <section> as
-    Livre), so this is just an alias for heroSection() kept for the P9.1
-    tests below that predate the merge and still read "progressCard()". */
-function progressCard() {
-  return heroSection();
+/** Aval Modern — scopes queries to the quick-actions block (primary +
+    secondary pills) that now sits right under the balance. */
+function quickActionsArea() {
+  return within(screen.getByTestId("quick-actions"));
 }
 
-/** Reads the value rendered next to a given hero label (Disponível,
-    Comprometido, Pago, Falta pagar). Needed because the P9.5 Rodada 2 merge
-    put all five hero figures in one <section>, so two labels can legitimately
-    share the same money string in a given fixture (e.g. comprometido ==
-    falta pagar when there's exactly one pending expense) — scoping by
-    section alone is no longer enough to disambiguate them. */
-function heroStatValue(label: string): string {
-  const labelEl = heroSection().getByText(label);
+/** Aval Modern — scopes queries to the compact metrics module
+    (Disponível/Comprometido/Pago/Falta pagar + progress bar), which replaced
+    the old finance-hero card. Its Comprometido/Disponível figures can
+    numerically repeat elsewhere on the page (Movimentações, Situação do mês,
+    Divisão familiar, Histórico de meses all show real amounts too), so tests
+    must not assume page-wide uniqueness of a money string. */
+function metricsPanel() {
+  return within(screen.getByTestId("metrics-panel"));
+}
+
+/** Reads the value rendered next to a given metrics-panel label (Disponível,
+    Comprometido, Pago, Falta pagar). Two labels can legitimately share the
+    same money string in a given fixture (e.g. comprometido == falta pagar
+    when there's exactly one pending expense), so scoping by panel alone is
+    not always enough to disambiguate them. */
+function metricValue(label: string): string {
+  const labelEl = metricsPanel().getByText(label);
   const value = labelEl.parentElement?.querySelector("strong");
-  if (!value) throw new Error(`No value found next to hero label "${label}"`);
+  if (!value) throw new Error(`No value found next to metric label "${label}"`);
   return value.textContent || "";
 }
 
@@ -198,27 +202,38 @@ afterEach(() => cleanup());
 describe("DashboardView — informação principal presente e hierarquia", () => {
   it("1. shows the primary numbers: disponível (orçamento), comprometido and livre", () => {
     renderDashboard();
-    const hero = heroSection();
     // budget = income(5000) + houseContribution(1000) for "todos" = 6000
-    expect(hero.getByText("R$ 6000.00")).toBeTruthy();
+    expect(metricsPanel().getByText("R$ 6000.00")).toBeTruthy();
     // total spent (comprometido) = 1500 + 400 = 1900
-    expect(hero.getByText("R$ 1900.00")).toBeTruthy();
+    expect(metricsPanel().getByText("R$ 1900.00")).toBeTruthy();
     // free (livre) = 6000 - 1900 = 4100
-    expect(hero.getByText("R$ 4100.00")).toBeTruthy();
+    expect(balanceArea().getByText("R$ 4100.00")).toBeTruthy();
   });
 
-  it("2. hierarquia: hero -> Situação do mês -> Ações rápidas -> Histórico -> Análise detalhada -> painéis analíticos", () => {
+  it("2. hierarquia: balance -> quick actions -> metrics -> Situação do mês -> Histórico -> Análise detalhada -> painéis analíticos", () => {
     renderDashboard();
+    // Aval Modern moved the balance/actions/metrics ahead of everything else
+    // (no <h2> heading of their own — the reference doesn't label them
+    // either) — order is asserted via DOM position (compareDocumentPosition)
+    // rather than a heading list for those three testid-scoped blocks.
+    const balance = screen.getByTestId("balance-area");
+    const actions = screen.getByTestId("quick-actions");
+    const metrics = screen.getByTestId("metrics-panel");
+    [balance, actions, metrics].slice(0, -1).forEach((el, i) => {
+      const next = [balance, actions, metrics][i + 1];
+      expect(el.compareDocumentPosition(next) & 4).toBeTruthy();
+    });
+
     const headings = Array.from(document.querySelectorAll("h2")).map((h) => h.textContent);
     const situacaoIndex = headings.findIndex((h) => h?.includes("Situação do mês"));
-    const acoesIndex = headings.findIndex((h) => h?.includes("Ações rápidas"));
     const historicoIndex = headings.findIndex((h) => h?.includes("Histórico de meses"));
     const distribuicaoIndex = headings.findIndex((h) => h?.includes("Distribuição do mês"));
 
     expect(situacaoIndex).toBeGreaterThanOrEqual(0);
-    expect(acoesIndex).toBeGreaterThan(situacaoIndex);
-    expect(historicoIndex).toBeGreaterThan(acoesIndex);
+    expect(historicoIndex).toBeGreaterThan(situacaoIndex);
     expect(distribuicaoIndex).toBeGreaterThan(historicoIndex);
+    // metrics module comes before Situação do mês's own heading in the DOM.
+    expect(metrics.compareDocumentPosition(screen.getByText("Situação do mês")) & 4).toBeTruthy();
 
     // "Análise detalhada" groups the analytical panels and must appear
     // right before the first of them (Distribuição do mês).
@@ -263,47 +278,47 @@ describe("DashboardView — hideValues", () => {
 // P9.1 — new financial hero (Disponível/Comprometido/Livre) + Progresso do mês
 // (Pago/Falta pagar + bar). Every value comes straight from calc()/
 // budgetForView() — no parallel calculation is introduced or tested here.
-describe("DashboardView — P9.1 hero financeiro e progresso do mês", () => {
+describe("DashboardView — Aval Modern: saldo, ações e métricas", () => {
   it("1. renders Disponível (budget)", () => {
     renderDashboard();
     // "Disponível"/"Comprometido"/"Livre" also label each P9.2 per-profile
-    // card, so scope to the hero specifically.
-    expect(heroSection().getByText("Disponível")).toBeTruthy();
-    expect(heroSection().getByText("R$ 6000.00")).toBeTruthy();
+    // card, so scope to the metrics module specifically.
+    expect(metricsPanel().getByText("Disponível")).toBeTruthy();
+    expect(metricsPanel().getByText("R$ 6000.00")).toBeTruthy();
   });
 
   it("2. renders Comprometido (total)", () => {
     renderDashboard();
-    expect(heroSection().getByText("Comprometido")).toBeTruthy();
-    expect(heroSection().getByText("R$ 1900.00")).toBeTruthy();
+    expect(metricsPanel().getByText("Comprometido")).toBeTruthy();
+    expect(metricsPanel().getByText("R$ 1900.00")).toBeTruthy();
   });
 
   it("3. renders Livre (free) with strong visual weight (its own text-hero figure)", () => {
     renderDashboard();
-    expect(heroSection().getByText("Livre")).toBeTruthy();
-    const livre = heroSection().getByText("R$ 4100.00");
+    expect(balanceArea().getByText("Livre")).toBeTruthy();
+    const livre = balanceArea().getByText("R$ 4100.00");
     expect(livre.className).toContain("text-hero");
   });
 
-  it("4. renders Pago (calc().paid) in the Progresso do mês card", () => {
+  it("4. renders Pago (calc().paid) in the metrics module", () => {
     renderDashboard();
     // "Pago" also appears as a StatusPill label elsewhere (Movimentações), so
-    // scope to the Progresso do mês card, which has exactly one "Pago" label.
-    expect(progressCard().getByText("Pago")).toBeTruthy();
+    // scope to the metrics module, which has exactly one "Pago" label.
+    expect(metricsPanel().getByText("Pago")).toBeTruthy();
     // paid = Mercado (400, status Pago)
-    expect(progressCard().getByText("R$ 400.00")).toBeTruthy();
+    expect(metricsPanel().getByText("R$ 400.00")).toBeTruthy();
   });
 
-  it("5. renders Falta pagar (calc().pending) in the Progresso do mês card", () => {
+  it("5. renders Falta pagar (calc().pending) in the metrics module", () => {
     renderDashboard();
     expect(screen.getByText("Falta pagar")).toBeTruthy();
     // pending = Aluguel (1500, status A pagar)
-    expect(progressCard().getByText("R$ 1500.00")).toBeTruthy();
+    expect(metricsPanel().getByText("R$ 1500.00")).toBeTruthy();
   });
 
-  it("6. switching the active month updates every hero/progress value", () => {
+  it("6. switching the active month updates every balance/metric value", () => {
     renderDashboard();
-    expect(heroSection().getByText("R$ 6000.00")).toBeTruthy(); // August budget
+    expect(metricsPanel().getByText("R$ 6000.00")).toBeTruthy(); // August budget
 
     const prevMonthState: FinanceState = { ...baseState(), activeMonth: PREV_MONTH };
     Object.assign(mockFinance, { state: prevMonthState, month: baseState().months[PREV_MONTH] });
@@ -313,38 +328,39 @@ describe("DashboardView — P9.1 hero financeiro e progresso do mês", () => {
     // irrelevant here) but total/paid/pending must reflect July's single
     // expense (Mercado, 100, Pago) instead of August's. Comprometido and
     // pago coincide at R$ 100.00 in this fixture, so each label is read
-    // from its own value node rather than a section-wide text lookup.
-    expect(heroStatValue("Comprometido")).toBe("R$ 100.00");
-    expect(heroStatValue("Pago")).toBe("R$ 100.00"); // same expense, already paid
-    expect(heroStatValue("Falta pagar")).toBe("R$ 0.00"); // nothing pending in July
+    // from its own value node rather than a panel-wide text lookup.
+    expect(metricValue("Comprometido")).toBe("R$ 100.00");
+    expect(metricValue("Pago")).toBe("R$ 100.00"); // same expense, already paid
+    expect(metricValue("Falta pagar")).toBe("R$ 0.00"); // nothing pending in July
   });
 
-  it("7. switching Minha casa -> Maria updates the hero/progress values to Maria's scope only", () => {
+  it("7. switching Minha casa -> Maria updates the balance/metric values to Maria's scope only", () => {
     const stateForMaria: FinanceState = { ...baseState(), activePerson: "me" };
     Object.assign(mockFinance, { state: stateForMaria, month: stateForMaria.months[MONTH] });
     renderDashboard();
     // Maria's budget is just income (5000), not income+houseContribution
-    // (6000) — and her hero label reads "Renda", not "Disponível" (VIEW_ME).
-    expect(heroStatValue("Renda")).toBe("R$ 5000.00");
-    expect(heroSection().queryByText("R$ 6000.00")).toBeNull();
+    // (6000) — and her metric label reads "Renda", not "Disponível" (VIEW_ME).
+    expect(metricValue("Renda")).toBe("R$ 5000.00");
+    expect(metricsPanel().queryByText("R$ 6000.00")).toBeNull();
     // Maria's only expense this month is Aluguel (1500, A pagar) — comprometido
     // and falta pagar both read 1500; pago reads 0.
-    expect(heroStatValue("Comprometido")).toBe("R$ 1500.00");
-    expect(heroStatValue("Falta pagar")).toBe("R$ 1500.00");
-    expect(heroStatValue("Pago")).toBe("R$ 0.00");
+    expect(metricValue("Comprometido")).toBe("R$ 1500.00");
+    expect(metricValue("Falta pagar")).toBe("R$ 1500.00");
+    expect(metricValue("Pago")).toBe("R$ 0.00");
   });
 
-  it("8. hideValues masks Disponível, Comprometido, Livre, Pago and Falta pagar", () => {
+  it("8. hideValues masks Livre (balance) and Disponível/Comprometido/Pago/Falta pagar (metrics)", () => {
     mockFinance.hideValues = true;
     renderDashboard();
-    const hero = heroSection();
-    expect(hero.queryByText("R$ 6000.00")).toBeNull();
-    expect(hero.queryByText("R$ 1900.00")).toBeNull();
-    expect(hero.queryByText("R$ 4100.00")).toBeNull();
-    expect(hero.queryByText("R$ 400.00")).toBeNull();
-    expect(hero.queryByText("R$ 1500.00")).toBeNull();
-    // Livre + Disponível + Comprometido + Pago + Falta pagar = 5 masked values.
-    expect(hero.getAllByText("R$ ••••").length).toBe(5);
+    const balance = balanceArea();
+    const metrics = metricsPanel();
+    expect(balance.queryByText("R$ 4100.00")).toBeNull();
+    expect(metrics.queryByText("R$ 6000.00")).toBeNull();
+    expect(metrics.queryByText("R$ 1900.00")).toBeNull();
+    expect(metrics.queryByText("R$ 400.00")).toBeNull();
+    expect(metrics.queryByText("R$ 1500.00")).toBeNull();
+    expect(balance.getAllByText("R$ ••••").length).toBe(1); // Livre
+    expect(metrics.getAllByText("R$ ••••").length).toBe(4); // Disponível/Comprometido/Pago/Falta
   });
 
   it("9. paid=0 renders R$ 0.00 without crashing, bar stays empty", () => {
@@ -376,7 +392,7 @@ describe("DashboardView — P9.1 hero financeiro e progresso do mês", () => {
     };
     Object.assign(mockFinance, { state: noPaidState, month: noPaidState.months[MONTH] });
     renderDashboard();
-    expect(progressCard().getByText("R$ 0.00")).toBeTruthy(); // pago
+    expect(metricValue("Pago")).toBe("R$ 0.00");
     const bar = screen.getByRole("progressbar", { name: "Proporção já paga no mês" });
     expect(bar.getAttribute("aria-valuenow")).toBe("0");
     const fill = bar.firstElementChild as HTMLElement;
@@ -462,17 +478,17 @@ describe("DashboardView — P9.1 hero financeiro e progresso do mês", () => {
     Object.assign(mockFinance, { state: overBudgetState, month: overBudgetState.months[MONTH] });
     renderDashboard();
     // free = 1000 - 1500 = -500
-    const livre = heroSection().getByText("R$ -500.00");
+    const livre = balanceArea().getByText("R$ -500.00");
     expect(livre.className).toContain("text-destructive");
   });
 
   it("13. values >= 1000 are formatted through the existing money() formatter, not a parallel one", () => {
     renderDashboard();
-    // Every hero/progress value here is already >= 1000 in the base fixture
+    // Every balance/metric value here is already >= 1000 in the base fixture
     // (budget 6000, comprometido 1900) — asserting they render via the exact
     // shared `useMoney()` mock output proves no separate formatting path.
-    expect(heroSection().getByText("R$ 6000.00")).toBeTruthy();
-    expect(heroSection().getByText("R$ 1900.00")).toBeTruthy();
+    expect(metricsPanel().getByText("R$ 6000.00")).toBeTruthy();
+    expect(metricsPanel().getByText("R$ 1900.00")).toBeTruthy();
   });
 
   it("14. a large value does not overflow into a broken/garbled string", () => {
@@ -506,42 +522,60 @@ describe("DashboardView — P9.1 hero financeiro e progresso do mês", () => {
     renderDashboard();
     // Comprometido and falta pagar coincide at R$ 50000.00 in this fixture
     // (one pending expense), so each is read from its own value node.
-    expect(heroStatValue("Disponível")).toBe("R$ 1250000.00");
-    expect(heroStatValue("Comprometido")).toBe("R$ 50000.00");
-    expect(heroSection().getByText("R$ 1200000.00")).toBeTruthy(); // livre
-    expect(heroStatValue("Falta pagar")).toBe("R$ 50000.00");
+    expect(metricValue("Disponível")).toBe("R$ 1250000.00");
+    expect(metricValue("Comprometido")).toBe("R$ 50000.00");
+    expect(balanceArea().getByText("R$ 1200000.00")).toBeTruthy(); // livre
+    expect(metricValue("Falta pagar")).toBe("R$ 50000.00");
   });
 
-  it("15. the old compact hero (budget + '{total} gastos · {livre}' single line) is gone — no duplication with the new hero", () => {
+  it("15. the old compact hero (budget + '{total} gastos · {livre}' single line) is gone — no duplication with the balance area", () => {
     renderDashboard();
     expect(screen.queryByText(/gastos ·/)).toBeNull();
     // "livre" also legitimately appears as its own short label inside P9.3's
     // "Próximos meses" cards — scope this specific old-hero-phrase check to
-    // the hero itself.
-    expect(heroSection().queryByText(/livre$/)).toBeNull();
+    // the balance area itself.
+    expect(balanceArea().queryByText(/livre$/)).toBeNull();
     expect(screen.queryByText(/acima$/)).toBeNull();
-    // Exactly one "Livre" label inside the hero itself (P9.2's per-profile
-    // cards elsewhere on the page also say "Livre" — that's a different,
-    // intentional block, not old-hero duplication).
-    expect(heroSection().getAllByText("Livre").length).toBe(1);
+    // Exactly one "Livre" label inside the balance area itself (P9.2's
+    // per-profile cards elsewhere on the page also say "Livre" — that's a
+    // different, intentional block, not old-hero duplication).
+    expect(balanceArea().getAllByText("Livre").length).toBe(1);
   });
 
-  it("16. P9.5 Rodada 2 — the BudgetRing decorative ring is gone from the hero", () => {
+  it("16. Aval Modern — no BudgetRing/decorative SVG in the balance area", () => {
     renderDashboard();
-    // BudgetRing renders an <svg> with 3 <circle> elements; the merged hero
-    // no longer has any SVG at all.
-    const section = screen.getByText("Seu mês").closest("section");
-    expect(section?.querySelector("svg")).toBeNull();
+    // BudgetRing renders an <svg> with 3 <circle> elements; the balance area
+    // (a plain div with just the label + value) has no SVG at all.
+    expect(screen.getByTestId("balance-area").querySelector("svg")).toBeNull();
   });
 
-  it("21. Aval Modern — the hero uses the finance-hero gradient surface, not the flat card-surface", () => {
+  it("17. Aval Modern — no editorial hero card: the balance area carries no card/panel surface class", () => {
     renderDashboard();
-    const section = screen.getByText("Seu mês").closest("section");
-    expect(section?.className).toContain("finance-hero");
-    expect(section?.className).not.toContain("card-surface");
+    const area = screen.getByTestId("balance-area");
+    expect(area.className).not.toMatch(/finance-hero|card-surface|panel-flat|panel-elevated/);
   });
 
-  it("22. Aval Modern — the progress fill is the gold accent, not the green success color", () => {
+  it("18. Aval Modern — quick actions render right after the balance, before the metrics module", () => {
+    renderDashboard();
+    const balance = screen.getByTestId("balance-area");
+    const actions = screen.getByTestId("quick-actions");
+    const metrics = screen.getByTestId("metrics-panel");
+    const order = [balance, actions, metrics];
+    for (let i = 0; i < order.length - 1; i++) {
+      // Node.DOCUMENT_POSITION_FOLLOWING (4): order[i] precedes order[i + 1].
+      expect(order[i].compareDocumentPosition(order[i + 1]) & 4).toBeTruthy();
+    }
+  });
+
+  it("19. Aval Modern — money values in the balance/metrics use font-sans, never font-display (Lora)", () => {
+    renderDashboard();
+    const livre = balanceArea().getByText("R$ 4100.00");
+    expect(livre.className).not.toContain("font-display");
+    const disponivel = metricsPanel().getByText("R$ 6000.00");
+    expect(disponivel.className).not.toContain("font-display");
+  });
+
+  it("20. Aval Modern — the progress fill is the gold accent, not the green success color", () => {
     renderDashboard();
     const bar = screen.getByRole("progressbar", { name: "Proporção já paga no mês" });
     const fill = bar.firstElementChild as HTMLElement;
@@ -549,22 +583,20 @@ describe("DashboardView — P9.1 hero financeiro e progresso do mês", () => {
     expect(fill.className).not.toContain("bg-success");
   });
 
-  it("17. P9.5 Rodada 2 — 'Progresso do mês' no longer exists as its own Panel", () => {
+  it("21. 'Progresso do mês' no longer exists as its own separate Panel", () => {
     renderDashboard();
     expect(screen.queryByText("Progresso do mês")).toBeNull();
   });
 
-  it("18. P9.5 Rodada 2 — Pago/Falta pagar/progressbar render exactly once each, merged inside the hero, not duplicated", () => {
+  it("22. Pago/Falta pagar/progressbar render exactly once each, not duplicated", () => {
     renderDashboard();
     // "Pago" also appears as a StatusPill status label in Movimentações
-    // recentes (the base fixture has one Pago expense), so the hero's own
-    // "Pago" label must be counted within heroSection, not page-wide.
-    expect(heroSection().getAllByText("Pago").length).toBe(1);
-    expect(heroSection().getAllByText("Falta pagar").length).toBe(1);
+    // recentes (the base fixture has one Pago expense), so the metrics
+    // module's own "Pago" label must be counted within metricsPanel, not
+    // page-wide.
+    expect(metricsPanel().getAllByText("Pago").length).toBe(1);
+    expect(metricsPanel().getAllByText("Falta pagar").length).toBe(1);
     expect(screen.getAllByRole("progressbar", { name: "Proporção já paga no mês" }).length).toBe(1);
-    // Both live inside the same <section> as Livre/Disponível/Comprometido —
-    // there is only one hero <section> on the page, not two split cards.
-    expect(screen.getAllByText("Seu mês").length).toBe(1);
   });
 });
 
@@ -582,14 +614,14 @@ describe("DashboardView — empty states", () => {
     expect(screen.queryByText("Categoria que mais pesa")).toBeNull();
   });
 
-  it("10. an empty month (no category) still shows Ações rápidas — never a fake category button", () => {
+  it("10. an empty month (no category) still shows quick actions — never a fake category button", () => {
     Object.assign(mockFinance, {
       state: emptyMonthState(),
       month: emptyMonthState().months[MONTH],
     });
     renderDashboard();
     expect(screen.queryByRole("button", { name: /Ver gastos da categoria/ })).toBeNull();
-    expect(screen.getByText("Ações rápidas")).toBeTruthy();
+    expect(screen.getByTestId("quick-actions")).toBeTruthy();
     // Also rendered by Movimentações recentes' own empty state (P0-DASHBOARD-REFINE).
     expect(screen.getAllByText("Adicionar gasto").length).toBeGreaterThan(0);
   });
@@ -879,9 +911,9 @@ describe("DashboardView — Movimentações recentes (P0-DASHBOARD-REFINE)", () 
 
   it("42. Movimentações recentes doesn't replace any pre-existing panel", () => {
     renderDashboard();
+    expect(screen.getByTestId("quick-actions")).toBeTruthy();
     [
       "Situação do mês",
-      "Ações rápidas",
       "Histórico de meses",
       "Distribuição do mês",
       "Por categoria",
@@ -900,17 +932,17 @@ describe("DashboardView — Movimentações recentes (P0-DASHBOARD-REFINE)", () 
     expect(wrapper?.className).toContain("lg:grid-cols-2");
   });
 
-  it("44. Aval Modern — Situação do mês and Ações rápidas merged into one panel (same <section>), both headings still present", () => {
+  it("44. Aval Modern — quick actions live in their own top-level block, separate from Situação do mês", () => {
     renderDashboard();
     const situacaoSection = screen.getByText("Situação do mês").closest("section");
-    const acoesSection = screen.getByText("Ações rápidas").closest("section");
-    expect(situacaoSection).toBe(acoesSection);
-    // All 4 actions still render inside that same merged section.
-    const withinMerged = within(situacaoSection!);
-    expect(withinMerged.getByText("Adicionar gasto")).toBeTruthy();
-    expect(withinMerged.getByText("Ver gastos")).toBeTruthy();
-    expect(withinMerged.getByText("Adicionar meta")).toBeTruthy();
-    expect(withinMerged.getByText("Perguntar ao Aval")).toBeTruthy();
+    const actionsBlock = screen.getByTestId("quick-actions");
+    expect(situacaoSection?.contains(actionsBlock)).toBe(false);
+    const withinActions = within(actionsBlock);
+    expect(withinActions.getByText("Adicionar gasto")).toBeTruthy();
+    expect(withinActions.getByText("Ver gastos")).toBeTruthy();
+    expect(withinActions.getByText("Adicionar meta")).toBeTruthy();
+    expect(withinActions.getByText("Perguntar ao Aval")).toBeTruthy();
+    expect(withinActions.getByText("Simular compra")).toBeTruthy();
   });
 });
 

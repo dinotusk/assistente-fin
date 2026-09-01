@@ -150,10 +150,17 @@ const panelAccentClass: Record<PanelAccent, string> = {
 
 export const Panel = forwardRef<
   HTMLElement,
-  { children: ReactNode; className?: string; tone?: PanelTone; accent?: PanelAccent }
->(({ children, className, tone = "surface", accent = "none" }, ref) => (
+  {
+    children: ReactNode;
+    className?: string;
+    tone?: PanelTone;
+    accent?: PanelAccent;
+    "data-testid"?: string;
+  }
+>(({ children, className, tone = "surface", accent = "none", "data-testid": testId }, ref) => (
   <section
     ref={ref}
+    data-testid={testId}
     className={cn(panelToneClass[tone], panelAccentClass[accent], "p-4", className)}
   >
     {children}
