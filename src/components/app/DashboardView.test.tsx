@@ -57,16 +57,12 @@ function metricValue(label: string): string {
 
 /** Scopes queries to the whole P9.2 "Divisão da casa" panel. */
 function divisaoDaCasaPanel() {
-  const panel = screen.getByText("Divisão da casa").closest("section");
-  if (!panel) throw new Error("Divisão da casa panel not found");
-  return within(panel);
+  return within(screen.getByTestId("household-module"));
 }
 
-/** Scopes queries to the whole P9.3 "Próximos meses" panel. */
+/** Scopes queries to the whole P9.3 "Próximos meses" module. */
 function proximosMesesPanel() {
-  const panel = screen.getByText("Próximos meses").closest("section");
-  if (!panel) throw new Error("Próximos meses panel not found");
-  return within(panel);
+  return within(screen.getByTestId("upcoming-months-module"));
 }
 
 /** Scopes queries to one profile's own card inside "Divisão da casa" — each
@@ -703,13 +699,14 @@ describe("DashboardView — Divisão familiar como controle de visão (P0-FRONTE
   });
 });
 
-describe("DashboardView — Ações rápidas (P0-FRONTEND-1B.4)", () => {
-  it("18. renders exactly the 4 approved actions", () => {
+describe("DashboardView — Ações rápidas (fintech rebuild)", () => {
+  it("18. renders the 2 primary actions and 3 secondary tiles", () => {
     renderDashboard();
     expect(screen.getByText("Adicionar gasto")).toBeTruthy();
-    expect(screen.getByText("Ver gastos")).toBeTruthy();
+    expect(screen.getByText("Simular")).toBeTruthy();
     expect(screen.getByText("Adicionar meta")).toBeTruthy();
     expect(screen.getByText("Perguntar ao Aval")).toBeTruthy();
+    expect(screen.getByText("Ver gastos")).toBeTruthy();
   });
 
   it("19. Adicionar gasto calls onAddExpense", () => {
@@ -718,41 +715,34 @@ describe("DashboardView — Ações rápidas (P0-FRONTEND-1B.4)", () => {
     expect(actions.onAddExpense).toHaveBeenCalledTimes(1);
   });
 
-  it("20. Ver gastos calls onViewTransactions", () => {
+  it("20. the Ver gastos tile calls onViewTransactions", () => {
     renderDashboard();
     fireEvent.click(screen.getByText("Ver gastos"));
     expect(actions.onViewTransactions).toHaveBeenCalledTimes(1);
   });
 
-  it("21. Adicionar meta calls onAddGoal", () => {
+  it("21. the Adicionar meta tile calls onAddGoal", () => {
     renderDashboard();
     fireEvent.click(screen.getByText("Adicionar meta"));
     expect(actions.onAddGoal).toHaveBeenCalledTimes(1);
   });
 
-  it("22. Perguntar ao Aval calls onOpenAval", () => {
+  it("22. the Perguntar ao Aval tile calls onOpenAval", () => {
     renderDashboard();
     fireEvent.click(screen.getByText("Perguntar ao Aval"));
     expect(actions.onOpenAval).toHaveBeenCalledTimes(1);
   });
 
-  // Aval Modern (P9.5): "Adicionar gasto" became the one primary action —
-  // a solid gold pill, not glass (glass is reserved for secondary/chrome
-  // controls). The other actions stay secondary pills and keep the glass
-  // utility, same rule P0-FRONTEND-1B.5 established.
-  it("26. the primary action (Adicionar gasto) is a solid gold pill, not glass", () => {
+  // Aval Modern (fintech rebuild): "Adicionar gasto" is the one filled
+  // (bg-primary) action; "Simular" is the secondary-tier pill (tonal, same
+  // component with primary=false) — neither uses glass, which stays
+  // reserved for chrome/navigation controls.
+  it("26. Adicionar gasto is filled (bg-primary); Simular is tonal, not filled", () => {
     renderDashboard();
-    const button = screen.getByText("Adicionar gasto").closest("button");
-    expect(button?.className).toContain("bg-primary");
-    expect(button?.className).not.toContain("glass-surface");
-  });
-
-  it("26b. secondary actions keep the glass-surface utility", () => {
-    renderDashboard();
-    ["Ver gastos", "Simular", "Adicionar meta", "Perguntar ao Aval"].forEach((label) => {
-      const button = screen.getByText(label).closest("button");
-      expect(button?.className).toContain("glass-surface");
-    });
+    const primary = screen.getByText("Adicionar gasto").closest("button");
+    const secondary = screen.getByText("Simular").closest("button");
+    expect(primary?.className).toContain("bg-primary");
+    expect(secondary?.className).not.toContain("bg-primary");
   });
 
   it("26c. Simular calls onOpenSimulator", () => {
@@ -761,18 +751,19 @@ describe("DashboardView — Ações rápidas (P0-FRONTEND-1B.4)", () => {
     expect(actions.onOpenSimulator).toHaveBeenCalledTimes(1);
   });
 
-  // P0-FRONTEND-1B.7 — "Perguntar ao Aval" uses the real brand mark, not a
-  // generic sparkles icon; the other three actions keep their lucide icons.
-  it("28. Perguntar ao Aval renders the Aval brand mark", () => {
+  // P0-FRONTEND-1B.7 — the "Perguntar ao Aval" tile uses the real brand
+  // mark, not a generic sparkles icon; the other tiles keep their lucide
+  // icons.
+  it("28. the Perguntar ao Aval tile renders the Aval brand mark", () => {
     renderDashboard();
     const button = screen.getByText("Perguntar ao Aval").closest("button");
     const svg = button?.querySelector("svg");
     expect(svg?.getAttribute("viewBox")).toBe("0 0 32 32");
   });
 
-  it("29. the other quick actions keep a generic lucide icon (24x24 viewBox)", () => {
+  it("29. the other actions keep a generic lucide icon (24x24 viewBox)", () => {
     renderDashboard();
-    ["Adicionar gasto", "Ver gastos", "Adicionar meta"].forEach((label) => {
+    ["Adicionar gasto", "Simular", "Adicionar meta", "Ver gastos"].forEach((label) => {
       const button = screen.getByText(label).closest("button");
       const svg = button?.querySelector("svg");
       expect(svg?.getAttribute("viewBox")).toBe("0 0 24 24");
@@ -925,23 +916,19 @@ describe("DashboardView — Movimentações recentes (P0-DASHBOARD-REFINE)", () 
     });
   });
 
-  it("43. Situação do mês, Ações rápidas and Movimentações recentes share a two-column grid wrapper at desktop (lg:), single column below", () => {
+  it("43. Situação do mês and Movimentações recentes share a two-column grid wrapper at desktop (lg:), single column below", () => {
     renderDashboard();
-    const wrapper = screen.getByText("Situação do mês").closest("section")
-      ?.parentElement?.parentElement;
+    const wrapper = screen.getByTestId("situacao-modulo").parentElement?.parentElement;
     expect(wrapper?.className).toContain("lg:grid-cols-2");
   });
 
   it("44. Aval Modern — quick actions live in their own top-level block, separate from Situação do mês", () => {
     renderDashboard();
-    const situacaoSection = screen.getByText("Situação do mês").closest("section");
+    const situacaoModulo = screen.getByTestId("situacao-modulo");
     const actionsBlock = screen.getByTestId("quick-actions");
-    expect(situacaoSection?.contains(actionsBlock)).toBe(false);
+    expect(situacaoModulo.contains(actionsBlock)).toBe(false);
     const withinActions = within(actionsBlock);
     expect(withinActions.getByText("Adicionar gasto")).toBeTruthy();
-    expect(withinActions.getByText("Ver gastos")).toBeTruthy();
-    expect(withinActions.getByText("Adicionar meta")).toBeTruthy();
-    expect(withinActions.getByText("Perguntar ao Aval")).toBeTruthy();
     expect(withinActions.getByText("Simular")).toBeTruthy();
   });
 });
@@ -949,20 +936,20 @@ describe("DashboardView — Movimentações recentes (P0-DASHBOARD-REFINE)", () 
 describe("DashboardView — frase de atenção e saldo livre continuam estáticos (P0-FRONTEND-1B.4)", () => {
   it("23. the attention headline is plain text, not a button or link", () => {
     renderDashboard();
-    const panel = screen.getByText("Situação do mês").closest("section");
-    const clickableTags = panel ? Array.from(panel.querySelectorAll("a")) : [];
+    const panel = screen.getByTestId("situacao-modulo");
+    const clickableTags = Array.from(panel.querySelectorAll("a"));
     expect(clickableTags.length).toBe(0);
   });
 
   // P0-FRONTEND-1B.5 (Aval Glass): glass is a navigation/controls treatment
-  // only — the hero, Situação do mês, and every financial chart must never
-  // carry it, however the utility class ends up spelled.
-  it("24. the hero and Situação do mês panels never carry a glass- utility class", () => {
+  // only — the balance area, Situação do mês, and every financial chart
+  // must never carry it, however the utility class ends up spelled.
+  it("24. the balance area and Situação do mês modules never carry a glass- utility class", () => {
     renderDashboard();
-    const hero = screen.getByText("R$ 6000.00").closest("section");
-    const situacao = screen.getByText("Situação do mês").closest("section");
-    expect(hero?.className).not.toMatch(/glass-/);
-    expect(situacao?.className).not.toMatch(/glass-/);
+    const balance = screen.getByTestId("balance-area");
+    const situacao = screen.getByTestId("situacao-modulo");
+    expect(balance.className).not.toMatch(/glass-/);
+    expect(situacao.className).not.toMatch(/glass-/);
   });
 
   it("25. Distribuição/Por categoria/Divisão familiar panels never carry a glass- utility class", () => {
@@ -1231,7 +1218,7 @@ describe("DashboardView — P9.3 Próximos meses", () => {
   it("2. the selected month is marked 'Atual' and shows its real livre", () => {
     renderDashboard();
     const panel = proximosMesesPanel();
-    expect(panel.getByText("· Atual")).toBeTruthy();
+    expect(panel.getByText("Atual")).toBeTruthy();
     // August livre = budget(6000) - total(1900) = 4100, same fixture as the hero.
     expect(panel.getByText("R$ 4100.00")).toBeTruthy();
   });
@@ -1317,11 +1304,16 @@ describe("DashboardView — P9.3 Próximos meses", () => {
       month: stateWithFutureMonths().months[MONTH],
     });
     renderDashboard();
-    const panel = proximosMesesPanel();
     // October: budget=6000, total=1000, free=5000 -> delta vs August(4100) = +900
-    expect(panel.getByText("R$ 5000.00")).toBeTruthy();
-    expect(panel.getByText("R$ 900.00")).toBeTruthy();
-    expect(panel.getByRole("button", { name: /a mais livre que o mês selecionado/ })).toBeTruthy();
+    // Scoped to the month card's own button (not the whole merged module,
+    // since R$ 5000.00 also coincides with a household profile's Disponível
+    // in this fixture) via its accessible name.
+    const card = proximosMesesPanel().getByRole("button", {
+      name: /a mais livre que o mês selecionado/,
+    });
+    expect(card).toBeTruthy();
+    expect(within(card).getByText("R$ 5000.00")).toBeTruthy();
+    expect(within(card).getByText("R$ 900.00")).toBeTruthy();
   });
 
   it("14. a month with the same livre as the selected one shows 'Estável', no arrow", () => {

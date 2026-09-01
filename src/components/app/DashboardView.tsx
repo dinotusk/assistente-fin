@@ -7,7 +7,10 @@ import {
   Calculator,
   CalendarClock,
   CalendarRange,
+  CheckCircle2,
   ChevronDown,
+  Clock3,
+  CreditCard,
   History,
   PieChart,
   Plus,
@@ -16,6 +19,7 @@ import {
   TrendingUp,
   TriangleAlert,
   Users,
+  Wallet,
 } from "lucide-react";
 
 import { useFinance, useMoney } from "@/lib/finance/FinanceContext";
@@ -169,42 +173,42 @@ export function DashboardView({
         </strong>
       </div>
 
-      {/* Aval Modern — quick actions sit right under the balance (Request/
-          Transfer-style placement in the reference): two compact buttons
-          side by side, not a full-width banner. "Adicionar gasto" (green,
-          primary) + "Simular" share the row; the remaining 3 actions are a
-          smaller secondary row below. Same handlers as before, "Simular"
-          reuses the existing PurchaseSimulatorDialog via onOpenSimulator. */}
-      <div className="flex flex-col gap-2" data-testid="quick-actions">
-        <div className="flex gap-2">
-          <PrimaryActionPill icon={Plus} label="Adicionar gasto" onClick={onAddExpense} />
-          <SecondaryActionPill icon={Calculator} label="Simular" onClick={onOpenSimulator} />
-        </div>
-        <div className="flex gap-2 overflow-x-auto no-scrollbar">
-          <SecondaryActionPill icon={Target} label="Adicionar meta" onClick={onAddGoal} />
-          <SecondaryActionPill icon={null} label="Perguntar ao Aval" onClick={onOpenAval} />
-          <SecondaryActionPill
-            icon={ArrowLeftRight}
-            label="Ver gastos"
-            onClick={onViewTransactions}
-          />
-        </div>
+      {/* Aval Modern (fintech rebuild) — two primary actions immediately
+          under the balance (Request/Transfer placement in the reference),
+          both compact (not full-width). Secondary actions are icon tiles
+          below, not pills — matches the reference's "Categories" row more
+          than a scrollable pill carousel. */}
+      <div className="flex gap-2" data-testid="quick-actions">
+        <PrimaryActionPill icon={Plus} label="Adicionar gasto" onClick={onAddExpense} />
+        <PrimaryActionPill
+          icon={Calculator}
+          label="Simular"
+          onClick={onOpenSimulator}
+          primary={false}
+        />
+      </div>
+      <div className="grid grid-cols-3 gap-2">
+        <ActionTile icon={Target} label="Adicionar meta" onClick={onAddGoal} />
+        <ActionTile icon={null} label="Perguntar ao Aval" onClick={onOpenAval} />
+        <ActionTile icon={ArrowLeftRight} label="Ver gastos" onClick={onViewTransactions} />
       </div>
 
-      {/* Aval Modern — Disponível/Comprometido/Pago/Falta pagar move out of
-          the (now-removed) hero into their own compact module: a 2x2 grid of
-          small cells, not a repeat of the balance treatment. Every value
-          still comes straight from calc()/budgetForView(); the progress bar
-          is still exactly paid/(paid+pending), zero-guarded as before. */}
-      <Panel tone="flat" className="p-3" data-testid="metrics-panel">
-        <div className="grid grid-cols-2 gap-1.5">
+      {/* Aval Modern (fintech rebuild) — Disponível/Comprometido/Pago/Falta
+          pagar as a bare 2x2 tile grid directly on the page background, not
+          inside a Panel (the shared Panel default padding stays untouched —
+          see ui.tsx — this module never uses it). Every value still comes
+          straight from calc()/budgetForView(); the progress bar is still
+          exactly paid/(paid+pending), zero-guarded as before. */}
+      <div data-testid="metrics-panel">
+        <div className="grid grid-cols-2 gap-2">
           <MetricCell
+            icon={Wallet}
             label={view === VIEW_ME ? "Renda" : view === VIEW_SPOUSE ? "Repasse" : "Disponível"}
             value={money(budget)}
           />
-          <MetricCell label="Comprometido" value={money(numbers.total)} />
-          <MetricCell label="Pago" value={money(numbers.paid)} />
-          <MetricCell label="Falta pagar" value={money(numbers.pending)} />
+          <MetricCell icon={CreditCard} label="Comprometido" value={money(numbers.total)} />
+          <MetricCell icon={CheckCircle2} label="Pago" value={money(numbers.paid)} />
+          <MetricCell icon={Clock3} label="Falta pagar" value={money(numbers.pending)} />
         </div>
         <div
           role="progressbar"
@@ -219,31 +223,27 @@ export function DashboardView({
             style={{ width: `${paidPct}%` }}
           />
         </div>
-      </Panel>
+      </div>
 
-      {/* P9.2 — "Divisão da casa": one cell per active profile, each reading
-          calc()/budgetForView() for that profile's own view (same index0 ->
-          VIEW_ME / index1 -> VIEW_SPOUSE / index>=2 -> literal name
-          convention "Divisão familiar" already uses below) — no new
-          financial rule. Only in VIEW_ALL and only with 2+ profiles. Aval
-          Modern: a 2-column compact grid instead of full-width stacked
-          cards, so Maria/Oziel compare at a glance without scrolling. */}
+      {/* P9.2 — "Divisão da casa": mini module, bare tonal surface (not a
+          Panel) — 2-column grid, low height. Only in VIEW_ALL with 2+
+          profiles. Same calc()/budgetForView() calls as always, no new
+          financial rule. */}
       {view === VIEW_ALL && state.people.length >= 2 && (
-        <Panel tone="flat" className="p-3">
-          <PanelHead
-            title="Divisão da casa"
-            icon={Users}
-            action={
-              <button
-                type="button"
-                onClick={onEditPeople}
-                className="press focus-ring shrink-0 text-xs font-bold text-primary"
-              >
-                Editar nomes
-              </button>
-            }
-          />
-          <div className="grid grid-cols-2 gap-1.5">
+        <div className="rounded-lg bg-secondary/30 p-3" data-testid="household-module">
+          <div className="mb-2 flex items-center justify-between gap-2">
+            <span className="text-xs font-bold uppercase tracking-wide text-muted-foreground">
+              Divisão da casa
+            </span>
+            <button
+              type="button"
+              onClick={onEditPeople}
+              className="press focus-ring shrink-0 text-xs font-bold text-primary"
+            >
+              Editar nomes
+            </button>
+          </div>
+          <div className="grid grid-cols-2 gap-2">
             {state.people.map((name, index) => {
               const profileView = index === 0 ? VIEW_ME : index === 1 ? VIEW_SPOUSE : name;
               const profileNumbers = calc(month, profileView, state.activeMonth, state.people);
@@ -255,12 +255,11 @@ export function DashboardView({
                   type="button"
                   onClick={() => setActivePerson(profileView)}
                   aria-label={`Ver detalhes financeiros de ${name}`}
-                  className="press focus-ring w-full rounded-md bg-secondary/50 px-2.5 py-2 text-left transition-colors hover:bg-secondary"
+                  className="press focus-ring w-full rounded-md text-left"
                 >
                   <strong className="block truncate text-xs font-bold text-foreground">
                     {name}
                   </strong>
-                  <span className="mt-1 block text-2xs text-muted-foreground">Livre</span>
                   <strong
                     className={`tnum block text-sm font-bold leading-none ${
                       profileOverBudget ? "text-destructive" : "text-success"
@@ -268,16 +267,17 @@ export function DashboardView({
                   >
                     {money(profileNumbers.free)}
                   </strong>
-                  <div className="mt-1.5 flex flex-col gap-0.5 border-t border-border/20 pt-1.5">
-                    <div className="flex items-center justify-between gap-2">
-                      <span className="text-xs text-muted-foreground">Disponível</span>
-                      <strong className="tnum text-xs font-bold text-foreground">
+                  <span className="block text-2xs text-muted-foreground">livre</span>
+                  <div className="mt-1 flex flex-col gap-0.5">
+                    <div className="flex items-center justify-between gap-1">
+                      <span className="text-2xs text-muted-foreground">Disponível</span>
+                      <strong className="tnum text-2xs font-bold text-foreground">
                         {money(profileBudget)}
                       </strong>
                     </div>
-                    <div className="flex items-center justify-between gap-2">
-                      <span className="text-xs text-muted-foreground">Comprometido</span>
-                      <strong className="tnum text-xs font-bold text-foreground">
+                    <div className="flex items-center justify-between gap-1">
+                      <span className="text-2xs text-muted-foreground">Comprometido</span>
+                      <strong className="tnum text-2xs font-bold text-foreground">
                         {money(profileNumbers.total)}
                       </strong>
                     </div>
@@ -286,17 +286,19 @@ export function DashboardView({
               );
             })}
           </div>
-        </Panel>
+        </div>
       )}
 
-      {/* P9.3 — "Próximos meses": compares "livre" (calc().free) for the
-          selected month against the next two, for whichever view is active
-          (household or a specific profile) — same scope the rest of the
-          Home already uses. Compact by design: only "livre" + a delta vs.
-          the selected month, not a repeat of every hero metric per month. */}
-      <Panel tone="flat" className="p-3">
-        <PanelHead title="Próximos meses" icon={CalendarClock} />
-        <div className="flex gap-1.5">
+      {/* P9.3 — "Próximos meses": an analytics-strip module (3 columns of
+          plain text, no button-card backgrounds) — compares "livre"
+          (calc().free) for the selected month against the next two, for
+          whichever view is active. Only "livre" + a delta vs. the selected
+          month, not a repeat of every hero metric per month. */}
+      <div className="rounded-lg bg-secondary/30 p-3" data-testid="upcoming-months-module">
+        <span className="mb-2 block text-xs font-bold uppercase tracking-wide text-muted-foreground">
+          Próximos meses
+        </span>
+        <div className="grid grid-cols-3 gap-1">
           {upcomingMonths.map((entry, index) => (
             <MonthCompareCard
               key={entry.key}
@@ -308,18 +310,16 @@ export function DashboardView({
             />
           ))}
         </div>
-      </Panel>
+      </div>
 
       {/* P0-DASHBOARD-REFINE: at >=lg, Situação do mês + Ações rápidas stack in
           a left column next to Movimentações recentes on the right — same DOM
           order as mobile (grid only changes visual position, not the reading
           order), so nothing needs a separate desktop layout or new breakpoint. */}
-      <div className="flex flex-col gap-4 lg:grid lg:grid-cols-2 lg:items-start">
-        <div className="flex flex-col gap-4">
-          {/* Aval Modern — quick actions now live at the top of the page
-              (right under the balance); this panel goes back to being just
-              "Situação do mês" on its own. */}
-          <Panel tone="flat" className="p-3">
+      <div className="flex flex-col gap-3 lg:grid lg:grid-cols-2 lg:items-start">
+        <div className="flex flex-col gap-3">
+          {/* Aval Modern — bare tonal module, not a Panel. */}
+          <div className="rounded-lg bg-secondary/30 p-3" data-testid="situacao-modulo">
             <PanelHead title="Situação do mês" icon={TriangleAlert} />
             <div className="flex flex-col gap-3">
               {topCategory && (
@@ -327,7 +327,7 @@ export function DashboardView({
                   type="button"
                   onClick={() => onOpenCategory(topCategory.category)}
                   aria-label={`Ver gastos da categoria ${categoryLabel(topCategory.category)}`}
-                  className="press focus-ring hover-lift flex items-center justify-between gap-3 rounded-2xl bg-secondary/70 p-2.5 text-left transition-colors hover:bg-secondary"
+                  className="press focus-ring hover-lift flex items-center justify-between gap-3 rounded-md bg-secondary/70 p-2.5 text-left transition-colors hover:bg-secondary"
                 >
                   <div className="min-w-0">
                     <span className="block text-xs font-semibold uppercase tracking-wide text-muted-foreground">
@@ -344,7 +344,7 @@ export function DashboardView({
               )}
               <p className="text-sm leading-relaxed text-foreground/85">{headline}</p>
             </div>
-          </Panel>
+          </div>
         </div>
 
         {/* Nível 3 ("atividade recente"): the same rows Gastos shows for this
@@ -602,13 +602,13 @@ function MonthCompareCard({
   if (!entry.exists) {
     return (
       <div
-        className="flex min-w-0 flex-1 flex-col items-center gap-1 rounded-2xl border border-dashed border-border bg-secondary/40 p-3 text-center"
+        className="flex min-w-0 flex-col items-center gap-0.5 rounded-md border border-dashed border-border py-2 text-center"
         aria-label={`${shortLabel} — sem dados ainda`}
       >
-        <span className="text-xs font-bold uppercase tracking-wide text-muted-foreground">
+        <span className="text-2xs font-bold uppercase tracking-wide text-muted-foreground">
           {shortLabel}
         </span>
-        <span className="text-xs text-muted-foreground">Sem dados</span>
+        <span className="text-2xs text-muted-foreground">Sem dados</span>
       </div>
     );
   }
@@ -634,72 +634,91 @@ function MonthCompareCard({
       type="button"
       onClick={() => onSelect(entry.key)}
       aria-label={`Ver ${shortLabel}, livre ${formatMoney(free)}${accessibleDelta}`}
-      className={`press focus-ring hover-lift flex min-w-0 flex-1 flex-col items-center gap-1 rounded-2xl p-3 text-center transition-colors ${
-        isSelected ? "bg-primary-soft" : "bg-secondary/60 hover:bg-secondary"
+      className={`press focus-ring flex min-w-0 flex-col items-center gap-0.5 rounded-md py-2 text-center transition-colors ${
+        isSelected ? "bg-primary-soft" : "hover:bg-secondary/40"
       }`}
     >
-      <span className="text-xs font-bold uppercase tracking-wide text-muted-foreground">
+      <span className="text-2xs font-bold uppercase tracking-wide text-muted-foreground">
         {shortLabel}
-        {isSelected && <span className="text-primary"> · Atual</span>}
       </span>
       <strong
-        className={`tnum text-base font-bold leading-none ${
+        className={`tnum text-sm font-bold leading-none ${
           overBudget ? "text-destructive" : "text-success"
         }`}
       >
         {formatMoney(free)}
       </strong>
-      <span className="text-2xs text-muted-foreground">livre</span>
       {direction && direction !== "flat" && (
         <span
-          className={`flex items-center gap-0.5 text-xs font-semibold ${
+          className={`flex items-center gap-0.5 text-2xs font-semibold ${
             direction === "up" ? "text-success" : "text-destructive"
           }`}
         >
           {direction === "up" ? (
-            <ArrowUp className="h-3 w-3" strokeWidth={2.5} />
+            <ArrowUp className="h-2.5 w-2.5" strokeWidth={2.5} />
           ) : (
-            <ArrowDown className="h-3 w-3" strokeWidth={2.5} />
+            <ArrowDown className="h-2.5 w-2.5" strokeWidth={2.5} />
           )}
           {deltaMagnitude}
         </span>
       )}
       {direction === "flat" && (
-        <span className="text-xs font-semibold text-muted-foreground">Estável</span>
+        <span className="text-2xs font-semibold text-muted-foreground">Estável</span>
+      )}
+      {!direction && isSelected && (
+        <span className="text-2xs font-semibold text-primary">Atual</span>
       )}
     </button>
   );
 }
 
-/** One compact metric cell (Disponível/Comprometido/Pago/Falta pagar) — a small module, not a repeat of the balance treatment. */
-function MetricCell({ label, value }: { label: string; value: string }) {
+/** One compact metric tile (Disponível/Comprometido/Pago/Falta pagar) — bare tonal surface, small icon, no Panel. */
+function MetricCell({
+  icon: Icon,
+  label,
+  value,
+}: {
+  icon: React.ComponentType<{ className?: string; strokeWidth?: number }>;
+  label: string;
+  value: string;
+}) {
   return (
-    <div className="rounded-md bg-secondary/50 px-2.5 py-2">
-      <span className="block text-2xs font-semibold uppercase tracking-wide text-muted-foreground">
-        {label}
-      </span>
-      <strong className="tnum mt-0.5 block text-sm font-bold leading-none text-foreground">
-        {value}
-      </strong>
+    <div className="flex items-center gap-2 rounded-md bg-secondary/40 px-2.5 py-2">
+      <Icon className="h-[18px] w-[18px] shrink-0 text-primary/70" strokeWidth={2} />
+      <div className="min-w-0">
+        <span className="block text-2xs font-semibold uppercase tracking-wide text-muted-foreground">
+          {label}
+        </span>
+        <strong className="tnum block text-sm font-bold leading-none text-foreground">
+          {value}
+        </strong>
+      </div>
     </div>
   );
 }
 
-/** The one primary action on the Home — solid gold pill, full width. */
+/** The two primary actions on the Home, side by side — compact, never full-width. */
 function PrimaryActionPill({
   icon: Icon,
   label,
   onClick,
+  primary = true,
 }: {
   icon: React.ComponentType<{ className?: string; strokeWidth?: number }>;
   label: string;
   onClick: () => void;
+  /** false renders the secondary (tonal, not filled) treatment — still a primary-tier action, just visually quieter. */
+  primary?: boolean;
 }) {
   return (
     <button
       type="button"
       onClick={onClick}
-      className="press focus-ring flex h-10 flex-1 items-center justify-center gap-1.5 rounded-full bg-primary text-sm font-bold text-primary-foreground shadow-primary"
+      className={`press focus-ring flex h-11 flex-1 items-center justify-center gap-1.5 rounded-full text-sm font-bold ${
+        primary
+          ? "bg-primary text-primary-foreground shadow-primary"
+          : "bg-secondary/60 text-foreground"
+      }`}
     >
       <Icon className="h-[18px] w-[18px]" strokeWidth={2.4} />
       {label}
@@ -707,8 +726,8 @@ function PrimaryActionPill({
   );
 }
 
-/** Secondary actions — smaller translucent pills in a scrollable row, never a mini-card. */
-function SecondaryActionPill({
+/** A secondary action — icon tile with a small label below, matching the reference's "Categories" row (not a pill). */
+function ActionTile({
   icon: Icon,
   label,
   onClick,
@@ -722,10 +741,14 @@ function SecondaryActionPill({
     <button
       type="button"
       onClick={onClick}
-      className="glass-surface press glass-pressed focus-ring flex h-10 shrink-0 items-center gap-1.5 whitespace-nowrap rounded-full px-3.5 text-xs font-bold text-foreground"
+      className="press focus-ring flex min-h-11 flex-col items-center justify-center gap-1 rounded-md bg-secondary/40 py-2 text-center"
     >
-      {Icon ? <Icon className="h-[15px] w-[15px]" strokeWidth={2.2} /> : <AvalMark size={14} />}
-      {label}
+      {Icon ? (
+        <Icon className="h-[18px] w-[18px] text-primary" strokeWidth={2.2} />
+      ) : (
+        <AvalMark size={18} />
+      )}
+      <span className="text-2xs font-bold text-foreground">{label}</span>
     </button>
   );
 }
