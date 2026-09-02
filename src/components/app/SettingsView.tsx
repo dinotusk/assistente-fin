@@ -7,7 +7,6 @@ import {
   RotateCcw,
   LogOut,
   ChevronRight,
-  Rocket,
   Tag,
   Landmark,
   Eye,
@@ -27,7 +26,6 @@ import { summarizeImport } from "@/lib/finance/calc";
 import { useFinance } from "@/lib/finance/FinanceContext";
 
 import { ConfirmDialog } from "./ConfirmDialog";
-import { Panel, PanelHead } from "./ui";
 
 /** No package.json "version" field exists to read at build time — this is the
  *  one place that number lives. Bump it by hand alongside meaningful releases. */
@@ -228,53 +226,46 @@ export function SettingsView({
   ];
 
   return (
-    <div className="flex flex-col gap-4">
+    <div className="flex flex-col gap-3">
+      {/* Aval Modern (fintech rebuild) — compact identity row instead of a
+          big hero card: small avatar + name/email + a one-line plan summary,
+          no font-display, no 96px avatar, no two large stat panels. */}
       <button
         type="button"
         onClick={onOpenAccount}
-        className="card-surface hero-texture press focus-ring relative flex flex-col items-center overflow-hidden px-4 py-6 text-center"
+        className="press focus-ring flex items-center gap-3 rounded-lg bg-secondary/60 p-3 text-left hover:bg-secondary"
       >
-        <div className="pointer-events-none absolute -left-12 -top-16 h-44 w-44 rounded-full bg-primary/10 blur-3xl" />
-        <div className="hero-gradient relative flex h-24 w-24 items-center justify-center rounded-full font-display text-2xl font-bold text-primary-foreground shadow-primary">
+        <div className="hero-gradient flex h-12 w-12 shrink-0 items-center justify-center rounded-full text-sm font-bold text-primary-foreground shadow-primary">
           {initials}
         </div>
-        <h1 className="relative mt-3 font-display text-[1.6rem] tracking-tight text-foreground">
-          {activeUser?.name || "Perfil"}
-        </h1>
-        <span className="relative text-sm text-muted-foreground">
-          {activeUser?.email || "E-mail não disponível"}
-        </span>
-        <div className="relative mt-4 grid w-full grid-cols-2 gap-2.5">
-          <div className="panel-flat p-3 text-left">
-            <Rocket className="h-4 w-4 text-primary" strokeWidth={2} />
-            <strong className="mt-2 block font-display text-lg text-foreground">Grátis</strong>
-            <span className="text-[13px] text-muted-foreground">Plano</span>
-          </div>
-          <div className="panel-flat p-3 text-left">
-            <Users className="h-4 w-4 text-primary" strokeWidth={2} />
-            <strong className="mt-2 block font-display text-lg text-foreground">
-              {state.people.length}
-            </strong>
-            <span className="text-[13px] text-muted-foreground">Perfis ativos</span>
-          </div>
+        <div className="min-w-0 flex-1">
+          <strong className="block truncate text-sm font-bold text-foreground">
+            {activeUser?.name || "Perfil"}
+          </strong>
+          <span className="block truncate text-xs text-muted-foreground">
+            {activeUser?.email || "E-mail não disponível"}
+          </span>
+          <span className="mt-0.5 block text-xs text-primary">
+            Grátis · {state.people.length} perfis
+          </span>
         </div>
+        <ChevronRight className="h-4 w-4 shrink-0 text-muted-foreground" />
       </button>
 
-      <Panel>
-        <PanelHead title="Configurações" hint="dados e acesso" />
-        <input
-          ref={fileRef}
-          type="file"
-          accept=".json,.xls,.xlsx,application/json"
-          className="hidden"
-          onChange={onImport}
-        />
-        <div className="flex flex-col gap-5">
-          {sections.map((section) => (
-            <div key={section.label} className="flex flex-col gap-2.5">
-              <span className="px-1 text-xs font-bold uppercase tracking-wide text-muted-foreground">
-                {section.label}
-              </span>
+      <input
+        ref={fileRef}
+        type="file"
+        accept=".json,.xls,.xlsx,application/json"
+        className="hidden"
+        onChange={onImport}
+      />
+      <div className="flex flex-col gap-4">
+        {sections.map((section) => (
+          <div key={section.label} className="flex flex-col gap-1.5">
+            <span className="px-1 text-xs font-bold uppercase tracking-wide text-muted-foreground">
+              {section.label}
+            </span>
+            <div className="flex flex-col divide-y divide-border/15 rounded-lg bg-secondary/40">
               {section.rows.map(
                 ({ icon: Icon, title, desc, action, danger, interactive = true }) =>
                   interactive ? (
@@ -282,16 +273,16 @@ export function SettingsView({
                       key={title}
                       type="button"
                       onClick={action}
-                      className="press focus-ring hover-lift group flex items-center gap-3 rounded-2xl bg-secondary p-3.5 text-left hover:bg-card"
+                      className="press focus-ring group flex items-center gap-2.5 px-3 py-2.5 text-left hover:bg-secondary/60"
                     >
                       <span
-                        className={`flex h-11 w-11 shrink-0 items-center justify-center rounded-2xl bg-card ${danger ? "text-destructive" : "text-primary"}`}
+                        className={`flex h-8 w-8 shrink-0 items-center justify-center rounded-md bg-card ${danger ? "text-destructive" : "text-primary"}`}
                       >
-                        <Icon className="h-5 w-5" strokeWidth={2} />
+                        <Icon className="h-4 w-4" strokeWidth={2} />
                       </span>
                       <span className="min-w-0 flex-1">
                         <strong className="block text-sm font-bold text-foreground">{title}</strong>
-                        <span className="block text-[12px] leading-snug text-muted-foreground">
+                        <span className="block truncate text-xs leading-snug text-muted-foreground">
                           {desc}
                         </span>
                       </span>
@@ -300,16 +291,13 @@ export function SettingsView({
                       />
                     </button>
                   ) : (
-                    <div
-                      key={title}
-                      className="flex items-center gap-3 rounded-2xl bg-secondary p-3.5"
-                    >
-                      <span className="flex h-11 w-11 shrink-0 items-center justify-center rounded-2xl bg-card text-primary">
-                        <Icon className="h-5 w-5" strokeWidth={2} />
+                    <div key={title} className="flex items-center gap-2.5 px-3 py-2.5">
+                      <span className="flex h-8 w-8 shrink-0 items-center justify-center rounded-md bg-card text-primary">
+                        <Icon className="h-4 w-4" strokeWidth={2} />
                       </span>
                       <span className="min-w-0 flex-1">
                         <strong className="block text-sm font-bold text-foreground">{title}</strong>
-                        <span className="block text-[12px] leading-snug text-muted-foreground">
+                        <span className="block truncate text-xs leading-snug text-muted-foreground">
                           {desc}
                         </span>
                       </span>
@@ -317,9 +305,9 @@ export function SettingsView({
                   ),
               )}
             </div>
-          ))}
-        </div>
-      </Panel>
+          </div>
+        ))}
+      </div>
 
       <ConfirmDialog
         open={confirmingReset}
