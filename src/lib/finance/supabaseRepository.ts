@@ -137,9 +137,7 @@ export async function registerWithSupabase(input: AuthInput, inviteCode?: string
     options: {
       data: { display_name: input.name },
       emailRedirectTo:
-        typeof window === "undefined"
-          ? "https://assistente-fin.lovable.app"
-          : window.location.origin,
+        typeof window === "undefined" ? "https://aval-v1.vercel.app" : window.location.origin,
     },
   });
   throwIfError(error);
@@ -287,7 +285,7 @@ export async function loginWithGoogle(): Promise<void> {
     options: {
       redirectTo:
         typeof window === "undefined"
-          ? "https://assistente-fin.lovable.app/entrar"
+          ? "https://aval-v1.vercel.app/entrar"
           : `${window.location.origin}/entrar`,
     },
   });

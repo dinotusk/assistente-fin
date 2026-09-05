@@ -9,6 +9,5 @@ routeTree.gen.ts
 # Not part of this app's source — third-party tooling / platform-managed files
 ios
 native
-.lovable
 AGENTS.md
 supabase/.temp
