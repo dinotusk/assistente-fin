@@ -3,7 +3,7 @@
 // Painel can show the same "what needs attention" sentence without a second,
 // possibly-diverging copy of the same rules. These are pure functions, so
 // they're tested directly rather than through either UI.
-import { describe, expect, it } from "vitest";
+import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
 
 import { getMonthHeadline, getNextDueExpense } from "./calc";
 import type { Metrics } from "./calc";
@@ -42,6 +42,15 @@ function makeMetrics(overrides: Partial<Metrics> = {}): Metrics {
 const formatMoney = (value: number) => `R$ ${value.toFixed(2)}`;
 
 describe("getNextDueExpense", () => {
+  beforeEach(() => {
+    vi.useFakeTimers();
+    vi.setSystemTime(new Date(2026, 6, 11));
+  });
+
+  afterEach(() => {
+    vi.useRealTimers();
+  });
+
   it("returns null when there are no pending expenses", () => {
     expect(getNextDueExpense([makeExpense({ status: "Pago" })])).toBeNull();
   });
@@ -58,6 +67,25 @@ describe("getNextDueExpense", () => {
     const overdue = makeExpense({ dueDate: "2020-01-01" });
     const result = getNextDueExpense([overdue]);
     expect(result!.daysUntil).toBeLessThan(0);
+  });
+
+  it("falls back to the expense date when dueDate is missing", () => {
+    const byDate = makeExpense({
+      id: "dated",
+      date: "2026-08-01",
+      status: "A pagar",
+      dueDate: undefined,
+    });
+    const laterDue = makeExpense({
+      id: "later",
+      date: "2026-08-20",
+      dueDate: "2026-08-20",
+      status: "A pagar",
+    });
+
+    const result = getNextDueExpense([laterDue, byDate]);
+    expect(result?.expense.id).toBe("dated");
+    expect(result?.daysUntil).toBe(21);
   });
 });
 
